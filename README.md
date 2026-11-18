@@ -40,6 +40,7 @@ Desarrollada para una concesionaria y publicada como versión **white-label**: l
 - Packs de chances y oferta "Duplicá" editables por sorteo, con vista previa de lo que ve el comprador.
 - Recaudación, chances vendidas, compras, pendientes y compras para revisar.
 - Venta manual (efectivo o transferencia) con asignación de números en el acto.
+- **Participación gratuita** (sin obligación de compra): lista de participantes, anulación y activación por sorteo.
 - Estado del email de cada compra (enviado, pendiente, falló) y reenvío, incluso a una dirección corregida.
 - Carga del número ganador con los datos del comprador.
 - Exportación de compradores a CSV (Excel).
@@ -103,12 +104,16 @@ Para probar pagos se usan las **credenciales y usuarios de prueba** de Mercado P
 | POST | `/api/orders/:id/download-link` | Link de descarga nuevo del curso de una compra pagada |
 | POST | `/api/my-purchases/link` | Envía por email el link de acceso a "Mis compras" (responde igual exista o no el email) |
 | GET | `/api/my-purchases` | Compras acreditadas del dueño del link (header `Authorization: Bearer <token>`) |
+| POST | `/api/raffles/:id/free-entries` | Pide participar gratis (nombre, DNI, email, captcha); manda el link de confirmación |
+| POST | `/api/free-entries/confirm` | Confirma el email con el link y asigna el número |
 | GET | `/api/courses` | Cursos activos |
 | GET | `/api/courses/download?token=` | Descarga del PDF con link firmado y con vencimiento |
 | POST | `/api/webhooks/mercadopago` | Notificaciones de pago: asigna los números al aprobarse |
 | POST | `/api/admin/login` | Login del administrador (JWT) |
 | GET/PUT | `/api/admin/raffles/:id/packs` | Packs del sorteo y oferta "Duplicá" (alta, edición y baja en una transacción) |
 | GET/POST/PATCH/DELETE | `/api/admin/courses` | ABM de cursos con subida de PDF (`multipart/form-data`) |
+| GET | `/api/admin/raffles/:id/free-entries` | Participaciones gratuitas del sorteo |
+| POST | `/api/admin/free-entries/:id/void` | Anula una participación gratuita |
 | POST | `/api/admin/orders/manual` | Venta manual: asigna los números en el acto |
 | POST | `/api/admin/orders/:id/resend-email` | Reenvía el email de confirmación (opcional: a otra dirección) |
 | POST | `/api/admin/raffles/:id/winner` | Busca al dueño del número ganador |

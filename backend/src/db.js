@@ -21,6 +21,8 @@ const Raffle = sequelize.define('Raffle', {
     defaultValue: 'draft',
   },
   winnerNumber: DataTypes.INTEGER,
+  // Modalidad "sin obligación de compra": cualquiera puede sumarse gratis con 1 número por DNI
+  freeEntryEnabled: { type: DataTypes.BOOLEAN, defaultValue: true },
   // Oferta "Duplicá tus chances": se suma este precio por cada chance extra
   doubleEnabled: { type: DataTypes.BOOLEAN, defaultValue: false },
   doublePricePerChance: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
@@ -79,6 +81,34 @@ const Order = sequelize.define('Order', {
   mpStatusDetail: DataTypes.STRING,
 });
 
+// Participación gratuita: 1 número por DNI y por sorteo, asignado recién al confirmar el email.
+// Del IP y del dispositivo solo se guarda un hash: alcanza para limitar abusos sin conservar el dato.
+const FreeEntry = sequelize.define(
+  'FreeEntry',
+  {
+    name: { type: DataTypes.STRING, allowNull: false },
+    dni: { type: DataTypes.STRING, allowNull: false },
+    email: { type: DataTypes.STRING, allowNull: false },
+    status: { type: DataTypes.ENUM('unconfirmed', 'confirmed', 'void'), defaultValue: 'unconfirmed' },
+    tokenHash: DataTypes.STRING, // hash del link de confirmación (el link en sí solo viaja por email)
+    tokenExpiresAt: DataTypes.DATE,
+    ipHash: DataTypes.STRING,
+    deviceHash: DataTypes.STRING,
+    number: DataTypes.INTEGER,
+    confirmedAt: DataTypes.DATE,
+  },
+  {
+    indexes: [
+      { unique: true, fields: ['RaffleId', 'dni'] }, // 1 número por DNI y por sorteo, garantizado por la base
+      { fields: ['tokenHash'] },
+      { fields: ['RaffleId', 'ipHash'] },
+      { fields: ['RaffleId', 'deviceHash'] },
+    ],
+  }
+);
+Raffle.hasMany(FreeEntry);
+FreeEntry.belongsTo(Raffle);
+
 Raffle.hasMany(Order);
 Order.belongsTo(Raffle);
 
@@ -90,17 +120,19 @@ const Chance = sequelize.define(
     number: { type: DataTypes.INTEGER, allowNull: false },
     status: { type: DataTypes.ENUM('valid', 'void'), defaultValue: 'valid' },
   },
-  { indexes: [{ unique: true, fields: ['RaffleId', 'number'] }, { fields: ['OrderId'] }] }
+  { indexes: [{ unique: true, fields: ['RaffleId', 'number'] }, { fields: ['OrderId'] }, { fields: ['FreeEntryId'] }] }
 );
 
 Raffle.hasMany(Chance);
 Chance.belongsTo(Raffle);
 Order.hasMany(Chance);
 Chance.belongsTo(Order);
+FreeEntry.hasMany(Chance);
+Chance.belongsTo(FreeEntry);
 Course.hasMany(Order);
 Order.belongsTo(Course);
 
 Raffle.hasMany(Pack, { onDelete: 'CASCADE' });
 Pack.belongsTo(Raffle);
 
-module.exports = { sequelize, Raffle, Order, Course, Pack, Chance };
+module.exports = { sequelize, Raffle, Order, Course, Pack, Chance, FreeEntry };

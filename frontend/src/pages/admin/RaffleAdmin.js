@@ -7,6 +7,8 @@ import SalesProgress from '../../components/SalesProgress';
 
 const emailLabel = { none: 'Sin email', pending: 'Pendiente', sent: 'Enviado', failed: 'Falló' };
 
+const freeLabel = { unconfirmed: 'Sin confirmar', confirmed: 'Confirmada', void: 'Anulada' };
+
 const orderLabel = {
   pending: 'Pendiente', approved: 'Pagada', manual: 'Manual',
   rejected: 'Rechazada', needs_review: 'Revisar',
@@ -24,6 +26,7 @@ export default function RaffleAdmin() {
   const emptyManual = { chances: '', courseId: '', amount: '', name: '', phone: '', dni: '', email: '' };
   const [manual, setManual] = useState(emptyManual);
   const { data: courses } = useApi('/admin/courses', { auth: true });
+  const { data: freeList, reload: reloadFree } = useApi(`/admin/raffles/${id}/free-entries`, { auth: true });
   const [winnerInput, setWinnerInput] = useState('');
   const [winner, setWinner] = useState(null);
   const [confirming, setConfirming] = useState(false);
@@ -33,7 +36,7 @@ export default function RaffleAdmin() {
   const raffle = (raffles || []).find((r) => String(r.id) === id);
   if (!raffle) return <div className="container"><p className="muted">Cargando…</p></div>;
 
-  const refresh = () => { reloadRaffles(); reloadStats(); reloadOrders(); };
+  const refresh = () => { reloadRaffles(); reloadStats(); reloadOrders(); reloadFree(); };
   const run = async (fn, ok) => {
     setMsg(null);
     try {
@@ -45,6 +48,14 @@ export default function RaffleAdmin() {
       setMsg({ type: 'alert', text: e.message });
       return false;
     }
+  };
+
+  const toggleFree = () =>
+    run(() => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { freeEntryEnabled: !raffle.freeEntryEnabled } }),
+      raffle.freeEntryEnabled ? 'Participación gratuita desactivada' : 'Participación gratuita activada');
+  const voidFree = (f) => {
+    if (!window.confirm(`¿Anular la participación de ${f.name} (DNI ${f.dni})? Su número no se vuelve a usar.`)) return;
+    run(() => api(`/admin/free-entries/${f.id}/void`, { method: 'POST', auth: true }), 'Participación anulada');
   };
 
   const setM = (k) => (e) => setManual({ ...manual, [k]: e.target.value });
@@ -120,6 +131,7 @@ export default function RaffleAdmin() {
           {raffle.status === 'draft' && <button className="btn" onClick={() => setStatus('active')}>Publicar y abrir venta</button>}
           {raffle.status === 'active' && <button className="btn btn-ghost" onClick={() => setStatus('closed')}>Cerrar venta</button>}
           {raffle.status === 'closed' && <button className="btn btn-ghost" onClick={() => setStatus('active')}>Reabrir venta</button>}
+          <button className="btn btn-ghost" onClick={toggleFree}>{raffle.freeEntryEnabled ? 'Desactivar participación gratuita' : 'Activar participación gratuita'}</button>
           {raffle.status !== 'draft' && <Link className="btn btn-ghost" to={`/sorteo/${id}`} target="_blank">Ver página</Link>}
         </div>
       </div>
@@ -130,6 +142,7 @@ export default function RaffleAdmin() {
         <div className="card stat"><span>Recaudado</span><strong>{money(stats?.revenue || 0)}</strong></div>
         <div className="card stat"><span>Chances vendidas</span><strong>{(stats?.chancesSold || 0).toLocaleString('es-AR')}</strong></div>
         <div className="card stat"><span>Compras</span><strong>{stats?.purchases || 0}</strong></div>
+        <div className="card stat"><span>Participaciones gratuitas</span><strong>{stats?.freeEntries || 0}</strong></div>
         <div className="card stat"><span>Pendientes de pago</span><strong>{stats?.pending || 0}</strong></div>
         {stats?.review > 0 && <div className="card stat"><span>Para revisar</span><strong className="gold">{stats.review}</strong></div>}
       </div>
@@ -169,7 +182,8 @@ export default function RaffleAdmin() {
               <div className="small muted">Ganador del número {winner.number}</div>
               <div><strong>{winner.winner.name}</strong></div>
               <div>DNI {winner.winner.dni}</div>
-              <div>{winner.winner.phone}</div>
+              {winner.winner.phone && <div>{winner.winner.phone}</div>}
+              {winner.winner.source === 'free' && <div className="small muted">Participación gratuita: contactar por email y pedir el DNI</div>}
               <div>{winner.winner.email}</div>
             </div>
           )}
@@ -227,6 +241,26 @@ export default function RaffleAdmin() {
               </tr>
             ))}
             {orders && orders.length === 0 && <tr><td colSpan="8" className="muted">Sin compras.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <h3 className="mt-lg">Participaciones gratuitas</h3>
+      <p className="small muted">Sin obligación de compra: 1 número por DNI, asignado al confirmar el email. Si un DNI parece falso, podés anular la participación.</p>
+      <div className="table-wrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>Participante</th><th>Número</th><th>Estado</th><th /></tr></thead>
+          <tbody>
+            {(freeList || []).map((f) => (
+              <tr key={f.id}>
+                <td className="nowrap">{new Date(f.createdAt).toLocaleString('es-AR')}</td>
+                <td>{f.name}<div className="small muted">{f.email}</div><div className="small muted">DNI {f.dni}</div></td>
+                <td>{f.number || '-'}</td>
+                <td><span className={`status free-${f.status}`}>{freeLabel[f.status]}</span></td>
+                <td>{f.status !== 'void' && <button type="button" className="linklike small" onClick={() => voidFree(f)}>Anular</button>}</td>
+              </tr>
+            ))}
+            {freeList && freeList.length === 0 && <tr><td colSpan="5" className="muted">Todavía no hay participaciones gratuitas.</td></tr>}
           </tbody>
         </table>
       </div>

@@ -4,6 +4,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Unreleased]
 
+### Added
+- Participación gratuita "sin obligación de compra": formulario con nombre, DNI y email, 1 número por DNI y por sorteo, asignado recién al confirmar el email (#9).
+- Captcha Cloudflare Turnstile y límites por IP (configurable) y por dispositivo; del IP y del dispositivo solo se guarda un hash.
+- Panel: contador, listado y anulación de participaciones gratuitas, y botón para activar o desactivar la modalidad por sorteo.
+- Si sale una participación gratuita como ganadora, el panel la muestra (se contacta por email).
+- Aviso de la modalidad gratuita en la página de compra, el inicio y las bases del sorteo.
+
+### Changed
+- Las participaciones gratuitas no cuentan como chances vendidas ni como recaudación.
+
 ## [0.2.0] - 2026-11-18
 
 El comprador elige un curso y un pack de chances; los números se asignan solos al confirmarse el pago.
