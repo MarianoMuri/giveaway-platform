@@ -44,6 +44,9 @@ export default function Home() {
               <SalesProgress raffle={r} compact />
               <p className="small muted">Comprás un curso digital y te regalamos chances para el sorteo.</p>
               <Link to={`/sorteo/${r.id}`} className="btn btn-lg">Quiero participar</Link>
+              {r.freeEntryEnabled && (
+                <p className="small muted mt-sm">Sin obligación de compra: también podés <Link to={`/sorteo/${r.id}/participar-gratis`}>participar gratis</Link>.</p>
+              )}
               <div className="small muted mt">
                 {r.permitNumber && <>Autorización N° {r.permitNumber} · </>}
                 <Link to={`/sorteo/${r.id}/bases`}>Bases y condiciones</Link>

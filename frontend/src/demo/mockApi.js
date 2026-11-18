@@ -28,7 +28,7 @@ const db = {
       description: 'Sorteo en vivo por YouTube. Te llevás el auto patentado y listo para salir. ¡Participá desde cualquier lugar del país!',
       imageUrl: brand.logoUrl, chancesGoal: 10000, nextNumber: 100000,
       drawDate: (() => { const d = new Date(now() + 20 * DAY); d.setHours(21, 0, 0, 0); return d.toISOString(); })(), youtubeUrl: null,
-      permitNumber: 'DEMO-2026-001', status: 'active', winnerNumber: null, createdAt: iso(),
+      permitNumber: 'DEMO-2026-001', status: 'active', winnerNumber: null, freeEntryEnabled: true, createdAt: iso(),
       terms: 'DEMO: este texto es de ejemplo.\n\n1. Participan mayores de 18 años.\n2. Cada compra incluye un curso digital y chances de regalo.\n3. El sorteo se realiza en vivo por YouTube en la fecha indicada.\n4. El ganador será contactado por teléfono y email.',
     },
     {
@@ -42,6 +42,7 @@ const db = {
   ],
   chances: [], // { raffleId, number, orderId, status }
   orders: [],
+  freeEntries: [],
 };
 
 class Err { constructor(status, body) { this.status = status; this.body = body; } }
@@ -119,7 +120,7 @@ function assignNumbers(o) {
   for (let n = first; n < r.nextNumber; n++) db.chances.push({ raffleId: r.id, number: n, orderId: o.id, status: 'valid' });
   Object.assign(o, { firstNumber: first, lastNumber: r.nextNumber - 1 });
 }
-const chancesSold = (raffleId) => db.chances.filter((c) => c.raffleId === raffleId && c.status === 'valid').length;
+const chancesSold = (raffleId) => db.chances.filter((c) => c.raffleId === raffleId && c.status === 'valid' && c.orderId).length;
 const pub = (r) => {
   const { createdAt, nextNumber, ...rest } = r;
   const prices = packConfig(r.id).packs.map((p) => p.price);
@@ -219,6 +220,46 @@ const routes = [
         };
       });
   }],
+  // Participación gratuita: en la demo no se manda email, el link se abre desde la propia pantalla
+  ['POST', /^\/raffles\/(\d+)\/free-entries$/, ([id], b) => {
+    const r = raffleOr404(id);
+    if (r.status === 'draft') throw new Err(404, { error: 'Sorteo no encontrado' });
+    if (!r.freeEntryEnabled) throw new Err(409, { error: 'Este sorteo no tiene participación gratuita' });
+    if (r.status !== 'active') throw new Err(409, { error: 'La participación en este sorteo está cerrada' });
+    const dni = String(b.dni || '').replace(/\D/g, '');
+    if (String(b.name || '').trim().length < 3) throw new Err(400, { error: 'Ingresá tu nombre completo' });
+    if (dni.length < 7 || dni.length > 8) throw new Err(400, { error: 'El DNI no es válido' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(b.email || '').trim())) throw new Err(400, { error: 'Ingresá un email válido' });
+    const existing = db.freeEntries.find((f) => f.RaffleId === r.id && f.dni === dni);
+    if (existing && existing.status !== 'unconfirmed') throw new Err(409, { error: 'Ese DNI ya está participando en este sorteo' });
+    const token = `demo-${Math.random().toString(36).slice(2)}`;
+    const fields = { name: String(b.name).trim(), dni, email: String(b.email).trim().toLowerCase(), token, status: 'unconfirmed' };
+    if (existing) Object.assign(existing, fields);
+    else db.freeEntries.unshift({ id: `fe-${db.freeEntries.length + 1}`, RaffleId: r.id, number: null, createdAt: iso(), ...fields });
+    return { ok: true, demoToken: token };
+  }],
+  ['POST', /^\/free-entries\/confirm$/, (_, b) => {
+    const f = db.freeEntries.find((x) => x.token === b.token);
+    if (!f) throw new Err(404, { error: 'El link no es válido o ya fue reemplazado por uno más nuevo' });
+    const r = raffleOr404(f.RaffleId);
+    if (f.status === 'void') throw new Err(409, { error: 'Esta participación fue anulada' });
+    const already = f.status === 'confirmed';
+    if (!already) {
+      f.number = r.nextNumber++;
+      f.status = 'confirmed';
+      db.chances.push({ raffleId: r.id, number: f.number, freeEntryId: f.id, status: 'valid' });
+    }
+    return { number: f.number, already, name: f.name, raffle: { id: r.id, title: r.title, prize: r.prize, drawDate: r.drawDate, youtubeUrl: r.youtubeUrl } };
+  }],
+  ['GET', /^\/admin\/raffles\/(\d+)\/free-entries$/, ([id]) => db.freeEntries.filter((f) => f.RaffleId === raffleOr404(id).id)
+    .map(({ token, ...f }) => f)],
+  ['POST', /^\/admin\/free-entries\/([\w-]+)\/void$/, ([id]) => {
+    const f = db.freeEntries.find((x) => x.id === id);
+    if (!f) throw new Err(404, { error: 'Participación no encontrada' });
+    db.chances.filter((c) => c.freeEntryId === f.id).forEach((c) => { c.status = 'void'; });
+    f.status = 'void';
+    return { id: f.id, status: f.status };
+  }],
   ['POST', /^\/admin\/orders\/([\w-]+)\/resend-email$/, ([id], b) => {
     const o = orderOr404(id);
     if (!['approved', 'manual'].includes(o.status)) throw new Err(409, { error: 'Solo se reenvía el email de compras acreditadas' });
@@ -262,6 +303,10 @@ const routes = [
     if (!c) throw new Err(400, { error: 'Ese número no fue asignado en este sorteo' });
     if (c.status === 'void') throw new Err(409, { error: 'Ese número está anulado (compra reintegrada): sorteá de nuevo' });
     Object.assign(r, { winnerNumber: Number(b.number), status: 'drawn' });
+    if (c.freeEntryId) {
+      const f = db.freeEntries.find((x) => x.id === c.freeEntryId);
+      return { number: Number(b.number), winner: { name: f.name, phone: null, email: f.email, dni: f.dni, orderId: null, source: 'free' } };
+    }
     const o = orderOr404(c.orderId);
     return { number: Number(b.number), winner: { name: o.buyerName, phone: o.buyerPhone, email: o.buyerEmail, dni: o.buyerDni, orderId: o.id } };
   }],
@@ -272,6 +317,7 @@ const routes = [
     return {
       chancesSold: chancesSold(r.id), purchases: sold.length, pending: os.filter((o) => o.status === 'pending').length,
       review: os.filter((o) => o.status === 'needs_review').length, revenue: sold.reduce((a, o) => a + Number(o.amount), 0),
+      freeEntries: db.freeEntries.filter((f) => f.RaffleId === r.id && f.status === 'confirmed').length,
     };
   }],
   ['GET', /^\/admin\/orders$/, (_, __, q) => db.orders

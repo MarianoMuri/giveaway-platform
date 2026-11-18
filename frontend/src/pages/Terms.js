@@ -21,6 +21,13 @@ export default function Terms() {
             {p.double && <> (con "Duplicá": {p.double.chances} chances por {money(p.double.total)})</>}
           </li>
         ))}
+        {r.freeEntryEnabled && (
+          <li>
+            <strong>Sin obligación de compra:</strong> también se puede participar gratis, con 1 número por DNI y por sorteo,
+            desde <Link to={`/sorteo/${id}/participar-gratis`}>la página de participación gratuita</Link>. El número se asigna al confirmar el email
+            y tiene las mismas posibilidades que los demás.
+          </li>
+        )}
         <li>Los números se asignan de forma automática y consecutiva al acreditarse el pago, empezando por el 100000.</li>
         <li>Fecha del sorteo: {dateTime(r.drawDate)}</li>
         {r.permitNumber && <li>Autorización N° {r.permitNumber}</li>}

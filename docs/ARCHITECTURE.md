@@ -59,6 +59,12 @@ sequenceDiagram
 | Respuesta idéntica exista o no el email | Evita que alguien averigüe quién compró probando direcciones (anti-enumeración). |
 | Token con propósito propio (`my-purchases`) y vencimiento de 30 min | Un link de descarga o un token de admin no abre las compras, y uno robado vence rápido. El token viaja en el header, no en la URL de la API, y el frontend lo saca de la barra de direcciones apenas lo lee. |
 | Un pedido de link por email por minuto, más límite por IP | Impide usar el sistema para llenar de mails la casilla de otra persona. Hoy el control por email vive en memoria; con varias instancias se mueve a la base o a Redis. |
+| Participación gratuita en su propia tabla (`FreeEntry`) | Tiene reglas distintas a una compra (DNI único, confirmación por email, anulación) y no debe mezclarse con ventas ni recaudación. Comparte el contador de números del sorteo, así que nunca repite un número. |
+| Índice único `(RaffleId, DNI)` | "1 número por DNI" lo garantiza la base, aunque dos pedidos lleguen a la vez. |
+| El número se asigna al confirmar el email, no al pedirlo | Hasta confirmar no se reserva nada: nadie puede "ocupar" el DNI de otro. Un pedido nuevo con el mismo DNI pisa al anterior sin confirmar. |
+| Link de confirmación guardado solo como hash | Si se filtra la base, no se pueden confirmar participaciones ajenas. |
+| Captcha, límite por IP y por dispositivo, con hashes | El captcha frena bots; el límite por IP es configurable porque muchas personas comparten conexión (datos móviles); el dispositivo es un identificador del navegador y se puede borrar, por eso no es la defensa principal. Se guarda un hash, no el dato (datos personales). |
+| Límite conocido: el DNI no se verifica en línea | Alguien puede usar un DNI ajeno. Se mitiga con el captcha, los límites, la anulación desde el panel y la acreditación de identidad del ganador al entregar el premio. |
 | Total calculado en el backend, en centavos enteros | El total que se cobra nunca depende del navegador, y no hay errores de coma flotante. |
 | Ahorro calculado contra el pack más chico | Se muestra un ahorro real (precio por chance), no precios "antes" inventados. |
 | Packs que conservan su id al editarse | Las compras los referencian; se actualizan, crean y borran dentro de una transacción. |
