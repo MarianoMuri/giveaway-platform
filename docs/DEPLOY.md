@@ -54,6 +54,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 | `MP_ACCESS_TOKEN` | credencial de Mercado Pago |
 | `MP_WEBHOOK_SECRET` | clave secreta del webhook |
 | `SMTP_URL` / `MAIL_FROM` / `MAIL_REPLY_TO` | datos del proveedor de emails |
+| `ALERT_EMAILS` | (opcional) a quién avisar si se cae la conexión con Mercado Pago, separados por coma; por defecto, `ADMIN_EMAIL` |
 | `TURNSTILE_SECRET` | clave secreta de Turnstile |
 | `STORAGE_DIR` | `/data/storage` |
 | `BRAND_NAME`, `BRAND_COLOR`, `BRAND_LOGO_URL`, `BRAND_WHATSAPP_URL` | marca del cliente en los emails |
@@ -102,6 +103,7 @@ Las variables `REACT_APP_*` se incorporan al compilar: si se cambian, hay que vo
 - [ ] Participación gratuita: llega el email de confirmación y se asigna el número
 - [ ] Un reintegro desde Mercado Pago anula la compra en el panel
 - [ ] El botón "Consultar" del sorteo responde sin errores
+- [ ] El panel muestra "Conexión con Mercado Pago: OK" y el email de alerta llega (probar con una credencial equivocada en el entorno de pruebas)
 - [ ] Cambiar el deploy a credenciales de **producción** de Mercado Pago, quitar `ALLOW_MP_TEST`, y hacer una compra real de monto mínimo
 - [ ] Backup de la base verificado (ver abajo) y volumen de PDF montado
 

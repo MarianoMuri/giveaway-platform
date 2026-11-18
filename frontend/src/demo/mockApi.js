@@ -366,6 +366,8 @@ const routes = [
     if (b.email === 'demo@demo.com' && b.password === 'demo') return { token: 'demo-token' };
     throw new Err(401, { error: 'Credenciales inválidas (usá demo@demo.com / demo)' });
   }],
+  ['GET', /^\/admin\/mp-status$/, () => ({ status: 'ok', reason: null, checkedAt: new Date(now() - 2 * 60 * 1000).toISOString(), since: null, consecutiveFailures: 0 })],
+  ['POST', /^\/admin\/mp-status\/check$/, () => ({ status: 'ok', reason: null, checkedAt: new Date(now()).toISOString(), since: null, consecutiveFailures: 0 })],
   ['GET', /^\/admin\/raffles$/, () => [...db.raffles].sort((a, b) => b.createdAt.localeCompare(a.createdAt))],
   ['POST', /^\/admin\/raffles$/, (_, b) => {
     if (!String(b.title || '').trim() || !String(b.prize || '').trim()) throw new Err(400, { error: 'El título y el premio son obligatorios' });

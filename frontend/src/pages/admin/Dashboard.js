@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApi } from '../../hooks';
 import { api, dateShort, setToken } from '../../api';
+import MpStatus from '../../components/MpStatus';
 
 const statusLabel = { draft: 'Borrador', active: 'A la venta', closed: 'Venta cerrada', drawn: 'Sorteado' };
 const empty = { title: '', prize: '', description: '', imageUrl: '', chancesGoal: '', drawDate: '', salesCloseAt: '', youtubeUrl: '', permitNumber: '', terms: '' };
@@ -47,6 +48,8 @@ export default function Dashboard() {
           <button className="btn btn-ghost" onClick={() => { setToken(null); nav('/admin/login'); }}>Salir</button>
         </div>
       </div>
+
+      <MpStatus />
 
       {creating && (
         <form className="card form-grid" onSubmit={create}>

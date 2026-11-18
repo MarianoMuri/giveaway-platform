@@ -46,6 +46,12 @@ const mp = {
     return (r.results || []).map((p) => ({ id: String(p.id), status: p.status }));
   },
 
+  // Llamada barata y autenticada (lista 1 pago): si las credenciales están mal o Mercado Pago no
+  // responde, falla. La usa el monitor de conexión.
+  async ping() {
+    await new Payment(getClient()).search({ options: { limit: 1 } });
+  },
+
   async getPayment(paymentId) {
     const p = await new Payment(getClient()).get({ id: paymentId });
     return {

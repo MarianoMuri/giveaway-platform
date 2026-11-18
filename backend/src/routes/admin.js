@@ -12,6 +12,7 @@ const readiness = require('../services/readiness');
 const freeEntries = require('../services/freeEntries');
 const { search } = require('../services/search');
 const audit = require('../services/audit');
+const mpHealth = require('../services/mpHealth');
 const draw = require('../services/draw');
 const { AuditLog } = require('../db');
 
@@ -88,6 +89,10 @@ router.post('/raffles/:id/draw', wrap(async (req, res) => {
 router.get('/raffles/:id/draws', wrap(async (req, res) => {
   res.json(await draw.listDraws(req.params.id));
 }));
+
+// Estado de la conexión con Mercado Pago (lo mantiene el monitor). POST fuerza un chequeo ahora.
+router.get('/mp-status', (req, res) => res.json(mpHealth.getStatus()));
+router.post('/mp-status/check', wrap(async (req, res) => res.json(await mpHealth.check())));
 
 // Registro de auditoría (solo lectura): lo más reciente primero
 router.get('/audit', wrap(async (req, res) => {
