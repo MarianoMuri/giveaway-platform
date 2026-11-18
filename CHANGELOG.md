@@ -4,22 +4,28 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-18
+
+Base lista para producción: migraciones, alertas, envío de emails y exportación que escalan, y guía de deploy.
+
 ### Added
-- Exportación del listado completo en streaming (#34): se lee la base por tandas (`EXPORT_BATCH_SIZE`, 2.000 por defecto) con paginación por cursor y cada tanda se escribe a medida que está lista, así la memoria del servidor no crece con el tamaño del sorteo. Sigue siendo un solo archivo con compras, anuladas y participaciones gratuitas, con las fórmulas neutralizadas. Si el cliente corta la descarga se deja de leer; si falla a mitad, se corta la conexión en vez de entregar un archivo truncado que parezca completo.
+- Migraciones de base de datos con `sequelize-cli` (#13): esquema inicial (v0.2.0) y migración del Sprint 2, para actualizar una base con datos sin perderlos. Comandos `npm run migrate`, `migrate:status`, `migrate:undo` y `seed` (sorteo demo de desarrollo). Un test compara el esquema de las migraciones con el de los modelos, prueba migrar con datos existentes y deshacer cada migración.
+- Alerta de conexión con Mercado Pago (#15): el servidor verifica las credenciales cada 5 minutos con una llamada autenticada; si falla dos veces seguidas la marca como caída, avisa por email al administrador (o a `ALERT_EMAILS`), recuerda cada 6 horas y avisa al recuperarse. El panel muestra "Conexión con Mercado Pago: OK / CAÍDA" con el motivo y un botón "Verificar ahora".
 - Envío de emails para alto volumen (#22): el worker toma los pendientes por lotes, con envíos en paralelo, conexiones SMTP reutilizadas y un límite de mails por segundo configurable (`EMAIL_RATE_PER_SEC`). Puede correr como servicio aparte (`npm run worker`) para que un pico de compras no afecte al sitio; con cola larga, el envío inmediato se deja para el worker. Ningún mail se envía dos veces.
 - Botón "Reenviar todos los fallidos" en el panel, con el aviso de cuántos emails fallaron y cuántos están en cola.
 - Guía `docs/EMAIL.md`: cómo funciona el envío, autenticación del dominio (SPF, DKIM, DMARC), calentamiento del dominio y qué vigilar.
-- Alerta de conexión con Mercado Pago (#15): el servidor verifica las credenciales cada 5 minutos con una llamada autenticada; si falla dos veces seguidas la marca como caída, avisa por email al administrador (o a `ALERT_EMAILS`), recuerda cada 6 horas y avisa al recuperarse. El panel muestra "Conexión con Mercado Pago: OK / CAÍDA" con el motivo y un botón "Verificar ahora".
-- Guía de deploy (`docs/DEPLOY.md`) y configuración para Railway (`backend/railway.json`: build con Docker, migración antes de cada deploy, chequeo de salud y reinicios) y Netlify (`frontend/netlify.toml`: build, rutas de la app y cabeceras de seguridad) (#14).
+- Exportación del listado completo en streaming (#34): se lee la base por tandas (`EXPORT_BATCH_SIZE`, 2.000 por defecto) con paginación por cursor y cada tanda se escribe a medida que está lista, así la memoria del servidor no crece con el tamaño del sorteo (200.000 compras: +12 MB). Sigue siendo un solo archivo con compras, anuladas y participaciones gratuitas, con las fórmulas neutralizadas. Si el cliente corta la descarga se deja de leer; si falla a mitad, se corta la conexión en vez de entregar un archivo truncado que parezca completo.
+- Preparación del deploy (parte de #14; el deploy real queda pendiente de las cuentas y datos del cliente): guía `docs/DEPLOY.md`, configuración para Railway (`backend/railway.json` y `backend/railway.worker.json`: build con Docker, migración antes de cada deploy, chequeo de salud y reinicios) y Netlify (`frontend/netlify.toml`: build, rutas de la app y cabeceras de seguridad).
 - Chequeo de configuración al arrancar en producción: la API no inicia si falta una variable importante o si quedan valores de ejemplo, y lista todo lo que falta.
-- Migraciones de base de datos con `sequelize-cli` (#13): esquema inicial (v0.2.0) y migración del Sprint 2, para actualizar una base con datos sin perderlos. Comandos `npm run migrate`, `migrate:status`, `migrate:undo` y `seed` (sorteo demo de desarrollo).
-- Test que compara el esquema de las migraciones con el de los modelos, prueba migrar con datos existentes y deshacer cada migración.
 
 ### Changed
-- `GET /api/health` verifica la conexión a la base y responde 503 si falla.
-- Corregido el `.env.example` (un comentario de Turnstile había quedado mezclado con otra variable) y agregada la clave pública de Turnstile al del frontend.
 - Con PostgreSQL la API ya no usa `sync()`: no arranca si faltan migraciones y avisa cuál correr. Sin `DATABASE_URL` (SQLite) sigue creando el esquema sola.
+- `GET /api/health` verifica la conexión a la base y responde 503 si falla.
 - `docker compose` aplica las migraciones antes de iniciar la API.
+
+### Fixed
+- El registro de auditoría podía no mostrar la última acción si se leía de inmediato (se escribe después de enviar la respuesta); ahora la lectura espera las escrituras en curso.
+- `.env.example`: un comentario de Turnstile había quedado mezclado con otra variable; se agregó la clave pública de Turnstile al del frontend.
 
 ## [0.3.0] - 2026-11-18
 

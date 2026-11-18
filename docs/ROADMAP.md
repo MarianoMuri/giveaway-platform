@@ -28,7 +28,7 @@ Sprints de 1 semana. Cada ítem es un issue en GitHub, agrupado en un milestone.
 - [x] #11 Buscador de números y participantes en el panel
 - [x] #12 Sorteo en vivo con registro de auditoría
 
-## Sprint 3 · Producción — `v1.0.0`
+## Sprint 3 · Producción — `v0.4.0` (código) y `v1.0.0` (en producción)
 
 - [x] #13 Migraciones de base de datos con `sequelize-cli`
 - [ ] #14 Deploy en Railway y Netlify con dominio propio
