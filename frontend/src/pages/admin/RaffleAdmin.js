@@ -94,7 +94,17 @@ export default function RaffleAdmin() {
   };
 
   const setStatus = (status) =>
-    run(() => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { status } }), 'Estado actualizado');
+    run(() => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { status } }), status === 'closed' ? 'Venta deshabilitada' : 'Estado actualizado');
+
+  // La fecha de cierre ya pasó: para volver a vender hay que quitarla (o poner una nueva)
+  const saleClosedByDate = raffle.status === 'active' && raffle.salesCloseAt && new Date(raffle.salesCloseAt) <= new Date();
+  const enableSales = () => {
+    if (saleClosedByDate && !window.confirm(`La fecha de cierre (${dateTime(raffle.salesCloseAt)}) ya pasó. Para habilitar la venta se va a quitar esa fecha. Podés poner una nueva después. ¿Continuar?`)) return;
+    return run(
+      () => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { status: 'active', ...(saleClosedByDate ? { salesCloseAt: null } : {}) } }),
+      'Venta habilitada'
+    );
+  };
 
   const saveCloseAt = (e) => {
     e.preventDefault();
@@ -178,12 +188,19 @@ export default function RaffleAdmin() {
         </div>
         <div className="row">
           {raffle.status === 'draft' && <button className="btn" onClick={() => setStatus('active')}>Publicar y abrir venta</button>}
-          {raffle.status === 'active' && <button className="btn btn-ghost" onClick={() => setStatus('closed')}>Cerrar venta</button>}
-          {raffle.status === 'closed' && <button className="btn btn-ghost" onClick={() => setStatus('active')}>Reabrir venta</button>}
+          {raffle.status === 'active' && !saleClosedByDate && <button className="btn btn-ghost" onClick={() => setStatus('closed')}>Deshabilitar venta</button>}
+          {(raffle.status === 'closed' || saleClosedByDate) && <button className="btn btn-ghost" onClick={enableSales}>Habilitar venta</button>}
           <button className="btn btn-ghost" onClick={toggleFree}>{raffle.freeEntryEnabled ? 'Desactivar participación gratuita' : 'Activar participación gratuita'}</button>
           {raffle.status !== 'draft' && <Link className="btn btn-ghost" to={`/sorteo/${id}`} target="_blank">Ver página</Link>}
         </div>
       </div>
+
+      {raffle.status !== 'draft' && raffle.status !== 'drawn' && (
+        <p className={`small ${saleClosedByDate || raffle.status === 'closed' ? 'muted' : 'ok'}`}>
+          Venta: <strong>{raffle.status === 'active' && !saleClosedByDate ? 'habilitada' : 'deshabilitada'}</strong>
+          {saleClosedByDate ? ` (cerró el ${dateTime(raffle.salesCloseAt)})` : ''}
+        </p>
+      )}
 
       {msg && <p className={msg.type}>{msg.text}</p>}
 

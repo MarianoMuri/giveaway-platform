@@ -60,6 +60,7 @@ router.patch('/raffles/:id', wrap(async (req, res) => {
   if (changes.status && !['draft', 'active', 'closed'].includes(changes.status)) {
     throw new HttpError(400, 'Estado inválido'); // "drawn" solo se pone al cargar el ganador
   }
+  if (changes.status && raffle.status === 'drawn') throw new HttpError(409, 'El sorteo ya se realizó: no se puede cambiar el estado de la venta');
   res.json(await raffle.update(changes));
 }));
 

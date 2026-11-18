@@ -182,3 +182,28 @@ test('el resumen cuenta las chances válidas pagas y gratuitas', async () => {
   assert.equal(res.body.validChances, total);
   assert.equal(res.body.paidChances + res.body.freeChances, total);
 });
+
+test('el administrador puede deshabilitar y volver a habilitar la venta a mano', async () => {
+  const off = await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'closed' });
+  assert.equal(off.status, 200);
+  await assert.rejects(purchase(), /no está a la venta/);
+  assert.equal((await request(app).get(`/api/raffles/${raffleId}`)).body.salesOpen, false);
+  const on = await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active' });
+  assert.equal(on.status, 200);
+  await assert.doesNotReject(purchase());
+});
+
+test('si la fecha de cierre ya pasó, habilitar la venta exige quitar o mover la fecha', async () => {
+  await setRaffle({ salesCloseAt: past() });
+  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active' });
+  assert.equal((await request(app).get(`/api/raffles/${raffleId}`)).body.salesOpen, false); // sigue cerrada por la fecha
+  const on = await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active', salesCloseAt: null });
+  assert.equal(on.body.salesCloseAt, null);
+  assert.equal((await request(app).get(`/api/raffles/${raffleId}`)).body.salesOpen, true);
+});
+
+test('un sorteo ya sorteado no se puede reabrir', async () => {
+  await setRaffle({ status: 'drawn' });
+  const res = await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active' });
+  assert.equal(res.status, 409);
+});
