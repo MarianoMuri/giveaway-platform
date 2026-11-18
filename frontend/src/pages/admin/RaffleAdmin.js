@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApi } from '../../hooks';
-import { api, money, DEMO } from '../../api';
+import { api, money, DEMO, numbersLabel } from '../../api';
 import { PromoEditor, cleanPromos } from '../../components/Promos';
 import PackEditor from '../../components/PackEditor';
 
@@ -188,7 +188,7 @@ export default function RaffleAdmin() {
                 <td>{o.buyerName}<div className="small muted">{o.buyerEmail}</div></td>
                 <td>{o.buyerDni}</td>
                 <td>{o.buyerPhone}</td>
-                <td>{o.numbers.join(', ')}</td>
+                <td>{numbersLabel(o)}{o.chances ? <div className="small muted">{o.chances} chances{o.double ? ' (Duplicá)' : ''}</div> : null}</td>
                 <td>{money(o.amount)}</td>
                 <td><span className={`status o-${o.status}`}>{orderLabel[o.status]}</span>{o.mpStatusDetail && o.status === 'needs_review' && <div className="small muted">{o.mpStatusDetail}</div>}</td>
                 <td className="small">{o.mpPaymentId || '-'}</td>
