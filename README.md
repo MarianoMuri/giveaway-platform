@@ -29,6 +29,7 @@ Desarrollada para una concesionaria y publicada como versión **white-label**: l
 - Oferta **"Duplicá tus chances"**: el doble de chances pagando un extra por chance.
 - Paga con Mercado Pago Checkout Pro (también en efectivo, porque no hay reserva que pueda vencer).
 - Recibe sus números **consecutivos** (desde el 100000) apenas se acredita el pago, en una página que funciona como comprobante.
+- Le llega un **email de confirmación** con sus números, el botón para descargar el curso y los datos del sorteo. Desde su compra puede volver a descargarlo cuando quiera.
 - Barra de progreso de chances vendidas y bases y condiciones con los precios de cada pack.
 - Página de links para la bio de Instagram, con el sorteo activo y las redes.
 
@@ -37,6 +38,7 @@ Desarrollada para una concesionaria y publicada como versión **white-label**: l
 - Packs de chances y oferta "Duplicá" editables por sorteo, con vista previa de lo que ve el comprador.
 - Recaudación, chances vendidas, compras, pendientes y compras para revisar.
 - Venta manual (efectivo o transferencia) con asignación de números en el acto.
+- Estado del email de cada compra (enviado, pendiente, falló) y reenvío, incluso a una dirección corregida.
 - Carga del número ganador con los datos del comprador.
 - Exportación de compradores a CSV (Excel).
 
@@ -44,6 +46,7 @@ Desarrollada para una concesionaria y publicada como versión **white-label**: l
 
 - **Números sin duplicados aunque los pagos lleguen a la vez:** cada sorteo tiene un contador que se incrementa con un único `UPDATE … RETURNING` atómico, más un índice único `(sorteo, número)` como red de seguridad. Probado con pagos simultáneos contra **PostgreSQL real en el CI**.
 - **Webhook seguro e idempotente:** valida la firma `x-signature` de Mercado Pago, consulta el pago a la API (no confía en el aviso), controla el monto y bloquea la orden (`FOR UPDATE`). Avisos repetidos no asignan números de nuevo.
+- **Emails con patrón outbox:** el mail queda pendiente en la misma transacción que aprueba el pago, se envía después del commit y se reintenta con espera creciente si el proveedor falla. Un `UPDATE` condicional evita mandarlo dos veces.
 - **El total lo calcula siempre el backend**, en centavos enteros. El frontend solo muestra lo que devuelve la API.
 - **Archivos seguros:** el PDF se valida por contenido (magic bytes), se guarda fuera del repo detrás de una interfaz intercambiable (disco hoy, S3/R2 después) y se descarga con un JWT de propósito único que vence.
 - **Modo demo:** una API simulada dentro del navegador permite mostrar el producto completo sin servidor.
@@ -56,6 +59,7 @@ Más detalle en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 |---|---|
 | Backend | Node.js 22, Express 5, Sequelize, PostgreSQL, JWT, bcrypt, Helmet, rate limiting |
 | Pagos | Mercado Pago Checkout Pro + Webhooks |
+| Email | Nodemailer (SMTP: Resend, Brevo, etc.) |
 | Frontend | React 18 (Create React App), React Router |
 | Tests | `node:test` + Supertest, con SQLite en memoria y PostgreSQL 16 en el CI |
 | Infra | Docker, Docker Compose, GitHub Actions |
@@ -94,6 +98,7 @@ Para probar pagos se usan las **credenciales y usuarios de prueba** de Mercado P
 | POST | `/api/raffles/:id/quote` | Cotización de una compra (`packId`, `double`) |
 | POST | `/api/raffles/:id/purchases` | Compra de curso + pack (`courseId`, `packId`, `double`, `buyer`): devuelve el link de pago |
 | GET | `/api/orders/:id` | Estado de una compra y números asignados |
+| POST | `/api/orders/:id/download-link` | Link de descarga nuevo del curso de una compra pagada |
 | GET | `/api/courses` | Cursos activos |
 | GET | `/api/courses/download?token=` | Descarga del PDF con link firmado y con vencimiento |
 | POST | `/api/webhooks/mercadopago` | Notificaciones de pago: asigna los números al aprobarse |
@@ -101,6 +106,7 @@ Para probar pagos se usan las **credenciales y usuarios de prueba** de Mercado P
 | GET/PUT | `/api/admin/raffles/:id/packs` | Packs del sorteo y oferta "Duplicá" (alta, edición y baja en una transacción) |
 | GET/POST/PATCH/DELETE | `/api/admin/courses` | ABM de cursos con subida de PDF (`multipart/form-data`) |
 | POST | `/api/admin/orders/manual` | Venta manual: asigna los números en el acto |
+| POST | `/api/admin/orders/:id/resend-email` | Reenvía el email de confirmación (opcional: a otra dirección) |
 | POST | `/api/admin/raffles/:id/winner` | Busca al dueño del número ganador |
 | … | `/api/admin/*` | Sorteos, estadísticas, compras, exportación CSV |
 

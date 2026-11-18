@@ -35,7 +35,8 @@ sequenceDiagram
   API->>MP: GET /payments/:id (no confía en el aviso)
   API->>DB: Bloquea la orden (FOR UPDATE) y valida el monto
   API->>DB: UPDATE nextNumber = nextNumber + N RETURNING (bloque consecutivo)
-  API->>DB: Inserta las chances y aprueba la orden
+  API->>DB: Inserta las chances, aprueba la orden y deja el email pendiente (outbox)
+  API-->>C: Email con números y link de descarga (después del commit)
   MP-->>W: Vuelve a /compra/:id
   W->>API: GET /api/orders/:id (polling hasta ver los números)
 ```
@@ -51,6 +52,9 @@ sequenceDiagram
 | Consultar el pago a Mercado Pago en el webhook | El cuerpo del aviso no es confiable; se valida firma, estado y monto contra la API. |
 | Webhook idempotente con la orden bloqueada | Mercado Pago reintenta avisos; procesar dos veces el mismo pago no asigna números de nuevo. |
 | Estado `needs_review` | Pagos con un monto distinto al de la orden quedan para revisión manual y reintegro. |
+| Email con patrón outbox | El mail se marca pendiente en la transacción que aprueba el pago: si el servidor se cae, no se pierde. El envío ocurre después del commit, así el webhook responde rápido y un SMTP caído no rompe la compra. |
+| Reintentos con espera creciente (1, 5, 15, 60 y 360 min) | Un proveedor caído un rato no deja compradores sin su comprobante; después de 6 intentos queda "falló" para reenviar desde el panel. |
+| "Claim" con `UPDATE` condicional antes de enviar | Si el envío inmediato y el proceso periódico coinciden, solo uno manda el mail. |
 | Total calculado en el backend, en centavos enteros | El total que se cobra nunca depende del navegador, y no hay errores de coma flotante. |
 | Ahorro calculado contra el pack más chico | Se muestra un ahorro real (precio por chance), no precios "antes" inventados. |
 | Packs que conservan su id al editarse | Las compras los referencian; se actualizan, crean y borran dentro de una transacción. |
@@ -73,6 +77,9 @@ backend/
       numbers.js         asignación de números consecutivos
       orders.js          sorteos, webhook, venta manual, ganador, estadísticas
       courses.js         cursos y links de descarga firmados
+      emails.js          envío del email de confirmación (outbox + reintentos)
+      emailTemplates.js  plantilla HTML responsive
+      mailer.js          transporte SMTP (o consola en desarrollo)
       storage.js         almacenamiento de archivos (disco hoy, S3/R2 después)
       mercadopago.js     preferencia, consulta de pago, firma del webhook
   test/                  tests de integración (node:test + supertest)

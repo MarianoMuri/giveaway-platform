@@ -22,6 +22,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - Pantalla de confirmación con los números asignados.
 - Venta manual por cantidad de chances, con asignación de números en el acto.
 - Meta de chances opcional por sorteo para la barra de progreso.
+- Email de confirmación con los números, el link de descarga del curso, el monto y el código de compra (#7).
+- Envío con patrón outbox: reintentos con espera creciente y estado del envío en cada compra.
+- Reenvío del email desde el panel, opcionalmente a una dirección corregida.
+- Botón "Descargar el curso" en la página de la compra, que genera un link nuevo cada vez.
 
 ### Changed
 - Un curso con compras no se puede eliminar: se desactiva.
