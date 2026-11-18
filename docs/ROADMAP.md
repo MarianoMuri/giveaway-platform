@@ -25,7 +25,7 @@ Sprints de 1 semana. Cada ítem es un issue en GitHub, agrupado en un milestone.
 - [x] #9 Participación gratuita "sin obligación de compra"
 - [x] #28 Fecha de cierre de ventas y control previo al sorteo
 - [x] #10 Contracargos y devoluciones anulan los números
-- [ ] #11 Buscador de números y participantes en el panel
+- [x] #11 Buscador de números y participantes en el panel
 - [ ] #12 Sorteo en vivo con registro de auditoría
 
 ## Sprint 3 · Producción — `v1.0.0`

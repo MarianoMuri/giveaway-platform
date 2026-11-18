@@ -5,6 +5,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ## [Unreleased]
 
 ### Added
+- Buscador del panel (#11): por número exacto, DNI, email o nombre; muestra la ficha de cada compra con el número de operación de Mercado Pago, estado, números (tachados si están anulados con fecha y motivo) e historial. Los números anulados también se encuentran.
+- La exportación a Excel pasa a ser el listado completo del sorteo: compras (con las anuladas y su motivo) y participaciones gratuitas.
 - Fecha de cierre de ventas por sorteo (#28): al llegar, no se compran más chances ni se suman participaciones gratuitas; las compras iniciadas antes y acreditadas después se respetan. La página pública muestra hasta cuándo se puede participar.
 - Botón "Consultar" antes del sorteo: pregunta a Mercado Pago por las compras sin pago registrado, carga las que faltaban y resume pagos en proceso, compras a revisar y total de chances válidas (pagas y gratuitas).
 - El ganador solo se puede cargar con la venta cerrada.
@@ -19,6 +21,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - Aviso de la modalidad gratuita en la página de compra, el inicio y las bases del sorteo.
 
 ### Changed
+- El CSV neutraliza celdas que empiezan con `=`, `+` o `@` (nombres y emails los escribe el público y Excel los abriría como fórmulas).
 - Las compras anuladas no cuentan en chances vendidas ni recaudación, y la exportación CSV las incluye con su estado.
 - Las participaciones gratuitas no cuentan como chances vendidas ni como recaudación.
 
