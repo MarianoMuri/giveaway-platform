@@ -19,11 +19,9 @@ module.exports = {
   },
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
   publicApiUrl: process.env.PUBLIC_API_URL || 'http://localhost:4000',
-  reservationMinutes: Number(process.env.RESERVATION_MINUTES || 15),
   storageDir: process.env.STORAGE_DIR || './storage',
   maxPdfMb: Number(process.env.MAX_PDF_MB || 20),
   downloadLinkHours: Number(process.env.DOWNLOAD_LINK_HOURS || 72),
-  maxNumbersPerOrder: Number(process.env.MAX_NUMBERS_PER_ORDER || 50),
   mp: {
     accessToken: required('MP_ACCESS_TOKEN'),
     webhookSecret: process.env.MP_WEBHOOK_SECRET, // "Clave secreta" del panel de Webhooks de MP

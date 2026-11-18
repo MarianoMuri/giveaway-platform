@@ -6,14 +6,16 @@
 ![PostgreSQL](https://img.shields.io/badge/postgresql-16-4169E1?logo=postgresql&logoColor=white)
 ![Mercado Pago](https://img.shields.io/badge/pagos-Mercado%20Pago-00B1EA)
 
-Plataforma web para organizar **sorteos en vivo de autos 0km**: los participantes eligen sus números (o una promo por cantidad), pagan con **Mercado Pago** y siguen el sorteo por YouTube. El organizador administra todo desde un panel: sorteos, ventas, ventas manuales, número ganador y exportación de compradores.
+Plataforma web para organizar **sorteos en vivo de autos 0km** con un modelo de **venta de cursos digitales**: el participante compra un curso y recibe chances de regalo para el sorteo. Paga con **Mercado Pago**, recibe sus números automáticamente al acreditarse el pago y sigue el sorteo por YouTube. El organizador administra todo desde un panel: cursos, packs de chances, ventas, ventas manuales, número ganador y exportación de compradores.
 
 Desarrollada para una concesionaria y publicada como versión **white-label**: la marca de cada cliente (nombre, logo, colores, redes) se configura en un solo archivo y queda fuera del repositorio.
 
 <p align="center">
-  <img src="docs/screenshots/home-mobile.png" width="240" alt="Landing en celular" />
+  <img src="docs/screenshots/home-mobile.png" width="220" alt="Landing en celular" />
   &nbsp;
-  <img src="docs/screenshots/seleccion-promo-mobile.png" width="240" alt="Selección guiada por promo" />
+  <img src="docs/screenshots/compra-mobile.png" width="220" alt="Elección de pack y oferta Duplicá" />
+  &nbsp;
+  <img src="docs/screenshots/confirmacion-mobile.png" width="220" alt="Confirmación con los números asignados" />
 </p>
 
 <p align="center">
@@ -23,26 +25,27 @@ Desarrollada para una concesionaria y publicada como versión **white-label**: l
 ## Funcionalidades
 
 **Para el participante**
-- Grilla de números en tiempo real (libres, reservados, vendidos), búsqueda y elección al azar.
-- **Promos por cantidad** (ej. 1 × $10.000, 2 × $15.000, 5 × $30.000): al elegir una promo, el sistema guía la selección con un contador y lleva al pago al completar.
-- Siempre cobra la combinación más barata de promos y muestra el ahorro.
-- Pago con Mercado Pago Checkout Pro y página de estado de la compra que funciona como comprobante.
+- Elige un curso y un pack de chances. Cada pack muestra el precio por chance y el ahorro real contra el pack más chico, sin precios tachados inventados.
+- Oferta **"Duplicá tus chances"**: el doble de chances pagando un extra por chance.
+- Paga con Mercado Pago Checkout Pro (también en efectivo, porque no hay reserva que pueda vencer).
+- Recibe sus números **consecutivos** (desde el 100000) apenas se acredita el pago, en una página que funciona como comprobante.
+- Barra de progreso de chances vendidas y bases y condiciones con los precios de cada pack.
 - Página de links para la bio de Instagram, con el sorteo activo y las redes.
 
 **Para el organizador**
-- Crear sorteos, publicar, cerrar la venta y editar promos.
-- Recaudación, números vendidos, reservados y libres.
-- Venta manual (efectivo o transferencia).
+- ABM de cursos con subida del PDF; la descarga se hace con links firmados que vencen.
+- Packs de chances y oferta "Duplicá" editables por sorteo, con vista previa de lo que ve el comprador.
+- Recaudación, chances vendidas, compras, pendientes y compras para revisar.
+- Venta manual (efectivo o transferencia) con asignación de números en el acto.
 - Carga del número ganador con los datos del comprador.
 - Exportación de compradores a CSV (Excel).
 
 ## Lo técnico más interesante
 
-- **Sin números duplicados:** reserva con `SELECT … FOR UPDATE` dentro de una transacción; dos compras simultáneas del mismo número no pueden prosperar.
-- **Reservas que vencen:** el número queda reservado 15 minutos mientras se paga y se libera solo si el pago no llega.
-- **Webhook seguro e idempotente:** valida la firma `x-signature` de Mercado Pago, consulta el pago a la API (no confía en el aviso) y controla el monto. Avisos repetidos no duplican ventas.
-- **Casos borde contemplados:** pagos acreditados tarde o con monto distinto quedan en estado `needs_review` para reintegro.
-- **Precio óptimo con promos:** programación dinámica (problema de la mochila no acotada) para cobrar la combinación más barata.
+- **Números sin duplicados aunque los pagos lleguen a la vez:** cada sorteo tiene un contador que se incrementa con un único `UPDATE … RETURNING` atómico, más un índice único `(sorteo, número)` como red de seguridad. Probado con pagos simultáneos contra **PostgreSQL real en el CI**.
+- **Webhook seguro e idempotente:** valida la firma `x-signature` de Mercado Pago, consulta el pago a la API (no confía en el aviso), controla el monto y bloquea la orden (`FOR UPDATE`). Avisos repetidos no asignan números de nuevo.
+- **El total lo calcula siempre el backend**, en centavos enteros. El frontend solo muestra lo que devuelve la API.
+- **Archivos seguros:** el PDF se valida por contenido (magic bytes), se guarda fuera del repo detrás de una interfaz intercambiable (disco hoy, S3/R2 después) y se descarga con un JWT de propósito único que vence.
 - **Modo demo:** una API simulada dentro del navegador permite mostrar el producto completo sin servidor.
 
 Más detalle en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
@@ -54,7 +57,7 @@ Más detalle en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 | Backend | Node.js 22, Express 5, Sequelize, PostgreSQL, JWT, bcrypt, Helmet, rate limiting |
 | Pagos | Mercado Pago Checkout Pro + Webhooks |
 | Frontend | React 18 (Create React App), React Router |
-| Tests | `node:test` + Supertest (SQLite en memoria) |
+| Tests | `node:test` + Supertest, con SQLite en memoria y PostgreSQL 16 en el CI |
 | Infra | Docker, Docker Compose, GitHub Actions |
 
 ## Cómo correrlo
@@ -86,20 +89,20 @@ Para probar pagos se usan las **credenciales y usuarios de prueba** de Mercado P
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| GET | `/api/raffles` | Sorteos publicados |
-| GET | `/api/raffles/:id/numbers` | Estado de la grilla (`0` libre, `1` reservado, `2` vendido) |
-| POST | `/api/orders` | Reserva números y devuelve la URL de pago |
-| GET | `/api/orders/:id` | Estado de una compra |
-| GET | `/api/raffles/:id/packs` | Packs a la venta con el total de "Duplicá" ya calculado |
+| GET | `/api/raffles` | Sorteos publicados, con chances vendidas y precio desde |
+| GET | `/api/raffles/:id/packs` | Packs a la venta: precio por chance, ahorro real y total con "Duplicá" |
+| POST | `/api/raffles/:id/quote` | Cotización de una compra (`packId`, `double`) |
 | POST | `/api/raffles/:id/purchases` | Compra de curso + pack (`courseId`, `packId`, `double`, `buyer`): devuelve el link de pago |
-| POST | `/api/raffles/:id/quote` | Cotización de una compra (`packId`, `double`): el total lo calcula siempre el backend |
+| GET | `/api/orders/:id` | Estado de una compra y números asignados |
 | GET | `/api/courses` | Cursos activos |
 | GET | `/api/courses/download?token=` | Descarga del PDF con link firmado y con vencimiento |
-| POST | `/api/webhooks/mercadopago` | Notificaciones de pago |
+| POST | `/api/webhooks/mercadopago` | Notificaciones de pago: asigna los números al aprobarse |
 | POST | `/api/admin/login` | Login del administrador (JWT) |
 | GET/PUT | `/api/admin/raffles/:id/packs` | Packs del sorteo y oferta "Duplicá" (alta, edición y baja en una transacción) |
 | GET/POST/PATCH/DELETE | `/api/admin/courses` | ABM de cursos con subida de PDF (`multipart/form-data`) |
-| … | `/api/admin/*` | Sorteos, estadísticas, ventas, ganador, exportación |
+| POST | `/api/admin/orders/manual` | Venta manual: asigna los números en el acto |
+| POST | `/api/admin/raffles/:id/winner` | Busca al dueño del número ganador |
+| … | `/api/admin/*` | Sorteos, estadísticas, compras, exportación CSV |
 
 ## Cómo se trabaja
 

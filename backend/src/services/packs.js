@@ -32,13 +32,15 @@ function quote({ pack, offer, double = false }) {
     extraChances = pack.chances;
     extraCents = extraChances * toCents(offer.pricePerChance);
   }
+  const chances = pack.chances + extraChances;
   return {
     packId: pack.id,
-    chances: pack.chances + extraChances,
+    chances,
     packPrice: fromCents(packCents),
     double: Boolean(double),
     doubleExtra: fromCents(extraCents),
     total: fromCents(packCents + extraCents),
+    perChance: fromCents(Math.round((packCents + extraCents) / chances)),
   };
 }
 
@@ -117,18 +119,34 @@ async function seedDefaults(raffle, transaction) {
   await raffle.update({ doubleEnabled: DEFAULT_OFFER.enabled, doublePricePerChance: DEFAULT_OFFER.pricePerChance }, { transaction });
 }
 
-// Vista pública: cada pack ya trae calculado cómo queda con "Duplicá"
+// Ahorro real: se compara el precio por chance contra el del pack más chico.
+// Nada de precios "antes" inventados: si no hay ahorro, no se muestra.
+function savingsPct(perChance, basePerChance) {
+  if (!basePerChance) return null;
+  const pct = Math.round((1 - perChance / basePerChance) * 100);
+  return pct > 0 ? pct : null;
+}
+
+// Vista pública: cada pack ya trae calculado su precio por chance, el ahorro y cómo queda con "Duplicá"
 function publicView({ packs, offer }) {
+  const smallest = packs.reduce((a, p) => (!a || p.chances < a.chances ? p : a), null);
+  const base = smallest ? quote({ pack: smallest, offer }).perChance : null;
   return {
     offer,
-    packs: packs.map((p) => ({
-      id: p.id,
-      chances: p.chances,
-      price: Number(p.price),
-      featured: p.featured,
-      position: p.position,
-      double: offer.enabled && p.doubleEligible ? quote({ pack: p, offer, double: true }) : null,
-    })),
+    packs: packs.map((p) => {
+      const plain = quote({ pack: p, offer });
+      const double = offer.enabled && p.doubleEligible ? quote({ pack: p, offer, double: true }) : null;
+      return {
+        id: p.id,
+        chances: p.chances,
+        price: Number(p.price),
+        perChance: plain.perChance,
+        savingsPct: savingsPct(plain.perChance, base),
+        featured: p.featured,
+        position: p.position,
+        double: double && { ...double, savingsPct: savingsPct(double.perChance, base) },
+      };
+    }),
   };
 }
 

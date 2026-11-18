@@ -1,35 +1,47 @@
 const router = require('express').Router();
 const rateLimit = require('express-rate-limit');
-const { Op } = require('sequelize');
-const { Raffle, Order, Ticket } = require('../db');
-const { reserveAndCreateOrder } = require('../services/orders');
+const { Op, fn, col } = require('sequelize');
+const { Raffle, Order, Pack, Chance } = require('../db');
 const packs = require('../services/packs');
 const { createPurchase } = require('../services/purchases');
 
 const publicFields = [
-  'id', 'title', 'description', 'prize', 'imageUrl', 'pricePerNumber', 'promos', 'totalNumbers',
+  'id', 'title', 'description', 'prize', 'imageUrl', 'chancesGoal',
   'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'winnerNumber',
 ];
 
-router.get('/raffles', async (req, res) => {
+// Agrega a cada sorteo las chances vendidas (barra de progreso) y el precio del pack más barato
+async function withSales(raffles) {
+  const ids = raffles.map((r) => r.id);
+  if (!ids.length) return [];
+  const [sold, prices] = await Promise.all([
+    Chance.findAll({ where: { RaffleId: ids, status: 'valid' }, attributes: ['RaffleId', [fn('COUNT', col('id')), 'n']], group: ['RaffleId'], raw: true }),
+    Pack.findAll({ where: { RaffleId: ids }, attributes: ['RaffleId', [fn('MIN', col('price')), 'min']], group: ['RaffleId'], raw: true }),
+  ]);
+  const soldBy = new Map(sold.map((r) => [r.RaffleId, Number(r.n)]));
+  const priceBy = new Map(prices.map((r) => [r.RaffleId, Number(r.min)]));
+  return raffles.map((r) => ({ ...r.toJSON(), chancesSold: soldBy.get(r.id) || 0, fromPrice: priceBy.get(r.id) ?? null }));
+}
+
+const wrap = (handler) => (req, res, next) => handler(req, res).catch(next);
+
+router.get('/raffles', wrap(async (req, res) => {
   const raffles = await Raffle.findAll({
     where: { status: { [Op.ne]: 'draft' } },
     attributes: publicFields,
     order: [['drawDate', 'DESC']],
   });
-  res.json(raffles);
-});
+  res.json(await withSales(raffles));
+}));
 
-router.get('/raffles/:id', async (req, res) => {
+router.get('/raffles/:id', wrap(async (req, res) => {
   const raffle = await Raffle.findOne({
     where: { id: req.params.id, status: { [Op.ne]: 'draft' } },
     attributes: publicFields,
   });
   if (!raffle) return res.status(404).json({ error: 'Sorteo no encontrado' });
-  res.json(raffle);
-});
-
-const wrap = (fn) => (req, res, next) => fn(req, res).catch(next);
+  res.json((await withSales([raffle]))[0]);
+}));
 const buyLimiter = rateLimit({ windowMs: 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false });
 const quoteLimiter = rateLimit({ windowMs: 60 * 1000, limit: 60 });
 
@@ -52,40 +64,15 @@ router.post('/raffles/:id/quote', quoteLimiter, wrap(async (req, res) => {
   res.json(await packs.quoteForRaffle(req.params.id, { packId, double }));
 }));
 
-// Estado de la grilla: 0 = libre, 1 = reservado, 2 = vendido (compacto para miles de números)
-router.get('/raffles/:id/numbers', async (req, res) => {
-  const tickets = await Ticket.findAll({
-    where: { RaffleId: req.params.id },
-    attributes: ['number', 'status', 'reservedUntil'],
-    order: [['number', 'ASC']],
-    raw: true,
-  });
-  const now = new Date();
-  const grid = tickets.map((t) => {
-    if (t.status === 'sold') return 2;
-    if (t.status === 'reserved' && new Date(t.reservedUntil) > now) return 1;
-    return 0;
-  });
-  res.json({ grid });
-});
-
-
-router.post('/orders', buyLimiter, async (req, res, next) => {
-  try {
-    const { raffleId, numbers, buyer } = req.body;
-    res.status(201).json(await reserveAndCreateOrder({ raffleId, numbers, buyer }));
-  } catch (e) {
-    next(e);
-  }
-});
-
 // Página de retorno: el comprador consulta el estado de su compra
-router.get('/orders/:id', async (req, res) => {
+// El id es un UUID imposible de adivinar: funciona como "link privado" de la compra
+router.get('/orders/:id', wrap(async (req, res) => {
   const order = await Order.findByPk(req.params.id, {
-    attributes: ['id', 'status', 'numbers', 'amount', 'buyerName', 'expiresAt', 'RaffleId', 'chances', 'firstNumber', 'lastNumber', 'courseTitle'],
+    attributes: ['id', 'status', 'amount', 'buyerName', 'RaffleId', 'chances', 'double', 'firstNumber', 'lastNumber', 'courseTitle', 'createdAt'],
+    include: { model: Raffle, attributes: ['id', 'title', 'prize', 'drawDate', 'youtubeUrl'] },
   });
   if (!order) return res.status(404).json({ error: 'Compra no encontrada' });
   res.json(order);
-});
+}));
 
 module.exports = router;

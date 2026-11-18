@@ -1,12 +1,11 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import Social from '../components/Social';
 import brand from '../brand';
 import { useApi } from '../hooks';
 import { money, dateShort } from '../api';
-import Promos from '../components/Promos';
+import SalesProgress from '../components/SalesProgress';
 
 export default function Home() {
-  const nav = useNavigate();
   const { data: raffles, loading, error } = useApi('/raffles');
   const active = (raffles || []).filter((r) => r.status === 'active');
   const past = (raffles || []).filter((r) => r.status === 'drawn');
@@ -38,17 +37,13 @@ export default function Home() {
               <p className="prize">🚗 {r.prize}</p>
               {r.description && <p className="muted">{r.description}</p>}
               <dl className="facts">
-                <div><dt>Desde</dt><dd>{money(r.pricePerNumber)}</dd></div>
+                <div><dt>Desde</dt><dd>{r.fromPrice ? money(r.fromPrice) : '-'}</dd></div>
                 <div><dt>Sorteo</dt><dd>{dateShort(r.drawDate)}</dd></div>
-                <div><dt>Números</dt><dd>{r.totalNumbers.toLocaleString('es-AR')}</dd></div>
+                <div><dt>Vendidas</dt><dd>{(r.chancesSold || 0).toLocaleString('es-AR')}</dd></div>
               </dl>
-              {r.promos?.length > 0 && (
-                <>
-                  <p className="small muted">Elegí tu promo:</p>
-                  <Promos raffle={r} onPick={(qty) => nav(`/sorteo/${r.id}`, { state: { promo: qty } })} />
-                </>
-              )}
-              <Link to={`/sorteo/${r.id}`} className="btn btn-lg">Elegir mis números</Link>
+              <SalesProgress raffle={r} compact />
+              <p className="small muted">Comprás un curso digital y te regalamos chances para el sorteo.</p>
+              <Link to={`/sorteo/${r.id}`} className="btn btn-lg">Quiero participar</Link>
               <div className="small muted mt">
                 {r.permitNumber && <>Autorización N° {r.permitNumber} · </>}
                 <Link to={`/sorteo/${r.id}/bases`}>Bases y condiciones</Link>

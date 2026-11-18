@@ -27,8 +27,8 @@ export default function DemoPayment() {
           En esta demo elegís el resultado.
         </p>
         <div className="ticket">
-          <div className="small muted">Números</div>
-          <div className="chips center-chips">{order.numbers.map((n) => <span key={n} className="chip">{n}</span>)}</div>
+          <div className="small muted">Compra</div>
+          <div>Curso "{order.courseTitle}" + {order.chances} chances</div>
           <div className="small muted mt-sm">Total a pagar</div>
           <div className="total-big">{money(order.amount)}</div>
         </div>

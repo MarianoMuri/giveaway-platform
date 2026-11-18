@@ -15,7 +15,7 @@ const pack20 = { id: 3, chances: 20, price: '45000.00', doubleEligible: true };
 
 test('cotiza un pack sin "Duplicá"', () => {
   assert.deepEqual(quote({ pack: pack20, offer }), {
-    packId: 3, chances: 20, packPrice: 45000, double: false, doubleExtra: 0, total: 45000,
+    packId: 3, chances: 20, packPrice: 45000, double: false, doubleExtra: 0, total: 45000, perChance: 2250,
   });
 });
 
@@ -64,7 +64,7 @@ test.before(async () => {
   const login = await request(app).post('/api/admin/login').send({ email: 'admin@test', password: 'clave123' });
   auth = { Authorization: `Bearer ${login.body.token}` };
   const r = await request(app).post('/api/admin/raffles').set(auth)
-    .send({ title: 'Sorteo', prize: 'Auto 0km', pricePerNumber: 3000, totalNumbers: 10 });
+    .send({ title: 'Sorteo', prize: 'Auto 0km' });
   raffleId = r.body.id;
 });
 
@@ -106,7 +106,7 @@ test('editar packs conserva los ids, crea los nuevos y borra los que se sacan', 
 
 test('no se puede editar un pack de otro sorteo', async () => {
   const other = await request(app).post('/api/admin/raffles').set(auth)
-    .send({ title: 'Otro', prize: 'Moto', pricePerNumber: 1000, totalNumbers: 5 });
+    .send({ title: 'Otro', prize: 'Moto' });
   const foreign = (await request(app).get(`/api/admin/raffles/${other.body.id}/packs`).set(auth)).body.packs[0];
   const res = await request(app).put(`/api/admin/raffles/${raffleId}/packs`).set(auth)
     .send({ packs: [{ id: foreign.id, chances: 7, price: 1 }] });
@@ -140,6 +140,13 @@ test('la vista pública trae cada pack con "Duplicá" ya calculada', async () =>
   assert.equal(p10.double, null); // este pack no admite "Duplicá"
   assert.equal(p15.double.total, 35000 + 15 * 1200);
   assert.equal(p5.doubleEligible, undefined); // no expone campos internos
+  // ahorro real contra el precio por chance del pack más chico (16000 / 5 = 3200)
+  assert.equal(p5.perChance, 3200);
+  assert.equal(p5.savingsPct, null);
+  assert.equal(p15.perChance, 2333.33);
+  assert.equal(p15.savingsPct, 27);
+  assert.equal(p5.double.perChance, 2200);
+  assert.equal(p5.double.savingsPct, 31);
 });
 
 test('el backend cotiza el total de la compra', async () => {

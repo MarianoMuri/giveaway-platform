@@ -18,9 +18,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - Los números anulados no se reutilizan.
 - Job de CI que corre la suite contra PostgreSQL, incluidos los tests de concurrencia.
 
+- Nueva página de compra mobile first: curso + pack + "Duplicá", con precio por chance, ahorro real y barra de progreso (#6).
+- Pantalla de confirmación con los números asignados.
+- Venta manual por cantidad de chances, con asignación de números en el acto.
+- Meta de chances opcional por sorteo para la barra de progreso.
+
 ### Changed
 - Un curso con compras no se puede eliminar: se desactiva.
-- Las compras por pack admiten medios de pago en efectivo, porque no hay reserva que pueda vencer.
+- Las compras admiten medios de pago en efectivo, porque no hay reserva que pueda vencer.
+- El número ganador se busca entre las chances asignadas; un número anulado no puede ganar.
+
+### Removed
+- Grilla de números, reserva de 15 minutos y promos por cantidad del Sprint 0 (`POST /api/orders`, `GET /api/raffles/:id/numbers`).
 
 ## [0.1.0] - 2026-11-18
 

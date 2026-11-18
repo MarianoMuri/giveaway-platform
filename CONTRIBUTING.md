@@ -7,7 +7,7 @@
 | `main` | Producción. Solo recibe merges desde `develop` al cerrar un sprint (con tag de versión). |
 | `develop` | Integración. Acá se mergean las funcionalidades terminadas. |
 | `feature/<issue>-<descripcion>` | Una funcionalidad. Ej: `feature/12-participacion-gratuita` |
-| `fix/<issue>-<descripcion>` | Corrección de un bug. Ej: `fix/18-reserva-no-vence` |
+| `fix/<issue>-<descripcion>` | Corrección de un bug. Ej: `fix/21-webhook-monto-distinto` |
 
 Flujo:
 
@@ -37,7 +37,7 @@ Se usa [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/):
 | `chore` | Configuración, dependencias, tooling |
 | `ci` | Pipelines |
 
-Ejemplos: `feat(api): reserva de números con vencimiento`, `fix(web): grilla no refresca tras el pago`.
+Ejemplos: `feat(api): add pack quote endpoint`, `fix(web): refresh order status after payment`.
 
 ## Sprints
 
