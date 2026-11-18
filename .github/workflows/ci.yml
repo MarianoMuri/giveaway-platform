@@ -23,6 +23,38 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  # Misma suite contra PostgreSQL real: es la base de producción y la única
+  # donde se pueden probar transacciones concurrentes (asignación de números).
+  backend-postgres:
+    name: Backend · PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: giveaway_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/giveaway_test
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm test
+
   frontend:
     name: Frontend · build
     runs-on: ubuntu-latest
