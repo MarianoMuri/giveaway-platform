@@ -3,8 +3,16 @@ const config = require('./config');
 const { sequelize } = require('./db');
 const emails = require('./services/emails');
 const { pendingMigrations } = require('./services/schema');
+const { productionProblems } = require('./productionCheck');
 
 (async () => {
+  if (process.env.NODE_ENV === 'production') {
+    const problems = productionProblems();
+    if (problems.length) {
+      console.error(`Configuración de producción incompleta:\n - ${problems.join('\n - ')}`);
+      process.exit(1);
+    }
+  }
   if (config.databaseUrl) {
     // Con PostgreSQL el esquema lo manejan las migraciones: la API no lo toca y no arranca si faltan.
     const pending = await pendingMigrations(sequelize);

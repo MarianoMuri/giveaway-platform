@@ -91,6 +91,7 @@ router.get('/raffles/:id/draws', wrap(async (req, res) => {
 
 // Registro de auditoría (solo lectura): lo más reciente primero
 router.get('/audit', wrap(async (req, res) => {
+  await audit.flush(); // incluye las acciones recién hechas, cuya escritura puede estar terminando
   const where = {};
   if (req.query.raffleId) where.RaffleId = Number(req.query.raffleId) || -1;
   const limit = Math.min(Number(req.query.limit) || 50, 200);

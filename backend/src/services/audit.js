@@ -37,6 +37,11 @@ const TABLE = [
 
 // Middleware: registra toda acción de modificación del panel que terminó bien. Los sorteos
 // (draw/winner) se registran en el servicio, con más detalle (res.locals.audited).
+// El registro se escribe cuando la respuesta ya salió. Se guardan las escrituras en curso para que
+// una lectura del registro espere a las anteriores y nunca muestre un listado al que le falta la última acción.
+const pending = new Set();
+const flush = () => Promise.allSettled([...pending]);
+
 function trail(req, res, next) {
   res.on('finish', () => {
     if (req.method === 'GET' || res.statusCode >= 400 || res.locals.audited) return;
@@ -44,9 +49,10 @@ function trail(req, res, next) {
     const entry = found
       ? { action: found[2], ...found[3](req, req.path.match(found[1])) }
       : { action: `${req.method} ${req.path}` };
-    record({ ...who(req), ...entry });
+    const p = record({ ...who(req), ...entry }).finally(() => pending.delete(p));
+    pending.add(p);
   });
   next();
 }
 
-module.exports = { record, trail, who };
+module.exports = { record, trail, who, flush };
