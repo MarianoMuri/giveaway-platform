@@ -7,7 +7,12 @@ let transport;
 function getTransport() {
   if (!transport) {
     transport = config.mail.smtpUrl
-      ? nodemailer.createTransport(config.mail.smtpUrl)
+      ? nodemailer.createTransport(config.mail.smtpUrl, {
+          // Conexiones reutilizadas: abrir una por mail no escala con miles de envíos
+          pool: true,
+          maxConnections: Math.max(1, config.email.concurrency),
+          maxMessages: 100,
+        })
       : nodemailer.createTransport({ jsonTransport: true });
   }
   return transport;

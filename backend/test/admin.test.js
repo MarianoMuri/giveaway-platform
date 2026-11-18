@@ -80,7 +80,7 @@ test('venta manual: asigna números en el acto y continúa la numeración', asyn
 
 test('estadísticas del sorteo', async () => {
   const res = await request(app).get(`/api/admin/raffles/${raffleId}/stats`).set(auth);
-  assert.deepEqual(res.body, { chancesSold: 15, purchases: 2, pending: 0, review: 0, revenue: 40000, freeEntries: 0, reversed: 0, winnerVoided: false });
+  assert.deepEqual(res.body, { chancesSold: 15, purchases: 2, pending: 0, review: 0, revenue: 40000, freeEntries: 0, reversed: 0, winnerVoided: false, emailsPending: 0, emailsFailed: 0 });
   const pub = await request(app).get(`/api/raffles/${raffleId}`);
   assert.equal(pub.body.chancesSold, 15);
 });

@@ -96,6 +96,10 @@ export default function RaffleAdmin() {
     run(() => api(`/admin/orders/${o.id}/resend-email`, { method: 'POST', auth: true, body: { email } }), `Email reenviado a ${email}`);
   };
 
+  // Vuelve a poner en cola todos los emails fallidos; se envían de a poco, al ritmo que acepta el proveedor
+  const retryFailedEmails = () =>
+    run(() => api(`/admin/raffles/${id}/emails/retry-failed`, { method: 'POST', auth: true }), 'Los emails fallidos volvieron a la cola de envío');
+
   const setStatus = (status) =>
     run(() => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { status } }), status === 'closed' ? 'Venta deshabilitada' : 'Estado actualizado');
 
@@ -217,6 +221,13 @@ export default function RaffleAdmin() {
         {stats?.reversed > 0 && <div className="card stat"><span>Anuladas (reintegro / contracargo)</span><strong>{stats.reversed}</strong></div>}
         {stats?.review > 0 && <div className="card stat"><span>Para revisar</span><strong className="gold">{stats.review}</strong></div>}
       </div>
+      {stats?.emailsFailed > 0 && (
+        <div className="alert row between">
+          <span><strong>{stats.emailsFailed.toLocaleString('es-AR')}</strong> {stats.emailsFailed === 1 ? 'email falló' : 'emails fallaron'} después de varios intentos: esos compradores no recibieron sus números.</span>
+          <button className="btn btn-ghost" onClick={retryFailedEmails}>Reenviar todos los fallidos</button>
+        </div>
+      )}
+      {stats?.emailsPending > 1 && <p className="muted">{stats.emailsPending.toLocaleString('es-AR')} emails en cola de envío: salen de a poco, al ritmo que acepta el proveedor.</p>}
       {stats?.winnerVoided && <p className="alert">Atención: el número ganador cargado quedó anulado por un reintegro o contracargo. Hay que sortear de nuevo.</p>}
       {raffle.chancesGoal && <SalesProgress raffle={{ ...raffle, chancesSold: stats?.chancesSold || 0 }} />}
 

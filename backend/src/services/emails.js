@@ -4,6 +4,7 @@ const { Order, Raffle } = require('../db');
 const { mailer } = require('./mailer');
 const { purchaseConfirmation } = require('./emailTemplates');
 const courses = require('./courses');
+const { createLimiter } = require('./rateLimiter');
 
 /**
  * Envío del email de confirmación con el patrón "outbox":
@@ -12,6 +13,10 @@ const courses = require('./courses');
  *    Si el servidor se cae justo después, el pendiente queda guardado y no se pierde.
  * 2. Después del commit se intenta enviar enseguida (deliver).
  * 3. Un proceso periódico (processPending) reintenta los que fallaron, con espera creciente.
+ *
+ * Para volumen alto el envío lo hace un worker (puede ser un servicio aparte de la API) que toma los
+ * pendientes por lotes, con varios envíos en paralelo y sin superar el límite por segundo del proveedor.
+ * Un pico de compras solo agranda la cola: no demora las respuestas del sitio.
  *
  * Cada envío "toma" la orden con un UPDATE condicional (claim): si dos procesos intentan
  * mandar el mismo mail a la vez, solo uno lo consigue. Así no se duplican mails.
@@ -54,11 +59,24 @@ function build(order, raffle) {
   });
 }
 
+// Límite de velocidad compartido por todos los envíos de este proceso
+let limiter;
+function getLimiter() {
+  if (!limiter || limiter.perSecond !== config.email.ratePerSecond) limiter = createLimiter({ perSecond: config.email.ratePerSecond });
+  return limiter;
+}
+const resetLimiter = () => {
+  limiter = null;
+};
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 // Intenta enviar el mail de una orden. Devuelve 'sent', 'retry', 'failed' o 'skipped'.
-async function deliver(orderId) {
+// "throttle" espera el turno del límite de velocidad, ya con la orden tomada.
+async function deliver(orderId, { throttle } = {}) {
   if (!(await claim(orderId))) return 'skipped'; // ya enviado, no le toca todavía o lo tomó otro proceso
   const order = await Order.findByPk(orderId, { include: Raffle });
   try {
+    if (throttle) await throttle();
     const mail = build(order, order.Raffle);
     await mailer.send({ to: order.buyerEmail, ...mail });
     await order.update({ emailStatus: 'sent', emailSentAt: new Date(), emailNextAttemptAt: null, emailLastError: null });
@@ -76,22 +94,86 @@ async function deliver(orderId) {
   }
 }
 
-// Envío inmediato después del commit: nunca hace fallar al que lo llama
+// Envío inmediato después del commit: nunca hace fallar al que lo llama. Si ya hay una cola larga
+// (pico de compras) o el envío está a cargo de un worker aparte, no lo intenta: el mail queda
+// pendiente y lo manda el worker, sin cargar a la API.
 function deliverSoon(orderId) {
-  return deliver(orderId).catch((err) => console.error('[mail] error inesperado', err));
+  if (!config.email.immediate) return Promise.resolve('deferred');
+  const wait = getLimiter().reserve(config.email.immediateMaxWaitMs);
+  if (wait === null) return Promise.resolve('deferred');
+  return deliver(orderId, { throttle: () => sleep(wait) }).catch((err) => {
+    console.error('[mail] error inesperado', err);
+    return 'error';
+  });
 }
 
-// Proceso periódico: envía los pendientes a los que ya les toca
-async function processPending(limit = 20) {
+// Procesa en paralelo (hasta "concurrency" a la vez) una lista de tareas
+async function runPool(items, concurrency, fn) {
+  const results = new Array(items.length);
+  let i = 0;
+  const workers = Array.from({ length: Math.min(Math.max(1, concurrency), items.length) }, async () => {
+    while (i < items.length) {
+      const k = i++;
+      results[k] = await fn(items[k]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+// Un lote: toma hasta "limit" pendientes a los que ya les toca y los envía respetando el límite de velocidad
+async function processPending(limit = config.email.batchSize) {
   const due = await Order.findAll({
     where: { emailStatus: 'pending', emailNextAttemptAt: { [Op.lte]: new Date() } },
     attributes: ['id'],
     order: [['emailNextAttemptAt', 'ASC']],
     limit,
   });
-  const results = [];
-  for (const { id } of due) results.push(await deliver(id));
-  return results;
+  return runPool(due, config.email.concurrency, ({ id }) => deliver(id, { throttle: () => getLimiter().acquire() }));
+}
+
+// Vacía la cola lote por lote. Corta si pasó maxMs (para volver a mirar y apagarse con orden) o si
+// los pendientes que quedan los tiene tomados otro proceso.
+async function drain({ maxMs = 55 * 1000 } = {}) {
+  const summary = { sent: 0, retry: 0, failed: 0, skipped: 0 };
+  const end = Date.now() + maxMs;
+  while (Date.now() < end) {
+    const results = await processPending();
+    for (const r of results) summary[r] += 1;
+    const worked = results.filter((r) => r !== 'skipped').length;
+    if (!worked || results.length < config.email.batchSize) break;
+  }
+  return summary;
+}
+
+// Worker: cada pocos segundos vacía la cola. Corre dentro de la API (desarrollo) o en un servicio aparte.
+function startWorker() {
+  let running = false;
+  const tick = async () => {
+    if (running) return;
+    running = true;
+    try {
+      const s = await drain();
+      if (s.sent + s.retry + s.failed) console.log(`[mail] lote: ${s.sent} enviados, ${s.retry} a reintentar, ${s.failed} fallidos`);
+    } catch (e) {
+      console.error('[mail] worker', e);
+    } finally {
+      running = false;
+    }
+  };
+  const timer = setInterval(tick, config.email.pollSeconds * 1000);
+  timer.unref?.();
+  setTimeout(tick, 1000).unref?.();
+  return { stop: () => clearInterval(timer) };
+}
+
+// "Reenviar todos los fallidos" del sorteo: los vuelve a poner en cola; el worker los manda al ritmo permitido
+async function retryFailed(raffleId) {
+  const [count] = await Order.update(
+    { emailStatus: 'pending', emailAttempts: 0, emailNextAttemptAt: new Date(), emailLastError: null },
+    { where: { RaffleId: raffleId, emailStatus: 'failed' } }
+  );
+  return count;
 }
 
 // Reenvío manual desde el panel (opcionalmente a un email corregido)
@@ -106,4 +188,4 @@ async function resend(order, email) {
   return deliver(order.id);
 }
 
-module.exports = { enqueue, deliver, deliverSoon, processPending, resend, hasEmail, RETRY_MINUTES, MAX_ATTEMPTS };
+module.exports = { enqueue, deliver, deliverSoon, processPending, drain, startWorker, retryFailed, resetLimiter, resend, hasEmail, RETRY_MINUTES, MAX_ATTEMPTS };

@@ -54,6 +54,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 | `MP_ACCESS_TOKEN` | credencial de Mercado Pago |
 | `MP_WEBHOOK_SECRET` | clave secreta del webhook |
 | `SMTP_URL` / `MAIL_FROM` / `MAIL_REPLY_TO` | datos del proveedor de emails |
+| `EMAIL_RATE_PER_SEC` / `EMAIL_BATCH_SIZE` / `EMAIL_CONCURRENCY` | (opcionales) velocidad del envío de emails, ver [EMAIL.md](EMAIL.md) |
 | `ALERT_EMAILS` | (opcional) a quién avisar si se cae la conexión con Mercado Pago, separados por coma; por defecto, `ADMIN_EMAIL` |
 | `TURNSTILE_SECRET` | clave secreta de Turnstile |
 | `STORAGE_DIR` | `/data/storage` |
@@ -64,6 +65,21 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 6. En *Settings → Networking* generar el dominio público (o agregar `api.cliente.com.ar`, ver paso 3).
 
 La API **no arranca** si falta alguna variable importante o si hay valores de ejemplo: el log del deploy lista exactamente qué falta.
+
+### Servicio de envío de emails (worker)
+
+Para que un pico de compras no afecte al sitio, el envío de emails corre en un **segundo servicio** del mismo proyecto
+(detalles y variables en [EMAIL.md](EMAIL.md)).
+
+1. En la API, agregar `EMAIL_WORKER=off` y `EMAIL_IMMEDIATE=off`.
+2. Crear otro servicio desde el mismo repositorio, con **Root Directory** = `backend`, y en sus *Settings* indicar como
+   archivo de configuración `backend/railway.worker.json` (inicia `node src/worker.js`, sin chequeo de salud web ni migraciones).
+3. Darle **las mismas variables** que a la API (referencias entre servicios, o *Shared Variables*): usa la misma base, el mismo
+   `JWT_SECRET` (firma los links de descarga) y el SMTP. No necesita volumen ni dominio.
+4. Ajustar `EMAIL_RATE_PER_SEC` al límite del plan del proveedor de emails.
+
+El worker no corre migraciones: se aplican en el deploy de la API (si faltan, el worker no arranca y lo dice en el log).
+Mientras no exista el servicio aparte, la API manda los emails ella misma (es lo que pasa en desarrollo y en el entorno de pruebas).
 
 ## 2. Netlify: el sitio
 
@@ -98,7 +114,7 @@ Las variables `REACT_APP_*` se incorporan al compilar: si se cambian, hay que vo
 ## Lista de control antes de abrir las ventas
 
 - [ ] Compra de punta a punta con una cuenta de prueba: pago aprobado, números asignados y email recibido
-- [ ] El email llega a la bandeja de entrada (no a spam) y el link de descarga del curso funciona
+- [ ] El email llega a la bandeja de entrada (no a spam) y el link de descarga del curso funciona (SPF, DKIM y DMARC en PASS: ver [EMAIL.md](EMAIL.md))
 - [ ] Un pago rechazado y uno pendiente se ven bien en el panel
 - [ ] Participación gratuita: llega el email de confirmación y se asigna el número
 - [ ] Un reintegro desde Mercado Pago anula la compra en el panel
