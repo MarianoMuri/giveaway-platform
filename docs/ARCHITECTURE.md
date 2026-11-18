@@ -116,3 +116,5 @@ frontend/
     components/          editor de packs, barra de progreso, redes
     demo/                API simulada para la demo
 ```
+| La API se niega a arrancar con configuración incompleta en producción | Un error claro al desplegar es mejor que descubrir en plena venta que no salen los mails, que el captcha está apagado o que el webhook no se valida. Lista todo lo que falta de una vez. |
+| PDF en un volumen persistente, no en el repo ni en la base | El disco de Railway se borra en cada deploy; el volumen sobrevive. La interfaz de `storage.js` permite pasar a almacenamiento de objetos (R2/S3) más adelante sin tocar el resto. |

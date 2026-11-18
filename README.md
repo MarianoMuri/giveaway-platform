@@ -108,6 +108,8 @@ npm run seed               # datos de desarrollo: un sorteo activo con sus packs
 
 Cada cambio de modelo lleva su migración en `backend/migrations/` (un archivo nuevo, nunca editar uno ya aplicado). Un test compara el esquema de las migraciones con el de los modelos y falla si falta alguna.
 
+El paso a paso para publicarlo (Railway, Netlify, dominio y Mercado Pago) está en [docs/DEPLOY.md](docs/DEPLOY.md).
+
 Para probar pagos se usan las **credenciales y usuarios de prueba** de Mercado Pago, y el webhook se expone en local con `ngrok http 4000`.
 
 ## API

@@ -5,10 +5,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ## [Unreleased]
 
 ### Added
+- Guía de deploy (`docs/DEPLOY.md`) y configuración para Railway (`backend/railway.json`: build con Docker, migración antes de cada deploy, chequeo de salud y reinicios) y Netlify (`frontend/netlify.toml`: build, rutas de la app y cabeceras de seguridad) (#14).
+- Chequeo de configuración al arrancar en producción: la API no inicia si falta una variable importante o si quedan valores de ejemplo, y lista todo lo que falta.
 - Migraciones de base de datos con `sequelize-cli` (#13): esquema inicial (v0.2.0) y migración del Sprint 2, para actualizar una base con datos sin perderlos. Comandos `npm run migrate`, `migrate:status`, `migrate:undo` y `seed` (sorteo demo de desarrollo).
 - Test que compara el esquema de las migraciones con el de los modelos, prueba migrar con datos existentes y deshacer cada migración.
 
 ### Changed
+- `GET /api/health` verifica la conexión a la base y responde 503 si falla.
+- Corregido el `.env.example` (un comentario de Turnstile había quedado mezclado con otra variable) y agregada la clave pública de Turnstile al del frontend.
 - Con PostgreSQL la API ya no usa `sync()`: no arranca si faltan migraciones y avisa cuál correr. Sin `DATABASE_URL` (SQLite) sigue creando el esquema sola.
 - `docker compose` aplica las migraciones antes de iniciar la API.
 
