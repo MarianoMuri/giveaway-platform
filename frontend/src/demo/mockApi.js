@@ -148,6 +148,7 @@ function seedOrder(raffleId, i, { status = 'approved', minutesAgo = 60 } = {}) {
   db.orders.push(o);
   if (status === 'approved' || status === 'manual') {
     assignNumbers(o);
+    o.events = [{ id: 1, status: status === 'manual' ? 'manual' : 'approved', detail: status === 'manual' ? 'Venta cargada desde el panel' : 'Pago acreditado', mpPaymentId: o.mpPaymentId, createdAt: o.createdAt }];
     o.emailStatus = i % 23 === 5 ? 'failed' : 'sent';
     if (o.emailStatus === 'failed') o.emailLastError = 'Mailbox unavailable (550)';
   } else o.emailStatus = 'none';
@@ -155,6 +156,14 @@ function seedOrder(raffleId, i, { status = 'approved', minutesAgo = 60 } = {}) {
 }
 for (let i = 0; i < 70; i++) seedOrder(1, i, { status: i % 11 === 0 ? 'manual' : 'approved', minutesAgo: 60 * 24 * 5 - i * 90 });
 seedOrder(1, 99, { status: 'pending', minutesAgo: 3 });
+// Dos compras anuladas de ejemplo: un reintegro y un contracargo
+const REVERSALS = { refunded: 'Pago reintegrado', charged_back: 'Contracargo: el comprador desconoce el pago' };
+[[db.orders[3], 'refunded'], [db.orders[17], 'charged_back']].forEach(([o, status]) => {
+  const at = new Date(Date.parse(o.createdAt) + 36 * 3600000).toISOString();
+  db.chances.filter((c) => c.orderId === o.id).forEach((c) => Object.assign(c, { status: 'void', voidedAt: at, voidReason: REVERSALS[status] }));
+  Object.assign(o, { status, voidedAt: at, voidReason: REVERSALS[status], mpStatusDetail: status });
+  o.events.push({ id: 2, status, detail: REVERSALS[status], mpPaymentId: o.mpPaymentId, createdAt: at });
+});
 [2, 3].forEach((id, k) => {
   for (let i = 0; i < 12; i++) seedOrder(id, i + k * 20, { minutesAgo: (40 + k * 90) * 24 * 60 });
   const r = db.raffles.find((x) => x.id === id);
@@ -318,7 +327,13 @@ const routes = [
       chancesSold: chancesSold(r.id), purchases: sold.length, pending: os.filter((o) => o.status === 'pending').length,
       review: os.filter((o) => o.status === 'needs_review').length, revenue: sold.reduce((a, o) => a + Number(o.amount), 0),
       freeEntries: db.freeEntries.filter((f) => f.RaffleId === r.id && f.status === 'confirmed').length,
+      reversed: os.filter((o) => ['refunded', 'charged_back'].includes(o.status)).length,
+      winnerVoided: false,
     };
+  }],
+  ['GET', /^\/admin\/orders\/([\w-]+)\/history$/, ([id]) => {
+    const o = orderOr404(id);
+    return { status: o.status, voidedAt: o.voidedAt || null, voidReason: o.voidReason || null, voidedNumbers: db.chances.filter((c) => c.orderId === o.id && c.status === 'void').length, events: o.events || [] };
   }],
   ['GET', /^\/admin\/orders$/, (_, __, q) => db.orders
     .filter((o) => (!q.get('raffleId') || String(o.RaffleId) === q.get('raffleId')) && (!q.get('status') || o.status === q.get('status')))
@@ -369,7 +384,7 @@ const routes = [
     throw new Err(400, { error: 'En la demo no hay archivos reales para descargar' });
   }],
   ['GET', /^\/admin\/raffles\/(\d+)\/export\.csv$/, ([id]) => {
-    const rows = db.orders.filter((o) => String(o.RaffleId) === id && ['approved', 'manual', 'needs_review'].includes(o.status));
+    const rows = db.orders.filter((o) => String(o.RaffleId) === id && ['approved', 'manual', 'needs_review', 'refunded', 'charged_back'].includes(o.status));
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     return { __csv: ['Fecha;Nombre;DNI;Teléfono;Email;Curso;Chances;Desde;Hasta;Monto;Estado;Pago MP',
       ...rows.map((o) => [o.createdAt, o.buyerName, o.buyerDni, o.buyerPhone, o.buyerEmail, o.courseTitle, o.chances, o.firstNumber, o.lastNumber, o.amount, o.status, o.mpPaymentId].map(esc).join(';'))].join('\n') };
