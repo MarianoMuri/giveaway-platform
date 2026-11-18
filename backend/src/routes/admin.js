@@ -90,6 +90,14 @@ router.get('/raffles/:id/draws', wrap(async (req, res) => {
   res.json(await draw.listDraws(req.params.id));
 }));
 
+// Vuelve a poner en cola todos los emails fallidos del sorteo (se envían de a poco, al ritmo del proveedor)
+router.post('/raffles/:id/emails/retry-failed', wrap(async (req, res) => {
+  const requeued = await emails.retryFailed(Number(req.params.id));
+  await audit.record({ ...audit.who(req), action: 'emails.retry_failed', raffleId: Number(req.params.id), detail: `${requeued} emails` });
+  res.locals.audited = true;
+  res.json({ requeued });
+}));
+
 // Estado de la conexión con Mercado Pago (lo mantiene el monitor). POST fuerza un chequeo ahora.
 router.get('/mp-status', (req, res) => res.json(mpHealth.getStatus()));
 router.post('/mp-status/check', wrap(async (req, res) => res.json(await mpHealth.check())));

@@ -25,8 +25,9 @@ const { productionProblems } = require('./productionCheck');
     // Desarrollo sin DATABASE_URL (SQLite): se crea el esquema solo, para arrancar sin pasos previos.
     await sequelize.sync();
   }
-  // Reintentos de emails pendientes (outbox)
-  setInterval(() => emails.processPending().catch((e) => console.error('[mail] processPending', e)), 60 * 1000);
+  // Envío de emails pendientes (outbox). En producción con volumen alto corre en un servicio aparte (src/worker.js)
+  // y acá se apaga con EMAIL_WORKER=off.
+  if (config.email.worker) emails.startWorker();
   mpHealth.start(); // chequeo periódico de la conexión con Mercado Pago
   app.listen(config.port, () => console.log(`API escuchando en :${config.port}`));
 })();

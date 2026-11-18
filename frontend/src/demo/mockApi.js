@@ -428,6 +428,12 @@ const routes = [
     const rid = q.get('raffleId');
     return auditLog.filter((l) => !rid || l.RaffleId === Number(rid)).slice(0, Math.min(Number(q.get('limit')) || 50, 200));
   }],
+  ['POST', /^\/admin\/raffles\/(\d+)\/emails\/retry-failed$/, ([id]) => {
+    const failed = db.orders.filter((o) => o.RaffleId === raffleOr404(id).id && o.emailStatus === 'failed');
+    failed.forEach((o) => Object.assign(o, { emailStatus: 'sent', emailLastError: null }));
+    logAudit('emails.retry_failed', Number(id), `${failed.length} emails`);
+    return { requeued: failed.length };
+  }],
   ['GET', /^\/admin\/raffles\/(\d+)\/stats$/, ([id]) => {
     const r = raffleOr404(id);
     const os = db.orders.filter((o) => o.RaffleId === r.id);
@@ -438,6 +444,8 @@ const routes = [
       freeEntries: db.freeEntries.filter((f) => f.RaffleId === r.id && f.status === 'confirmed').length,
       reversed: os.filter((o) => ['refunded', 'charged_back'].includes(o.status)).length,
       winnerVoided: false,
+      emailsPending: os.filter((o) => o.emailStatus === 'pending').length,
+      emailsFailed: os.filter((o) => o.emailStatus === 'failed').length,
     };
   }],
   ['GET', /^\/admin\/orders\/([\w-]+)\/history$/, ([id]) => {

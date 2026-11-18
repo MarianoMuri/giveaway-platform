@@ -5,6 +5,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ## [Unreleased]
 
 ### Added
+- Envío de emails para alto volumen (#22): el worker toma los pendientes por lotes, con envíos en paralelo, conexiones SMTP reutilizadas y un límite de mails por segundo configurable (`EMAIL_RATE_PER_SEC`). Puede correr como servicio aparte (`npm run worker`) para que un pico de compras no afecte al sitio; con cola larga, el envío inmediato se deja para el worker. Ningún mail se envía dos veces.
+- Botón "Reenviar todos los fallidos" en el panel, con el aviso de cuántos emails fallaron y cuántos están en cola.
+- Guía `docs/EMAIL.md`: cómo funciona el envío, autenticación del dominio (SPF, DKIM, DMARC), calentamiento del dominio y qué vigilar.
 - Alerta de conexión con Mercado Pago (#15): el servidor verifica las credenciales cada 5 minutos con una llamada autenticada; si falla dos veces seguidas la marca como caída, avisa por email al administrador (o a `ALERT_EMAILS`), recuerda cada 6 horas y avisa al recuperarse. El panel muestra "Conexión con Mercado Pago: OK / CAÍDA" con el motivo y un botón "Verificar ahora".
 - Guía de deploy (`docs/DEPLOY.md`) y configuración para Railway (`backend/railway.json`: build con Docker, migración antes de cada deploy, chequeo de salud y reinicios) y Netlify (`frontend/netlify.toml`: build, rutas de la app y cabeceras de seguridad) (#14).
 - Chequeo de configuración al arrancar en producción: la API no inicia si falta una variable importante o si quedan valores de ejemplo, y lista todo lo que falta.

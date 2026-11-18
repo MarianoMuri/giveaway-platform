@@ -46,6 +46,16 @@ module.exports = {
   pendingGraceHours: Number(process.env.PENDING_GRACE_HOURS || 24),
   // Captcha Cloudflare Turnstile. Sin TURNSTILE_SECRET queda desactivado (desarrollo y tests).
   captcha: { secret: process.env.TURNSTILE_SECRET },
+  // Envío de emails (outbox). El proveedor limita cuántos mails por segundo acepta: ajustar a su plan.
+  email: {
+    batchSize: Number(process.env.EMAIL_BATCH_SIZE || 50), // pendientes que se toman por vuelta
+    concurrency: Number(process.env.EMAIL_CONCURRENCY || 5), // envíos en paralelo dentro del lote
+    ratePerSecond: Number(process.env.EMAIL_RATE_PER_SEC ?? 5), // 0 = sin límite
+    pollSeconds: Number(process.env.EMAIL_POLL_SECONDS || 5), // cada cuánto el worker busca pendientes
+    worker: process.env.EMAIL_WORKER !== 'off', // 'off' en la API cuando el envío corre en un servicio aparte
+    immediate: process.env.EMAIL_IMMEDIATE !== 'off', // intento de envío apenas se aprueba la compra
+    immediateMaxWaitMs: 2000, // si el turno del envío inmediato tardaría más que esto (cola larga), lo toma el worker
+  },
   // Monitor de la conexión con Mercado Pago: cada cuántos minutos se chequea y a quién se avisa
   // (por defecto, al email del administrador; ALERT_EMAILS acepta varios separados por coma)
   mpHealth: {
