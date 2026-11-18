@@ -6,6 +6,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ### Added
 - Reintegros y contracargos: el webhook procesa `refunded` y `charged_back`, la compra queda anulada y sus números pasan a "anulado" con fecha y motivo; los números no se reutilizan (#10).
+- Al cargar el ganador se verifica su pago en Mercado Pago: si ya fue reintegrado o tiene contracargo (aunque el aviso no haya llegado) se anula en el acto y no puede ganar; si MP no responde, no se carga el ganador.
 - Historial de estados de cada compra (`OrderEvent`) y vista en el panel; contador de compras anuladas y aviso si se anula el número ya sorteado.
 - Participación gratuita "sin obligación de compra": formulario con nombre, DNI y email, 1 número por DNI y por sorteo, asignado recién al confirmar el email (#9).
 - Captcha Cloudflare Turnstile y límites por IP (configurable) y por dispositivo; del IP y del dispositivo solo se guarda un hash.

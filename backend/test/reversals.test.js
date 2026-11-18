@@ -12,7 +12,7 @@ const assert = require('node:assert');
 const crypto = require('crypto');
 const request = require('supertest');
 const app = require('../src/app');
-const { sequelize, Order, Chance, OrderEvent } = require('../src/db');
+const { sequelize, Raffle, Order, Chance, OrderEvent } = require('../src/db');
 const { mp } = require('../src/services/mercadopago');
 const { createPurchase } = require('../src/services/purchases');
 
@@ -184,4 +184,32 @@ test('si se anula el número ya sorteado, el panel avisa y no se puede volver a 
   assert.equal((await request(app).get(`/api/admin/raffles/${raffleId}/stats`).set(auth)).body.winnerVoided, true);
   const again = await request(app).post(`/api/admin/raffles/${raffleId}/winner`).set(auth).send({ number: order.firstNumber });
   assert.equal(again.status, 409);
+});
+
+test('antes de dar un ganador se verifica el pago en MP: si ya fue reintegrado, se anula y no gana', async () => {
+  await Raffle.update({ status: 'active', winnerNumber: null }, { where: { id: raffleId } }); // el test anterior ya sorteó
+  const { orderId, paymentId } = await approvedOrder();
+  change(paymentId, 'refunded'); // MP ya lo reintegró, pero el aviso todavía no llegó (no se llama al webhook)
+  const order = await Order.findByPk(orderId);
+  const res = await request(app).post(`/api/admin/raffles/${raffleId}/winner`).set(auth).send({ number: order.firstNumber });
+  assert.equal(res.status, 409);
+  assert.match(res.body.error, /anulado/);
+  assert.equal((await Order.findByPk(orderId)).status, 'refunded');
+  assert.equal(await Chance.count({ where: { OrderId: orderId, status: 'void' } }), 5);
+  const raffle = await request(app).get(`/api/raffles/${raffleId}`);
+  assert.notEqual(raffle.body.winnerNumber, order.firstNumber);
+});
+
+test('si no se puede verificar el pago en MP, no se carga el ganador', async () => {
+  const { orderId, paymentId } = await approvedOrder();
+  const order = await Order.findByPk(orderId);
+  const original = mp.getPayment;
+  mp.getPayment = async () => { throw new Error('MP caído'); };
+  try {
+    const res = await request(app).post(`/api/admin/raffles/${raffleId}/winner`).set(auth).send({ number: order.firstNumber });
+    assert.equal(res.status, 503);
+  } finally {
+    mp.getPayment = original;
+  }
+  assert.equal((await Order.findByPk(orderId)).status, 'approved');
 });

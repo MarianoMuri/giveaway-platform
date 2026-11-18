@@ -108,6 +108,24 @@ async function drawWinner(raffleId, value) {
   const chance = await Chance.findOne({ where: { RaffleId: raffle.id, number }, include: [Order, FreeEntry] });
   if (!chance) throw new HttpError(400, 'Ese número no fue asignado en este sorteo');
   if (chance.status === 'void') throw new HttpError(409, 'Ese número está anulado (compra reintegrada): sorteá de nuevo');
+  // Antes de dar a alguien como ganador se vuelve a preguntar a Mercado Pago por su pago: si fue
+  // reintegrado o tiene contracargo y el aviso todavía no llegó, se anula acá y no puede ganar.
+  const paid = chance.Order;
+  if (paid && paid.status === 'approved' && paid.mpPaymentId) {
+    let payment;
+    try {
+      payment = await mp.getPayment(paid.mpPaymentId);
+    } catch (e) {
+      throw new HttpError(503, 'No se pudo verificar el pago con Mercado Pago. Reintentá en un momento.');
+    }
+    if (['refunded', 'charged_back'].includes(payment.status)) {
+      await sequelize.transaction(async (t) => {
+        const fresh = await Order.findByPk(paid.id, { lock: t.LOCK.UPDATE, transaction: t });
+        await confirmPackOrder(fresh, payment, t);
+      });
+      throw new HttpError(409, 'Ese número quedó anulado: el pago fue reintegrado o tiene contracargo. Sorteá de nuevo.');
+    }
+  }
   await raffle.update({ winnerNumber: number, status: 'drawn' });
   if (chance.FreeEntry) {
     // Ganó una participación gratuita: no hay teléfono, se contacta por email
