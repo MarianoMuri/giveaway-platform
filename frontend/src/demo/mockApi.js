@@ -28,6 +28,7 @@ const db = {
       description: 'Sorteo en vivo por YouTube. Te llevás el auto patentado y listo para salir. ¡Participá desde cualquier lugar del país!',
       imageUrl: brand.logoUrl, chancesGoal: 10000, nextNumber: 100000,
       drawDate: (() => { const d = new Date(now() + 20 * DAY); d.setHours(21, 0, 0, 0); return d.toISOString(); })(), youtubeUrl: null,
+      salesCloseAt: (() => { const d = new Date(now() + 18 * DAY); d.setHours(20, 0, 0, 0); return d.toISOString(); })(),
       permitNumber: 'DEMO-2026-001', status: 'active', winnerNumber: null, freeEntryEnabled: true, createdAt: iso(),
       terms: 'DEMO: este texto es de ejemplo.\n\n1. Participan mayores de 18 años.\n2. Cada compra incluye un curso digital y chances de regalo.\n3. El sorteo se realiza en vivo por YouTube en la fecha indicada.\n4. El ganador será contactado por teléfono y email.',
     },
@@ -103,7 +104,7 @@ function savePacks(raffleId, body) {
 
 function quoteFor(raffleId, b) {
   const r = raffleOr404(raffleId);
-  if (r.status !== 'active') throw new Err(409, { error: 'El sorteo no está a la venta' });
+  assertOpen(r, 'El sorteo no está a la venta');
   const c = packConfig(r.id);
   const p = c.packs.find((x) => x.id === Number(b.packId));
   if (!p) throw new Err(400, { error: 'Pack inválido' });
@@ -120,11 +121,16 @@ function assignNumbers(o) {
   for (let n = first; n < r.nextNumber; n++) db.chances.push({ raffleId: r.id, number: n, orderId: o.id, status: 'valid' });
   Object.assign(o, { firstNumber: first, lastNumber: r.nextNumber - 1 });
 }
+const salesOpen = (r) => r.status === 'active' && (!r.salesCloseAt || now() < Date.parse(r.salesCloseAt));
+const assertOpen = (r, msg) => {
+  if (salesOpen(r)) return;
+  throw new Err(409, { error: r.status === 'active' ? 'La venta de este sorteo ya cerró' : msg });
+};
 const chancesSold = (raffleId) => db.chances.filter((c) => c.raffleId === raffleId && c.status === 'valid' && c.orderId).length;
 const pub = (r) => {
   const { createdAt, nextNumber, ...rest } = r;
   const prices = packConfig(r.id).packs.map((p) => p.price);
-  return { ...rest, chancesSold: chancesSold(r.id), fromPrice: prices.length ? Math.min(...prices) : null };
+  return { ...rest, salesOpen: salesOpen(r), chancesSold: chancesSold(r.id), fromPrice: prices.length ? Math.min(...prices) : null };
 };
 
 // ---- Datos de ejemplo ----
@@ -234,7 +240,7 @@ const routes = [
     const r = raffleOr404(id);
     if (r.status === 'draft') throw new Err(404, { error: 'Sorteo no encontrado' });
     if (!r.freeEntryEnabled) throw new Err(409, { error: 'Este sorteo no tiene participación gratuita' });
-    if (r.status !== 'active') throw new Err(409, { error: 'La participación en este sorteo está cerrada' });
+    assertOpen(r, 'La participación en este sorteo está cerrada');
     const dni = String(b.dni || '').replace(/\D/g, '');
     if (String(b.name || '').trim().length < 3) throw new Err(400, { error: 'Ingresá tu nombre completo' });
     if (dni.length < 7 || dni.length > 8) throw new Err(400, { error: 'El DNI no es válido' });
@@ -302,12 +308,33 @@ const routes = [
   }],
   ['PATCH', /^\/admin\/raffles\/(\d+)$/, ([id], b) => {
     if (b.status && !['draft', 'active', 'closed'].includes(b.status)) throw new Err(400, { error: 'Estado inválido' });
-    return Object.assign(raffleOr404(id), b);
+    if (b.status && raffleOr404(id).status === 'drawn') throw new Err(409, { error: 'El sorteo ya se realizó: no se puede cambiar el estado de la venta' });
+    if (b.salesCloseAt && Number.isNaN(Date.parse(b.salesCloseAt))) throw new Err(400, { error: 'La fecha de cierre no es válida' });
+    return Object.assign(raffleOr404(id), b, 'salesCloseAt' in b ? { salesCloseAt: b.salesCloseAt || null } : {});
+  }],
+  ['POST', /^\/admin\/raffles\/(\d+)\/readiness$/, ([id]) => {
+    const r = raffleOr404(id);
+    const os = db.orders.filter((o) => o.raffleId === r.id);
+    const valid = db.chances.filter((c) => c.raffleId === r.id && c.status === 'valid');
+    const paid = valid.filter((c) => c.orderId).length;
+    const review = os.filter((o) => o.status === 'needs_review').length;
+    const noPayment = os.filter((o) => o.status === 'pending').length;
+    const closed = !salesOpen(r) && r.status !== 'draft';
+    const blockers = [];
+    if (!closed) blockers.push('La venta sigue abierta');
+    if (review) blockers.push(`${review} compra(s) para revisar (monto distinto)`);
+    return {
+      checkedAt: new Date(now()).toISOString(), salesClosed: closed, salesCloseAt: r.salesCloseAt || null, checked: noPayment, recovered: 0,
+      awaiting: 0, noPayment, errors: 0, notChecked: 0, needsReview: review, abandoned: 0,
+      unconfirmedFree: db.freeEntries.filter((f) => f.RaffleId === r.id && f.status === 'unconfirmed').length,
+      validChances: valid.length, paidChances: paid, freeChances: valid.length - paid, ready: !blockers.length, blockers,
+    };
   }],
   ['GET', /^\/admin\/raffles\/(\d+)\/packs$/, ([id]) => adminPacks(packConfig(raffleOr404(id).id))],
   ['PUT', /^\/admin\/raffles\/(\d+)\/packs$/, ([id], b) => savePacks(raffleOr404(id).id, b)],
   ['POST', /^\/admin\/raffles\/(\d+)\/winner$/, ([id], b) => {
     const r = raffleOr404(id);
+    if (r.status === 'draft' || salesOpen(r)) throw new Err(409, { error: 'Cerrá la venta antes de cargar el ganador (podés poner una fecha de cierre o usar "Cerrar venta")' });
     const c = db.chances.find((x) => x.raffleId === r.id && x.number === Number(b.number));
     if (!c) throw new Err(400, { error: 'Ese número no fue asignado en este sorteo' });
     if (c.status === 'void') throw new Err(409, { error: 'Ese número está anulado (compra reintegrada): sorteá de nuevo' });

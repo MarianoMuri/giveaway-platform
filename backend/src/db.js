@@ -13,6 +13,8 @@ const Raffle = sequelize.define('Raffle', {
   // Meta de chances (opcional): solo para la barra de progreso. No es un tope: la venta sigue.
   chancesGoal: DataTypes.INTEGER,
   drawDate: DataTypes.DATE,
+  // Cierre de ventas (opcional): desde esa fecha no se compran más chances ni se suman participaciones
+  salesCloseAt: DataTypes.DATE,
   youtubeUrl: DataTypes.STRING,
   permitNumber: DataTypes.STRING, // N° de autorización de la lotería provincial
   terms: DataTypes.TEXT, // bases y condiciones

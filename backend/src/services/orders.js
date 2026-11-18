@@ -6,6 +6,7 @@ const packs = require('./packs');
 const numbers = require('./numbers');
 const { confirmPackOrder } = require('./purchases');
 const emails = require('./emails');
+const sales = require('./sales');
 
 function cleanGoal(v) {
   if (v === undefined) return undefined;
@@ -27,6 +28,7 @@ async function createRaffle(data) {
         description: data.description,
         imageUrl: data.imageUrl,
         drawDate: data.drawDate || null,
+        salesCloseAt: data.salesCloseAt && !Number.isNaN(new Date(data.salesCloseAt).getTime()) ? data.salesCloseAt : null,
         youtubeUrl: data.youtubeUrl,
         permitNumber: data.permitNumber,
         terms: data.terms,
@@ -105,6 +107,10 @@ async function drawWinner(raffleId, value) {
   if (!raffle) throw new HttpError(404, 'Sorteo inexistente');
   const number = Number(value);
   if (!Number.isInteger(number)) throw new HttpError(400, 'Número inválido');
+  // El sorteo se hace con la lista cerrada: con la venta abierta todavía pueden entrar números
+  if (raffle.status === 'draft' || sales.isOpen(raffle)) {
+    throw new HttpError(409, 'Cerrá la venta antes de cargar el ganador (podés poner una fecha de cierre o usar "Cerrar venta")');
+  }
   const chance = await Chance.findOne({ where: { RaffleId: raffle.id, number }, include: [Order, FreeEntry] });
   if (!chance) throw new HttpError(400, 'Ese número no fue asignado en este sorteo');
   if (chance.status === 'void') throw new HttpError(409, 'Ese número está anulado (compra reintegrada): sorteá de nuevo');

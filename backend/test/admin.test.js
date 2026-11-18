@@ -93,6 +93,7 @@ test('exportación CSV con curso y rango de números', async () => {
 });
 
 test('ganador: un número sin asignar o anulado no cuenta', async () => {
+  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'closed' }); // se sortea con la venta cerrada
   const none = await request(app).post(`/api/admin/raffles/${raffleId}/winner`).set(auth).send({ number: 999999 });
   assert.equal(none.status, 400);
 

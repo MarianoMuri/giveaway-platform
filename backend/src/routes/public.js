@@ -8,10 +8,11 @@ const { createPurchase } = require('../services/purchases');
 const courses = require('../services/courses');
 const myPurchases = require('../services/myPurchases');
 const freeEntries = require('../services/freeEntries');
+const sales = require('../services/sales');
 
 const publicFields = [
   'id', 'title', 'description', 'prize', 'imageUrl', 'chancesGoal',
-  'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'winnerNumber', 'freeEntryEnabled',
+  'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'winnerNumber', 'freeEntryEnabled', 'salesCloseAt',
 ];
 
 // Agrega a cada sorteo las chances vendidas (barra de progreso) y el precio del pack más barato
@@ -24,7 +25,7 @@ async function withSales(raffles) {
   ]);
   const soldBy = new Map(sold.map((r) => [r.RaffleId, Number(r.n)]));
   const priceBy = new Map(prices.map((r) => [r.RaffleId, Number(r.min)]));
-  return raffles.map((r) => ({ ...r.toJSON(), chancesSold: soldBy.get(r.id) || 0, fromPrice: priceBy.get(r.id) ?? null }));
+  return raffles.map((r) => ({ ...r.toJSON(), salesOpen: sales.isOpen(r), chancesSold: soldBy.get(r.id) || 0, fromPrice: priceBy.get(r.id) ?? null }));
 }
 
 const wrap = (handler) => (req, res, next) => handler(req, res).catch(next);

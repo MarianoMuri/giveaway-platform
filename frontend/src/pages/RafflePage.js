@@ -75,10 +75,11 @@ export default function RafflePage() {
         <SalesProgress raffle={raffle} />
       </header>
 
-      {raffle.status !== 'active' ? (
-        <p className="alert">Este sorteo ya no está a la venta.</p>
+      {raffle.salesOpen === false || raffle.status !== 'active' ? (
+        <p className="alert">{raffle.status === 'active' ? 'La venta de este sorteo ya cerró. ¡Mucha suerte a todos los participantes!' : 'Este sorteo ya no está a la venta.'}</p>
       ) : (
         <>
+          {raffle.salesCloseAt && <p className="small muted">La venta cierra el {dateTime(raffle.salesCloseAt)}</p>}
           <p className="explain">
             Comprás un <strong>curso digital</strong> y te regalamos <strong>chances</strong> para el sorteo.
             Tus números se asignan solos, en orden, apenas se acredita el pago.

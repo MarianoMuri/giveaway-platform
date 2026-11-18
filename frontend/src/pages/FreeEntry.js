@@ -51,7 +51,7 @@ export default function FreeEntry() {
     }
   }
 
-  const closed = raffle.status !== 'active' || !raffle.freeEntryEnabled;
+  const closed = raffle.status !== 'active' || raffle.salesOpen === false || !raffle.freeEntryEnabled;
 
   return (
     <div className="container narrow">
