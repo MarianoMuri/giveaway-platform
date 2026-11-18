@@ -1,10 +1,12 @@
-const { sequelize, Raffle, Order, Course, Chance } = require('../db');
+const { Op } = require('sequelize');
+const { sequelize, Raffle, Order, Course, Chance, FreeEntry, OrderEvent } = require('../db');
 const { mp } = require('./mercadopago');
 const { HttpError } = require('./errors');
 const packs = require('./packs');
 const numbers = require('./numbers');
 const { confirmPackOrder } = require('./purchases');
 const emails = require('./emails');
+const sales = require('./sales');
 
 function cleanGoal(v) {
   if (v === undefined) return undefined;
@@ -26,6 +28,7 @@ async function createRaffle(data) {
         description: data.description,
         imageUrl: data.imageUrl,
         drawDate: data.drawDate || null,
+        salesCloseAt: data.salesCloseAt && !Number.isNaN(new Date(data.salesCloseAt).getTime()) ? data.salesCloseAt : null,
         youtubeUrl: data.youtubeUrl,
         permitNumber: data.permitNumber,
         terms: data.terms,
@@ -90,6 +93,7 @@ async function manualSale({ raffleId, chances, courseId, amount, buyer }) {
       { transaction }
     );
     await numbers.assignNumbers(order, transaction);
+    await OrderEvent.create({ OrderId: order.id, status: 'manual', detail: 'Venta cargada desde el panel' }, { transaction });
     await emails.enqueue(order, transaction); // solo si cargaron un email válido
     return order;
   });
@@ -97,30 +101,78 @@ async function manualSale({ raffleId, chances, courseId, amount, buyer }) {
   return order;
 }
 
+function assertClosedForDraw(raffle) {
+  if (raffle.status === 'draft' || sales.isOpen(raffle)) {
+    throw new HttpError(409, 'Cerrá la venta antes de cargar el ganador (podés poner una fecha de cierre o usar "Cerrar venta")');
+  }
+}
+
 // Busca al dueño del número que salió en el vivo
-async function drawWinner(raffleId, value) {
+async function drawWinner(raffleId, value, { redraw = false, expect = null } = {}) {
   const raffle = await Raffle.findByPk(raffleId);
   if (!raffle) throw new HttpError(404, 'Sorteo inexistente');
   const number = Number(value);
   if (!Number.isInteger(number)) throw new HttpError(400, 'Número inválido');
-  const chance = await Chance.findOne({ where: { RaffleId: raffle.id, number }, include: Order });
+  // El sorteo se hace con la lista cerrada: con la venta abierta todavía pueden entrar números
+  assertClosedForDraw(raffle);
+  const chance = await Chance.findOne({ where: { RaffleId: raffle.id, number }, include: [Order, FreeEntry] });
   if (!chance) throw new HttpError(400, 'Ese número no fue asignado en este sorteo');
   if (chance.status === 'void') throw new HttpError(409, 'Ese número está anulado (compra reintegrada): sorteá de nuevo');
-  await raffle.update({ winnerNumber: number, status: 'drawn' });
+  if (raffle.status === 'drawn' && !redraw) throw new HttpError(409, 'Ya hay un ganador. Para repetir el sorteo indicá el motivo.');
+  // Antes de dar a alguien como ganador se vuelve a preguntar a Mercado Pago por su pago: si fue
+  // reintegrado o tiene contracargo y el aviso todavía no llegó, se anula acá y no puede ganar.
+  const paid = chance.Order;
+  if (paid && paid.status === 'approved' && paid.mpPaymentId) {
+    let payment;
+    try {
+      payment = await mp.getPayment(paid.mpPaymentId);
+    } catch (e) {
+      throw new HttpError(503, 'No se pudo verificar el pago con Mercado Pago. Reintentá en un momento.');
+    }
+    if (['refunded', 'charged_back'].includes(payment.status)) {
+      await sequelize.transaction(async (t) => {
+        const fresh = await Order.findByPk(paid.id, { lock: t.LOCK.UPDATE, transaction: t });
+        await confirmPackOrder(fresh, payment, t);
+      });
+      throw new HttpError(409, 'Ese número quedó anulado: el pago fue reintegrado o tiene contracargo. Sorteá de nuevo.');
+    }
+  }
+  // Compare-and-swap: si otro administrador cargó un ganador mientras tanto, no se pisa en silencio
+  const before = expect || raffle;
+  const [changed] = await Raffle.update(
+    { winnerNumber: number, status: 'drawn' },
+    { where: { id: raffle.id, status: before.status, winnerNumber: before.winnerNumber ?? null } }
+  );
+  if (!changed) throw new HttpError(409, 'Otro administrador cargó el ganador al mismo tiempo. Actualizá la pantalla.');
+  if (chance.FreeEntry) {
+    // Ganó una participación gratuita: no hay teléfono, se contacta por email
+    const f = chance.FreeEntry;
+    return { number, winner: { name: f.name, phone: null, email: f.email, dni: f.dni, orderId: null, freeEntryId: f.id, source: 'free' } };
+  }
   const o = chance.Order;
-  return { number, winner: { name: o.buyerName, phone: o.buyerPhone, email: o.buyerEmail, dni: o.buyerDni, orderId: o.id } };
+  return { number, winner: { name: o.buyerName, phone: o.buyerPhone, email: o.buyerEmail, dni: o.buyerDni, orderId: o.id, source: 'purchase' } };
 }
 
 async function raffleStats(raffleId) {
   const sold = ['approved', 'manual'];
-  const [chancesSold, purchases, pending, review, revenue] = await Promise.all([
-    Chance.count({ where: { RaffleId: raffleId, status: 'valid' } }),
+  const [chancesSold, purchases, pending, review, revenue, freeEntries, reversed, raffle] = await Promise.all([
+    // "Vendidas" no incluye las gratuitas: la barra de progreso y la meta miden ventas
+    Chance.count({ where: { RaffleId: raffleId, status: 'valid', OrderId: { [Op.ne]: null } } }),
     Order.count({ where: { RaffleId: raffleId, status: sold } }),
     Order.count({ where: { RaffleId: raffleId, status: 'pending' } }),
     Order.count({ where: { RaffleId: raffleId, status: 'needs_review' } }),
     Order.sum('amount', { where: { RaffleId: raffleId, status: sold } }),
+    FreeEntry.count({ where: { RaffleId: raffleId, status: 'confirmed' } }),
+    Order.count({ where: { RaffleId: raffleId, status: ['refunded', 'charged_back'] } }),
+    Raffle.findByPk(raffleId),
   ]);
-  return { chancesSold, purchases, pending, review, revenue: Number(revenue || 0) };
+  // Si el número ganador ya sorteado quedó anulado (reintegro/contracargo posterior), el panel lo avisa
+  let winnerVoided = false;
+  if (raffle && raffle.winnerNumber != null) {
+    const w = await Chance.findOne({ where: { RaffleId: raffleId, number: raffle.winnerNumber } });
+    winnerVoided = !!w && w.status === 'void';
+  }
+  return { chancesSold, purchases, pending, review, revenue: Number(revenue || 0), freeEntries, reversed, winnerVoided };
 }
 
-module.exports = { HttpError, createRaffle, handlePayment, manualSale, drawWinner, raffleStats, cleanGoal };
+module.exports = { HttpError, createRaffle, handlePayment, manualSale, drawWinner, assertClosedForDraw, raffleStats, cleanGoal };

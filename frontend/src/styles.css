@@ -155,7 +155,7 @@ th { color: var(--muted); font-weight: 500; font-size: .78rem; text-transform: u
 .s-active, .o-approved, .o-manual { background: #22c55e22; color: #4ade80; }
 .s-drawn { background: #e3262f33; color: var(--primary); }
 .o-pending { background: #f59e0b22; color: #fbbf24; }
-.o-needs_review, .o-rejected, .e-failed { background: #ef444422; color: #f87171; }
+.o-needs_review, .o-rejected, .o-refunded, .o-charged_back, .e-failed { background: #ef444422; color: #f87171; }
 .e-sent { background: #22c55e22; color: #4ade80; }
 .e-pending { background: #f59e0b22; color: #fbbf24; }
 
@@ -190,3 +190,42 @@ th { color: var(--muted); font-weight: 500; font-size: .78rem; text-transform: u
 .header-link { margin-left: auto; font-size: .9rem; color: var(--muted); text-decoration: none; }
 .header-link:hover { color: var(--text); }
 .purchase-numbers { font-family: 'Archivo', sans-serif; font-weight: 900; font-size: 1.5rem; color: var(--primary); margin: .15rem 0; }
+
+/* Participación gratuita */
+.free-note { background: var(--surface); border: 1px dashed #ffffff30; border-radius: 12px; padding: .7rem 1rem; font-size: .92rem; margin: 0 0 1rem; }
+.status.free-confirmed { background: #22c55e22; color: #4ade80; }
+.status.free-void { background: #ef444422; color: #fca5a5; }
+.status.free-unconfirmed { background: #f5b30122; color: #f5b301; }
+
+.history { list-style: none; margin: 6px 0 0; padding: 0 0 0 10px; border-left: 2px solid var(--border, #2a2a30); }
+.history li { margin-bottom: 6px; }
+.voided { text-decoration: line-through; opacity: 0.6; }
+.readiness ul { margin: 6px 0 6px 18px; }
+.readiness .row { align-items: flex-end; }
+.search-panel .grow { flex: 1; min-width: 220px; }
+.ficha { border-top: 1px solid var(--border, #2a2a30); padding: 10px 0; display: grid; gap: 2px; }
+.ficha:first-of-type { margin-top: 10px; }
+.search-panel form { align-items: flex-end; }
+.search-panel form label { flex: 1; }
+.ficha .linklike { justify-self: start; }
+.search-panel form label input { width: 100%; box-sizing: border-box; }
+
+/* Sorteo en vivo: pantalla completa para la transmisión */
+.live { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; background: radial-gradient(ellipse at center, #26141a 0%, #0b0b0d 70%); overflow: auto; }
+.live-top { position: absolute; top: 16px; left: 16px; right: 16px; display: flex; justify-content: space-between; }
+.live-prize { font-size: clamp(18px, 3vw, 30px); margin: 0; color: var(--muted, #a1a1aa); }
+.live-title { font-size: clamp(26px, 5vw, 56px); margin: 0; }
+.live-count { margin: 0; color: var(--muted, #a1a1aa); }
+.live-digits { display: flex; gap: clamp(6px, 1.6vw, 20px); margin: 24px 0; }
+.live-digit { width: clamp(44px, 11vw, 150px); height: clamp(72px, 18vw, 230px); display: flex; align-items: center; justify-content: center; font-size: clamp(48px, 13vw, 180px); font-weight: 800; font-variant-numeric: tabular-nums; background: #17171b; border: 2px solid #2a2a30; border-radius: 14px; }
+.live-digits.rolling .live-digit { color: #a1a1aa; }
+.live-digit.locked { color: #fff; border-color: #e11d2e; box-shadow: 0 0 24px rgba(225, 29, 46, 0.45); }
+.live-winner { animation: livepop 0.6s ease-out; }
+.live-congrats { font-size: clamp(28px, 6vw, 64px); font-weight: 800; color: #facc15; }
+.live-name { font-size: clamp(24px, 5vw, 56px); font-weight: 700; }
+.live-btn { font-size: clamp(22px, 4vw, 40px); padding: 16px 56px; }
+.live-actions { display: grid; gap: 12px; justify-items: center; }
+.live-reason { display: grid; gap: 6px; min-width: min(480px, 90vw); text-align: left; }
+.live-msg { margin: 0; max-width: 640px; }
+@keyframes livepop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .live-winner { animation: none; } }

@@ -36,6 +36,16 @@ module.exports = {
     logoUrl: process.env.BRAND_LOGO_URL || '',
     whatsapp: process.env.BRAND_WHATSAPP_URL || '',
   },
+  // Participación gratuita ("sin obligación de compra")
+  freeEntries: {
+    perIpPerDay: Number(process.env.FREE_ENTRIES_PER_IP_PER_DAY || 5), // varias personas pueden compartir IP (datos móviles, wifi)
+    confirmHours: Number(process.env.FREE_ENTRY_CONFIRM_HOURS || 24),
+    requestsPer15Min: Number(process.env.FREE_ENTRY_REQUESTS_PER_15_MIN || 20), // límite de la ruta por IP
+  },
+  // Compras iniciadas sin pago: hasta estas horas se consideran "en curso" (después, abandonadas)
+  pendingGraceHours: Number(process.env.PENDING_GRACE_HOURS || 24),
+  // Captcha Cloudflare Turnstile. Sin TURNSTILE_SECRET queda desactivado (desarrollo y tests).
+  captcha: { secret: process.env.TURNSTILE_SECRET },
   mp: {
     accessToken: required('MP_ACCESS_TOKEN'),
     webhookSecret: process.env.MP_WEBHOOK_SECRET, // "Clave secreta" del panel de Webhooks de MP

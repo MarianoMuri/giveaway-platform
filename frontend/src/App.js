@@ -9,10 +9,13 @@ import OrderStatus from './pages/OrderStatus';
 import Terms from './pages/Terms';
 import Links from './pages/Links';
 import MisCompras from './pages/MisCompras';
+import FreeEntry from './pages/FreeEntry';
+import FreeEntryConfirm from './pages/FreeEntryConfirm';
 import Login from './pages/admin/Login';
 import Dashboard from './pages/admin/Dashboard';
 import RaffleAdmin from './pages/admin/RaffleAdmin';
 import Courses from './pages/admin/Courses';
+import LiveDraw from './pages/admin/LiveDraw';
 
 function RequireAdmin({ children }) {
   return getToken() ? children : <Navigate to="/admin/login" replace />;
@@ -76,10 +79,13 @@ export default function App() {
           <Route path="/sorteo/:id/bases" element={<Terms />} />
           <Route path="/compra/:id" element={<OrderStatus />} />
           <Route path="/mis-compras" element={<MisCompras />} />
+          <Route path="/sorteo/:id/participar-gratis" element={<FreeEntry />} />
+          <Route path="/participar-gratis/confirmar" element={<FreeEntryConfirm />} />
           {DEMO && <Route path="/demo-pago/:id" element={<DemoPayment />} />}
           <Route path="/admin/login" element={<Login />} />
           <Route path="/admin" element={<RequireAdmin><Dashboard /></RequireAdmin>} />
           <Route path="/admin/cursos" element={<RequireAdmin><Courses /></RequireAdmin>} />
+          <Route path="/admin/sorteo/:id/en-vivo" element={<RequireAdmin><LiveDraw /></RequireAdmin>} />
           <Route path="/admin/sorteo/:id" element={<RequireAdmin><RaffleAdmin /></RequireAdmin>} />
           <Route path="*" element={<div className="container"><h2>Página no encontrada</h2><Link to="/">Volver al inicio</Link></div>} />
         </Routes>

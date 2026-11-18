@@ -1,5 +1,6 @@
 const { sequelize, Raffle, Pack } = require('../db');
 const { HttpError } = require('./errors');
+const sales = require('./sales');
 
 // Escalera sugerida para un sorteo nuevo (el admin la cambia desde el panel)
 const DEFAULT_PACKS = [
@@ -152,7 +153,7 @@ function publicView({ packs, offer }) {
 
 async function quoteForRaffle(raffleId, { packId, double }) {
   const { raffle, packs, offer } = await getConfig(raffleId);
-  if (raffle.status !== 'active') throw new HttpError(409, 'El sorteo no está a la venta');
+  sales.assertOpen(raffle, 'El sorteo no está a la venta');
   const pack = packs.find((p) => p.id === Number(packId));
   if (!pack) throw new HttpError(400, 'Pack inválido');
   return quote({ pack, offer, double: double === true });

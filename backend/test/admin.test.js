@@ -80,7 +80,7 @@ test('venta manual: asigna números en el acto y continúa la numeración', asyn
 
 test('estadísticas del sorteo', async () => {
   const res = await request(app).get(`/api/admin/raffles/${raffleId}/stats`).set(auth);
-  assert.deepEqual(res.body, { chancesSold: 15, purchases: 2, pending: 0, review: 0, revenue: 40000 });
+  assert.deepEqual(res.body, { chancesSold: 15, purchases: 2, pending: 0, review: 0, revenue: 40000, freeEntries: 0, reversed: 0, winnerVoided: false });
   const pub = await request(app).get(`/api/raffles/${raffleId}`);
   assert.equal(pub.body.chancesSold, 15);
 });
@@ -93,6 +93,7 @@ test('exportación CSV con curso y rango de números', async () => {
 });
 
 test('ganador: un número sin asignar o anulado no cuenta', async () => {
+  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'closed' }); // se sortea con la venta cerrada
   const none = await request(app).post(`/api/admin/raffles/${raffleId}/winner`).set(auth).send({ number: 999999 });
   assert.equal(none.status, 400);
 

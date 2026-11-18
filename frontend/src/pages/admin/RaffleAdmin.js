@@ -1,15 +1,29 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApi } from '../../hooks';
-import { api, money, DEMO, numbersLabel } from '../../api';
+import { api, money, DEMO, numbersLabel, dateTime } from '../../api';
 import PackEditor from '../../components/PackEditor';
 import SalesProgress from '../../components/SalesProgress';
+import SearchPanel from '../../components/SearchPanel';
+import ActivityLog from '../../components/ActivityLog';
 
 const emailLabel = { none: 'Sin email', pending: 'Pendiente', sent: 'Enviado', failed: 'Falló' };
+
+const freeLabel = { unconfirmed: 'Sin confirmar', confirmed: 'Confirmada', void: 'Anulada' };
 
 const orderLabel = {
   pending: 'Pendiente', approved: 'Pagada', manual: 'Manual',
   rejected: 'Rechazada', needs_review: 'Revisar',
+  refunded: 'Reintegrada', charged_back: 'Contracargo',
+};
+
+const eventLabel = { ...orderLabel, approved: 'Pago acreditado', manual: 'Venta manual' };
+
+// <input type="datetime-local"> trabaja en hora local, sin zona: se convierte desde/hacia ISO
+const toLocalInput = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 };
 
 export default function RaffleAdmin() {
@@ -24,7 +38,13 @@ export default function RaffleAdmin() {
   const emptyManual = { chances: '', courseId: '', amount: '', name: '', phone: '', dni: '', email: '' };
   const [manual, setManual] = useState(emptyManual);
   const { data: courses } = useApi('/admin/courses', { auth: true });
+  const { data: freeList, reload: reloadFree } = useApi(`/admin/raffles/${id}/free-entries`, { auth: true });
+  const [history, setHistory] = useState({}); // historial de estados por compra (se carga al abrirlo)
+  const [closeAt, setCloseAt] = useState(null); // null = sin tocar (se muestra el valor guardado)
+  const [readiness, setReadiness] = useState(null);
+  const [checking, setChecking] = useState(false);
   const [winnerInput, setWinnerInput] = useState('');
+  const [redoReason, setRedoReason] = useState('');
   const [winner, setWinner] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const [csvText, setCsvText] = useState(null);
@@ -33,7 +53,7 @@ export default function RaffleAdmin() {
   const raffle = (raffles || []).find((r) => String(r.id) === id);
   if (!raffle) return <div className="container"><p className="muted">Cargando…</p></div>;
 
-  const refresh = () => { reloadRaffles(); reloadStats(); reloadOrders(); };
+  const refresh = () => { reloadRaffles(); reloadStats(); reloadOrders(); reloadFree(); };
   const run = async (fn, ok) => {
     setMsg(null);
     try {
@@ -47,7 +67,27 @@ export default function RaffleAdmin() {
     }
   };
 
+  const toggleFree = () =>
+    run(() => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { freeEntryEnabled: !raffle.freeEntryEnabled } }),
+      raffle.freeEntryEnabled ? 'Participación gratuita desactivada' : 'Participación gratuita activada');
+  const voidFree = (f) => {
+    if (!window.confirm(`¿Anular la participación de ${f.name} (DNI ${f.dni})? Su número no se vuelve a usar.`)) return;
+    run(() => api(`/admin/free-entries/${f.id}/void`, { method: 'POST', auth: true }), 'Participación anulada');
+  };
+
   const setM = (k) => (e) => setManual({ ...manual, [k]: e.target.value });
+
+  const toggleHistory = async (o) => {
+    if (history[o.id]) return setHistory(({ [o.id]: _, ...rest }) => rest);
+    try {
+      setHistory((h) => ({ ...h, [o.id]: { loading: true } }));
+      const data = await api(`/admin/orders/${o.id}/history`, { auth: true });
+      setHistory((h) => ({ ...h, [o.id]: data }));
+    } catch (e) {
+      setHistory(({ [o.id]: _, ...rest }) => rest);
+      setMsg({ type: 'error', text: e.message });
+    }
+  };
 
   // Reenvía el email de confirmación; permite corregir la dirección
   const resendEmail = (o) => {
@@ -57,7 +97,40 @@ export default function RaffleAdmin() {
   };
 
   const setStatus = (status) =>
-    run(() => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { status } }), 'Estado actualizado');
+    run(() => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { status } }), status === 'closed' ? 'Venta deshabilitada' : 'Estado actualizado');
+
+  // La fecha de cierre ya pasó: para volver a vender hay que quitarla (o poner una nueva)
+  const saleClosedByDate = raffle.status === 'active' && raffle.salesCloseAt && new Date(raffle.salesCloseAt) <= new Date();
+  const enableSales = () => {
+    if (saleClosedByDate && !window.confirm(`La fecha de cierre (${dateTime(raffle.salesCloseAt)}) ya pasó. Para habilitar la venta se va a quitar esa fecha. Podés poner una nueva después. ¿Continuar?`)) return;
+    return run(
+      () => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { status: 'active', ...(saleClosedByDate ? { salesCloseAt: null } : {}) } }),
+      'Venta habilitada'
+    );
+  };
+
+  const saveCloseAt = (e) => {
+    e.preventDefault();
+    const value = closeAt === null ? toLocalInput(raffle.salesCloseAt) : closeAt;
+    return run(
+      () => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { salesCloseAt: value ? new Date(value).toISOString() : null } }),
+      value ? 'Fecha de cierre guardada' : 'Se quitó la fecha de cierre'
+    ).then((ok) => ok && setCloseAt(null));
+  };
+
+  // Le pregunta a Mercado Pago por las compras sin pago registrado y carga las que faltaban
+  const consult = async () => {
+    setChecking(true);
+    setMsg(null);
+    try {
+      setReadiness(await api(`/admin/raffles/${id}/readiness`, { method: 'POST', auth: true }));
+      refresh();
+    } catch (err) {
+      setMsg({ type: 'alert', text: err.message });
+    } finally {
+      setChecking(false);
+    }
+  };
 
   const sellManual = (e) => {
     e.preventDefault();
@@ -89,7 +162,7 @@ export default function RaffleAdmin() {
     if (!confirming) return setConfirming(true);
     setConfirming(false);
     try {
-      setWinner(await api(`/admin/raffles/${id}/winner`, { method: 'POST', auth: true, body: { number: Number(winnerInput) } }));
+      setWinner(await api(`/admin/raffles/${id}/winner`, { method: 'POST', auth: true, body: { number: Number(winnerInput), ...(raffle.status === 'drawn' ? { reason: redoReason } : {}) } }));
       refresh();
     } catch (err) {
       setMsg({ type: 'alert', text: err.message });
@@ -118,11 +191,20 @@ export default function RaffleAdmin() {
         </div>
         <div className="row">
           {raffle.status === 'draft' && <button className="btn" onClick={() => setStatus('active')}>Publicar y abrir venta</button>}
-          {raffle.status === 'active' && <button className="btn btn-ghost" onClick={() => setStatus('closed')}>Cerrar venta</button>}
-          {raffle.status === 'closed' && <button className="btn btn-ghost" onClick={() => setStatus('active')}>Reabrir venta</button>}
+          {raffle.status === 'active' && !saleClosedByDate && <button className="btn btn-ghost" onClick={() => setStatus('closed')}>Deshabilitar venta</button>}
+          {(raffle.status === 'closed' || saleClosedByDate) && <button className="btn btn-ghost" onClick={enableSales}>Habilitar venta</button>}
+          <button className="btn btn-ghost" onClick={toggleFree}>{raffle.freeEntryEnabled ? 'Desactivar participación gratuita' : 'Activar participación gratuita'}</button>
           {raffle.status !== 'draft' && <Link className="btn btn-ghost" to={`/sorteo/${id}`} target="_blank">Ver página</Link>}
+          {raffle.status !== 'draft' && <Link className="btn" to={`/admin/sorteo/${id}/en-vivo`}>Sorteo en vivo</Link>}
         </div>
       </div>
+
+      {raffle.status !== 'draft' && raffle.status !== 'drawn' && (
+        <p className={`small ${saleClosedByDate || raffle.status === 'closed' ? 'muted' : 'ok'}`}>
+          Venta: <strong>{raffle.status === 'active' && !saleClosedByDate ? 'habilitada' : 'deshabilitada'}</strong>
+          {saleClosedByDate ? ` (cerró el ${dateTime(raffle.salesCloseAt)})` : ''}
+        </p>
+      )}
 
       {msg && <p className={msg.type}>{msg.text}</p>}
 
@@ -130,12 +212,47 @@ export default function RaffleAdmin() {
         <div className="card stat"><span>Recaudado</span><strong>{money(stats?.revenue || 0)}</strong></div>
         <div className="card stat"><span>Chances vendidas</span><strong>{(stats?.chancesSold || 0).toLocaleString('es-AR')}</strong></div>
         <div className="card stat"><span>Compras</span><strong>{stats?.purchases || 0}</strong></div>
+        <div className="card stat"><span>Participaciones gratuitas</span><strong>{stats?.freeEntries || 0}</strong></div>
         <div className="card stat"><span>Pendientes de pago</span><strong>{stats?.pending || 0}</strong></div>
+        {stats?.reversed > 0 && <div className="card stat"><span>Anuladas (reintegro / contracargo)</span><strong>{stats.reversed}</strong></div>}
         {stats?.review > 0 && <div className="card stat"><span>Para revisar</span><strong className="gold">{stats.review}</strong></div>}
       </div>
+      {stats?.winnerVoided && <p className="alert">Atención: el número ganador cargado quedó anulado por un reintegro o contracargo. Hay que sortear de nuevo.</p>}
       {raffle.chancesGoal && <SalesProgress raffle={{ ...raffle, chancesSold: stats?.chancesSold || 0 }} />}
 
       <PackEditor raffleId={id} />
+
+      <SearchPanel raffleId={id} />
+
+      <section className="card readiness">
+        <h3>Cierre de venta y control previo al sorteo</h3>
+        <form className="row" onSubmit={saveCloseAt}>
+          <label>Cierre de venta (opcional)
+            <input type="datetime-local" value={closeAt === null ? toLocalInput(raffle.salesCloseAt) : closeAt} onChange={(e) => setCloseAt(e.target.value)} />
+          </label>
+          <button className="btn btn-ghost">Guardar fecha</button>
+        </form>
+        <p className="small muted">
+          Al llegar esa fecha no se pueden comprar más chances ni sumar participaciones gratuitas. Las compras iniciadas antes y acreditadas después se respetan.
+          {' '}{raffle.status === 'active' ? (raffle.salesCloseAt ? `La venta ${new Date(raffle.salesCloseAt) > new Date() ? 'cierra' : 'cerró'} el ${dateTime(raffle.salesCloseAt)}` : 'Sin fecha: la venta sigue abierta hasta que la cierres a mano.') : 'La venta está cerrada.'}
+        </p>
+        <button className="btn" type="button" onClick={consult} disabled={checking}>{checking ? 'Consultando…' : 'Consultar si están todos los clientes cargados'}</button>
+        {readiness && (
+          <div className="mt">
+            <p className={readiness.ready ? 'ok' : 'alert'}>
+              {readiness.ready ? 'Todo listo: la venta está cerrada y no queda nada pendiente. Se puede sortear.' : 'Todavía no está todo listo:'}
+            </p>
+            {!readiness.ready && <ul>{readiness.blockers.map((b) => <li key={b}>{b}</li>)}</ul>}
+            <ul className="small">
+              <li>Chances válidas: <strong>{readiness.validChances.toLocaleString('es-AR')}</strong> ({readiness.paidChances.toLocaleString('es-AR')} pagas + {readiness.freeChances.toLocaleString('es-AR')} gratuitas)</li>
+              <li>Compras revisadas en Mercado Pago: {readiness.checked} · cargadas ahora que faltaban: <strong>{readiness.recovered}</strong></li>
+              <li>Iniciadas sin pago (no cuentan): {readiness.noPayment + readiness.abandoned}</li>
+              {readiness.unconfirmedFree > 0 && <li>Participaciones gratuitas sin confirmar el email (no cuentan, y ya no pueden confirmarse al cerrar): {readiness.unconfirmedFree}</li>}
+            </ul>
+            <p className="small muted">Consultado el {dateTime(readiness.checkedAt)} — si cambia algo, volvé a consultar.</p>
+          </div>
+        )}
+      </section>
 
       <div className="two-col">
         <form className="card" onSubmit={sellManual}>
@@ -159,8 +276,11 @@ export default function RaffleAdmin() {
         </form>
 
         <form className="card" onSubmit={drawWinner}>
-          <h3>Número ganador</h3>
+          <h3>Cargar ganador a mano</h3>
+          <p className="small muted">Para cuando el sorteo se hizo por otro medio. Si lo hacés desde acá con la pantalla en vivo, no hace falta.</p>
+          {raffle.status !== 'drawn' && <p className="small muted">Se carga con la venta cerrada.</p>}
           {raffle.winnerNumber && <p>Ganador cargado: <strong className="gold">{raffle.winnerNumber}</strong></p>}
+          {raffle.status === 'drawn' && <label>Motivo del cambio (obligatorio)<input value={redoReason} onChange={(e) => setRedoReason(e.target.value)} /></label>}
           <label>Número que salió en el vivo<input required type="number" min="100000" value={winnerInput} onChange={(e) => { setWinnerInput(e.target.value); setConfirming(false); }} /></label>
           {confirming && <p className="alert small">¿Confirmás el {winnerInput} como ganador? El sorteo pasa a "Sorteado".</p>}
           <button className="btn btn-block">{confirming ? `Sí, confirmar el ${winnerInput}` : 'Cargar ganador'}</button>
@@ -169,7 +289,8 @@ export default function RaffleAdmin() {
               <div className="small muted">Ganador del número {winner.number}</div>
               <div><strong>{winner.winner.name}</strong></div>
               <div>DNI {winner.winner.dni}</div>
-              <div>{winner.winner.phone}</div>
+              {winner.winner.phone && <div>{winner.winner.phone}</div>}
+              {winner.winner.source === 'free' && <div className="small muted">Participación gratuita: contactar por email y pedir el DNI</div>}
               <div>{winner.winner.email}</div>
             </div>
           )}
@@ -183,7 +304,7 @@ export default function RaffleAdmin() {
             <option value="">Todas</option>
             {Object.entries(orderLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
-          <button className="btn btn-ghost btn-sm" onClick={exportCsv}>Exportar a Excel</button>
+          <button className="btn btn-ghost btn-sm" onClick={exportCsv}>Exportar listado completo (Excel)</button>
         </div>
       </div>
       {csvText && (
@@ -212,9 +333,20 @@ export default function RaffleAdmin() {
                   <div className="small muted">DNI {o.buyerDni} · {o.buyerPhone}</div>
                 </td>
                 <td>{o.courseTitle}</td>
-                <td className="nowrap">{numbersLabel(o)}<div className="small muted">{o.chances} chances{o.double ? ' (Duplicá)' : ''}</div></td>
+                <td className={`nowrap${o.voidedAt ? ' voided' : ''}`}>{numbersLabel(o)}<div className="small muted">{o.chances} chances{o.double ? ' (Duplicá)' : ''}</div></td>
                 <td>{money(o.amount)}</td>
-                <td><span className={`status o-${o.status}`}>{orderLabel[o.status]}</span>{o.mpStatusDetail && o.status === 'needs_review' && <div className="small muted">{o.mpStatusDetail}</div>}</td>
+                <td><span className={`status o-${o.status}`}>{orderLabel[o.status]}</span>{o.mpStatusDetail && o.status === 'needs_review' && <div className="small muted">{o.mpStatusDetail}</div>}
+                  {o.mpPaymentId && <div className="small muted">Op. MP {o.mpPaymentId}</div>}
+                  {o.voidedAt && <div className="small muted">{new Date(o.voidedAt).toLocaleString('es-AR')}<br />{o.voidReason}</div>}
+                  <div><button type="button" className="linklike small" onClick={() => toggleHistory(o)}>{history[o.id] ? 'Ocultar historial' : 'Historial'}</button></div>
+                  {history[o.id] && (
+                    <ul className="history small">
+                      {history[o.id].loading ? <li className="muted">Cargando…</li> : history[o.id].events.map((e) => (
+                        <li key={e.id}><strong>{eventLabel[e.status] || e.status}</strong> · {new Date(e.createdAt).toLocaleString('es-AR')}{e.detail && e.detail !== eventLabel[e.status] && <div className="muted">{e.detail}</div>}</li>
+                      ))}
+                    </ul>
+                  )}
+                </td>
                 <td className="nowrap">
                   {['approved', 'manual'].includes(o.status) ? (
                     <>
@@ -230,6 +362,28 @@ export default function RaffleAdmin() {
           </tbody>
         </table>
       </div>
+
+      <h3 className="mt-lg">Participaciones gratuitas</h3>
+      <p className="small muted">Sin obligación de compra: 1 número por DNI, asignado al confirmar el email. Si un DNI parece falso, podés anular la participación.</p>
+      <div className="table-wrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>Participante</th><th>Número</th><th>Estado</th><th /></tr></thead>
+          <tbody>
+            {(freeList || []).map((f) => (
+              <tr key={f.id}>
+                <td className="nowrap">{new Date(f.createdAt).toLocaleString('es-AR')}</td>
+                <td>{f.name}<div className="small muted">{f.email}</div><div className="small muted">DNI {f.dni}</div></td>
+                <td>{f.number || '-'}</td>
+                <td><span className={`status free-${f.status}`}>{freeLabel[f.status]}</span></td>
+                <td>{f.status !== 'void' && <button type="button" className="linklike small" onClick={() => voidFree(f)}>Anular</button>}</td>
+              </tr>
+            ))}
+            {freeList && freeList.length === 0 && <tr><td colSpan="5" className="muted">Todavía no hay participaciones gratuitas.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <ActivityLog raffleId={id} refreshKey={`${raffle.status}-${raffle.winnerNumber}-${stats?.chancesSold}`} />
     </div>
   );
 }

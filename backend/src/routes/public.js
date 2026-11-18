@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const config = require('../config');
 const rateLimit = require('express-rate-limit');
 const { Op, fn, col } = require('sequelize');
 const { Raffle, Order, Pack, Chance } = require('../db');
@@ -6,10 +7,12 @@ const packs = require('../services/packs');
 const { createPurchase } = require('../services/purchases');
 const courses = require('../services/courses');
 const myPurchases = require('../services/myPurchases');
+const freeEntries = require('../services/freeEntries');
+const sales = require('../services/sales');
 
 const publicFields = [
   'id', 'title', 'description', 'prize', 'imageUrl', 'chancesGoal',
-  'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'winnerNumber',
+  'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'winnerNumber', 'freeEntryEnabled', 'salesCloseAt',
 ];
 
 // Agrega a cada sorteo las chances vendidas (barra de progreso) y el precio del pack más barato
@@ -17,12 +20,12 @@ async function withSales(raffles) {
   const ids = raffles.map((r) => r.id);
   if (!ids.length) return [];
   const [sold, prices] = await Promise.all([
-    Chance.findAll({ where: { RaffleId: ids, status: 'valid' }, attributes: ['RaffleId', [fn('COUNT', col('id')), 'n']], group: ['RaffleId'], raw: true }),
+    Chance.findAll({ where: { RaffleId: ids, status: 'valid', OrderId: { [Op.ne]: null } }, attributes: ['RaffleId', [fn('COUNT', col('id')), 'n']], group: ['RaffleId'], raw: true }),
     Pack.findAll({ where: { RaffleId: ids }, attributes: ['RaffleId', [fn('MIN', col('price')), 'min']], group: ['RaffleId'], raw: true }),
   ]);
   const soldBy = new Map(sold.map((r) => [r.RaffleId, Number(r.n)]));
   const priceBy = new Map(prices.map((r) => [r.RaffleId, Number(r.min)]));
-  return raffles.map((r) => ({ ...r.toJSON(), chancesSold: soldBy.get(r.id) || 0, fromPrice: priceBy.get(r.id) ?? null }));
+  return raffles.map((r) => ({ ...r.toJSON(), salesOpen: sales.isOpen(r), chancesSold: soldBy.get(r.id) || 0, fromPrice: priceBy.get(r.id) ?? null }));
 }
 
 const wrap = (handler) => (req, res, next) => handler(req, res).catch(next);
@@ -101,6 +104,18 @@ router.post('/my-purchases/link', linkLimiter, wrap(async (req, res) => {
 router.get('/my-purchases', wrap(async (req, res) => {
   const token = (req.get('authorization') || '').replace(/^Bearer /, '');
   res.json(await myPurchases.listPurchases(token));
+}));
+
+// Participación gratuita "sin obligación de compra": pide el número y confirma el email
+const freeLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: config.freeEntries.requestsPer15Min, standardHeaders: true, legacyHeaders: false });
+const confirmLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: config.freeEntries.requestsPer15Min, standardHeaders: true, legacyHeaders: false });
+router.post('/raffles/:id/free-entries', freeLimiter, wrap(async (req, res) => {
+  const { name, dni, email, captchaToken, deviceId } = req.body || {};
+  res.status(202).json(await freeEntries.request({ raffleId: req.params.id, name, dni, email, captchaToken, deviceId, ip: req.ip }));
+}));
+
+router.post('/free-entries/confirm', confirmLimiter, wrap(async (req, res) => {
+  res.json(await freeEntries.confirm(req.body?.token));
 }));
 
 module.exports = router;

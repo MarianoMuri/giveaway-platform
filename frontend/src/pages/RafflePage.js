@@ -75,14 +75,20 @@ export default function RafflePage() {
         <SalesProgress raffle={raffle} />
       </header>
 
-      {raffle.status !== 'active' ? (
-        <p className="alert">Este sorteo ya no está a la venta.</p>
+      {raffle.salesOpen === false || raffle.status !== 'active' ? (
+        <p className="alert">{raffle.status === 'active' ? 'La venta de este sorteo ya cerró. ¡Mucha suerte a todos los participantes!' : 'Este sorteo ya no está a la venta.'}</p>
       ) : (
         <>
+          {raffle.salesCloseAt && <p className="small muted">La venta cierra el {dateTime(raffle.salesCloseAt)}</p>}
           <p className="explain">
             Comprás un <strong>curso digital</strong> y te regalamos <strong>chances</strong> para el sorteo.
             Tus números se asignan solos, en orden, apenas se acredita el pago.
           </p>
+          {raffle.freeEntryEnabled && (
+            <p className="free-note">
+              <strong>Participar no requiere compra.</strong> Si preferís no comprar, <Link to={`/sorteo/${raffle.id}/participar-gratis`}>participá gratis</Link> con 1 número por DNI.
+            </p>
+          )}
 
           <section className="step" ref={coursesRef}>
             <h2><span className="step-n">1</span> Elegí tu curso</h2>

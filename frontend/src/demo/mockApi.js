@@ -28,7 +28,8 @@ const db = {
       description: 'Sorteo en vivo por YouTube. Te llevás el auto patentado y listo para salir. ¡Participá desde cualquier lugar del país!',
       imageUrl: brand.logoUrl, chancesGoal: 10000, nextNumber: 100000,
       drawDate: (() => { const d = new Date(now() + 20 * DAY); d.setHours(21, 0, 0, 0); return d.toISOString(); })(), youtubeUrl: null,
-      permitNumber: 'DEMO-2026-001', status: 'active', winnerNumber: null, createdAt: iso(),
+      salesCloseAt: (() => { const d = new Date(now() + 18 * DAY); d.setHours(20, 0, 0, 0); return d.toISOString(); })(),
+      permitNumber: 'DEMO-2026-001', status: 'active', winnerNumber: null, freeEntryEnabled: true, createdAt: iso(),
       terms: 'DEMO: este texto es de ejemplo.\n\n1. Participan mayores de 18 años.\n2. Cada compra incluye un curso digital y chances de regalo.\n3. El sorteo se realiza en vivo por YouTube en la fecha indicada.\n4. El ganador será contactado por teléfono y email.',
     },
     {
@@ -42,6 +43,7 @@ const db = {
   ],
   chances: [], // { raffleId, number, orderId, status }
   orders: [],
+  freeEntries: [],
 };
 
 class Err { constructor(status, body) { this.status = status; this.body = body; } }
@@ -102,7 +104,7 @@ function savePacks(raffleId, body) {
 
 function quoteFor(raffleId, b) {
   const r = raffleOr404(raffleId);
-  if (r.status !== 'active') throw new Err(409, { error: 'El sorteo no está a la venta' });
+  assertOpen(r, 'El sorteo no está a la venta');
   const c = packConfig(r.id);
   const p = c.packs.find((x) => x.id === Number(b.packId));
   if (!p) throw new Err(400, { error: 'Pack inválido' });
@@ -119,11 +121,16 @@ function assignNumbers(o) {
   for (let n = first; n < r.nextNumber; n++) db.chances.push({ raffleId: r.id, number: n, orderId: o.id, status: 'valid' });
   Object.assign(o, { firstNumber: first, lastNumber: r.nextNumber - 1 });
 }
-const chancesSold = (raffleId) => db.chances.filter((c) => c.raffleId === raffleId && c.status === 'valid').length;
+const salesOpen = (r) => r.status === 'active' && (!r.salesCloseAt || now() < Date.parse(r.salesCloseAt));
+const assertOpen = (r, msg) => {
+  if (salesOpen(r)) return;
+  throw new Err(409, { error: r.status === 'active' ? 'La venta de este sorteo ya cerró' : msg });
+};
+const chancesSold = (raffleId) => db.chances.filter((c) => c.raffleId === raffleId && c.status === 'valid' && c.orderId).length;
 const pub = (r) => {
   const { createdAt, nextNumber, ...rest } = r;
   const prices = packConfig(r.id).packs.map((p) => p.price);
-  return { ...rest, chancesSold: chancesSold(r.id), fromPrice: prices.length ? Math.min(...prices) : null };
+  return { ...rest, salesOpen: salesOpen(r), chancesSold: chancesSold(r.id), fromPrice: prices.length ? Math.min(...prices) : null };
 };
 
 // ---- Datos de ejemplo ----
@@ -147,6 +154,7 @@ function seedOrder(raffleId, i, { status = 'approved', minutesAgo = 60 } = {}) {
   db.orders.push(o);
   if (status === 'approved' || status === 'manual') {
     assignNumbers(o);
+    o.events = [{ id: 1, status: status === 'manual' ? 'manual' : 'approved', detail: status === 'manual' ? 'Venta cargada desde el panel' : 'Pago acreditado', mpPaymentId: o.mpPaymentId, createdAt: o.createdAt }];
     o.emailStatus = i % 23 === 5 ? 'failed' : 'sent';
     if (o.emailStatus === 'failed') o.emailLastError = 'Mailbox unavailable (550)';
   } else o.emailStatus = 'none';
@@ -154,11 +162,51 @@ function seedOrder(raffleId, i, { status = 'approved', minutesAgo = 60 } = {}) {
 }
 for (let i = 0; i < 70; i++) seedOrder(1, i, { status: i % 11 === 0 ? 'manual' : 'approved', minutesAgo: 60 * 24 * 5 - i * 90 });
 seedOrder(1, 99, { status: 'pending', minutesAgo: 3 });
+// Dos compras anuladas de ejemplo: un reintegro y un contracargo
+const REVERSALS = { refunded: 'Pago reintegrado', charged_back: 'Contracargo: el comprador desconoce el pago' };
+[[db.orders[3], 'refunded'], [db.orders[17], 'charged_back']].forEach(([o, status]) => {
+  const at = new Date(Date.parse(o.createdAt) + 36 * 3600000).toISOString();
+  db.chances.filter((c) => c.orderId === o.id).forEach((c) => Object.assign(c, { status: 'void', voidedAt: at, voidReason: REVERSALS[status] }));
+  Object.assign(o, { status, voidedAt: at, voidReason: REVERSALS[status], mpStatusDetail: status });
+  o.events.push({ id: 2, status, detail: REVERSALS[status], mpPaymentId: o.mpPaymentId, createdAt: at });
+});
+const ADMIN = 'admin@demo';
+const auditLog = []; // más reciente primero
+const draws = [];
+let auditSeq = 1;
+const logAudit = (action, raffleId, detail, at) => auditLog.unshift({ id: auditSeq++, actor: ADMIN, action, RaffleId: raffleId || null, detail: detail || null, ip: '127.0.0.1', createdAt: at || new Date(now()).toISOString() });
+logAudit('login.ok', null, null, iso(5 * 3600000));
+logAudit('raffle.update', 1, 'status=active', iso(4 * 3600000));
+logAudit('packs.update', 1, '6 packs', iso(3 * 3600000));
 [2, 3].forEach((id, k) => {
   for (let i = 0; i < 12; i++) seedOrder(id, i + k * 20, { minutesAgo: (40 + k * 90) * 24 * 60 });
   const r = db.raffles.find((x) => x.id === id);
   r.winnerNumber = 100000 + rnd(r.nextNumber - 100000);
 });
+
+function assertDrawable(r) {
+  if (r.status === 'draft' || salesOpen(r)) throw new Err(409, { error: 'Cerrá la venta antes de cargar el ganador (podés poner una fecha de cierre o usar "Cerrar venta")' });
+}
+function redrawReason(r, reason) {
+  if (r.status !== 'drawn') return null;
+  const t = String(reason || '').trim();
+  if (!t) throw new Err(409, { error: 'Ya hay un ganador. Para repetir el sorteo indicá el motivo.' });
+  if (t.length < 10) throw new Err(400, { error: 'El motivo es muy corto: explicá por qué se repite el sorteo' });
+  return t;
+}
+function finishDraw(r, c, { method, reason, validCount = null, position = null }) {
+  draws.forEach((d) => { if (d.RaffleId === r.id && !d.supersededAt) d.supersededAt = new Date(now()).toISOString(); });
+  draws.unshift({ id: draws.length + 1, RaffleId: r.id, number: c.number, method, validCount, position, actor: ADMIN, reason, supersededAt: null, createdAt: new Date(now()).toISOString() });
+  Object.assign(r, { winnerNumber: c.number, status: 'drawn' });
+  const kind = method === 'random' ? (reason ? 'draw.redo' : 'draw.run') : (reason ? 'winner.manual_redo' : 'winner.manual');
+  logAudit(kind, r.id, `number=${c.number}${validCount ? `, valid=${validCount}, position=${position}` : ''}${reason ? `, reason=${reason}` : ''}`);
+  if (c.freeEntryId) {
+    const f = db.freeEntries.find((x) => x.id === c.freeEntryId);
+    return { number: c.number, draw: draws[0], winner: { name: f.name, phone: null, email: f.email, dni: f.dni, orderId: null, source: 'free' } };
+  }
+  const o = orderOr404(c.orderId);
+  return { number: c.number, draw: draws[0], winner: { name: o.buyerName, phone: o.buyerPhone, email: o.buyerEmail, dni: o.buyerDni, orderId: o.id, source: 'purchase' } };
+}
 
 const routes = [
   ['GET', /^\/raffles$/, () => db.raffles.filter((r) => r.status !== 'draft').sort((a, b) => b.drawDate.localeCompare(a.drawDate)).map(pub)],
@@ -219,6 +267,82 @@ const routes = [
         };
       });
   }],
+  // Participación gratuita: en la demo no se manda email, el link se abre desde la propia pantalla
+  ['POST', /^\/raffles\/(\d+)\/free-entries$/, ([id], b) => {
+    const r = raffleOr404(id);
+    if (r.status === 'draft') throw new Err(404, { error: 'Sorteo no encontrado' });
+    if (!r.freeEntryEnabled) throw new Err(409, { error: 'Este sorteo no tiene participación gratuita' });
+    assertOpen(r, 'La participación en este sorteo está cerrada');
+    const dni = String(b.dni || '').replace(/\D/g, '');
+    if (String(b.name || '').trim().length < 3) throw new Err(400, { error: 'Ingresá tu nombre completo' });
+    if (dni.length < 7 || dni.length > 8) throw new Err(400, { error: 'El DNI no es válido' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(b.email || '').trim())) throw new Err(400, { error: 'Ingresá un email válido' });
+    const existing = db.freeEntries.find((f) => f.RaffleId === r.id && f.dni === dni);
+    if (existing && existing.status !== 'unconfirmed') throw new Err(409, { error: 'Ese DNI ya está participando en este sorteo' });
+    const token = `demo-${Math.random().toString(36).slice(2)}`;
+    const fields = { name: String(b.name).trim(), dni, email: String(b.email).trim().toLowerCase(), token, status: 'unconfirmed' };
+    if (existing) Object.assign(existing, fields);
+    else db.freeEntries.unshift({ id: `fe-${db.freeEntries.length + 1}`, RaffleId: r.id, number: null, createdAt: iso(), ...fields });
+    return { ok: true, demoToken: token };
+  }],
+  ['POST', /^\/free-entries\/confirm$/, (_, b) => {
+    const f = db.freeEntries.find((x) => x.token === b.token);
+    if (!f) throw new Err(404, { error: 'El link no es válido o ya fue reemplazado por uno más nuevo' });
+    const r = raffleOr404(f.RaffleId);
+    if (f.status === 'void') throw new Err(409, { error: 'Esta participación fue anulada' });
+    const already = f.status === 'confirmed';
+    if (!already) {
+      f.number = r.nextNumber++;
+      f.status = 'confirmed';
+      db.chances.push({ raffleId: r.id, number: f.number, freeEntryId: f.id, status: 'valid' });
+    }
+    return { number: f.number, already, name: f.name, raffle: { id: r.id, title: r.title, prize: r.prize, drawDate: r.drawDate, youtubeUrl: r.youtubeUrl } };
+  }],
+  ['GET', /^\/admin\/raffles\/(\d+)\/search$/, ([id], _b, query) => {
+    const r = raffleOr404(id);
+    const q = String(query?.get('q') || '').trim();
+    if (q.length < 3) throw new Err(400, { error: 'Escribí al menos 3 caracteres' });
+    const digits = q.replace(/[.\s]/g, '');
+    const lq = q.toLowerCase();
+    const orderCard = (o) => ({
+      kind: 'order', id: o.id, status: o.status, createdAt: o.createdAt, buyerName: o.buyerName, buyerDni: o.buyerDni, buyerEmail: o.buyerEmail,
+      buyerPhone: o.buyerPhone, courseTitle: o.courseTitle, chances: o.chances, amount: o.amount, firstNumber: o.firstNumber, lastNumber: o.lastNumber,
+      voidedNumbers: db.chances.filter((c) => c.orderId === o.id && c.status === 'void').length, mpPaymentId: o.mpPaymentId || null,
+      mpStatusDetail: o.mpStatusDetail || null, voidedAt: o.voidedAt || null, voidReason: o.voidReason || null,
+    });
+    const freeCard = (f) => ({ kind: 'free', id: f.id, status: f.status, createdAt: f.createdAt, name: f.name, dni: f.dni, email: f.email, number: f.number, confirmedAt: f.confirmedAt });
+    const orders = db.orders.filter((o) => o.RaffleId === r.id && o.status !== 'rejected');
+    const frees = db.freeEntries.filter((f) => f.RaffleId === r.id && f.status !== 'unconfirmed');
+    let type; let match = null; let oo = []; let ff = [];
+    if (/^\d{6}$/.test(digits)) {
+      type = 'number';
+      const c = db.chances.find((x) => x.raffleId === r.id && x.number === Number(digits));
+      if (c) {
+        match = { number: c.number, status: c.status, voidedAt: c.voidedAt || null, voidReason: c.voidReason || null, source: c.orderId ? 'purchase' : 'free' };
+        oo = orders.filter((o) => o.id === c.orderId);
+        ff = frees.filter((f) => f.id === c.freeEntryId);
+      }
+    } else if (/^\d{7,8}$/.test(digits)) {
+      type = 'dni';
+      oo = orders.filter((o) => o.buyerDni === digits);
+      ff = frees.filter((f) => f.dni === digits);
+    } else {
+      type = 'text';
+      oo = orders.filter((o) => o.buyerEmail.toLowerCase().includes(lq) || o.buyerName.toLowerCase().includes(lq));
+      ff = frees.filter((f) => f.email.toLowerCase().includes(lq) || f.name.toLowerCase().includes(lq));
+    }
+    return { type, query: q, match, results: [...oo.slice(0, 50).map(orderCard), ...ff.slice(0, 50).map(freeCard)], truncated: oo.length > 50 || ff.length > 50 };
+  }],
+  ['GET', /^\/admin\/raffles\/(\d+)\/free-entries$/, ([id]) => db.freeEntries.filter((f) => f.RaffleId === raffleOr404(id).id)
+    .map(({ token, ...f }) => f)],
+  ['POST', /^\/admin\/free-entries\/([\w-]+)\/void$/, ([id]) => {
+    const f = db.freeEntries.find((x) => x.id === id);
+    if (!f) throw new Err(404, { error: 'Participación no encontrada' });
+    logAudit('free_entry.void', f.RaffleId, `entry=${f.id}`);
+    db.chances.filter((c) => c.freeEntryId === f.id).forEach((c) => { c.status = 'void'; });
+    f.status = 'void';
+    return { id: f.id, status: f.status };
+  }],
   ['POST', /^\/admin\/orders\/([\w-]+)\/resend-email$/, ([id], b) => {
     const o = orderOr404(id);
     if (!['approved', 'manual'].includes(o.status)) throw new Err(409, { error: 'Solo se reenvía el email de compras acreditadas' });
@@ -252,18 +376,55 @@ const routes = [
   }],
   ['PATCH', /^\/admin\/raffles\/(\d+)$/, ([id], b) => {
     if (b.status && !['draft', 'active', 'closed'].includes(b.status)) throw new Err(400, { error: 'Estado inválido' });
-    return Object.assign(raffleOr404(id), b);
+    if (b.status && raffleOr404(id).status === 'drawn') throw new Err(409, { error: 'El sorteo ya se realizó: no se puede cambiar el estado de la venta' });
+    if (b.salesCloseAt && Number.isNaN(Date.parse(b.salesCloseAt))) throw new Err(400, { error: 'La fecha de cierre no es válida' });
+    const changed = Object.keys(b).filter((k) => ['status', 'salesCloseAt', 'freeEntryEnabled', 'drawDate', 'chancesGoal'].includes(k)).map((k) => `${k}=${b[k]}`).join(', ');
+    logAudit('raffle.update', Number(id), changed || Object.keys(b).join(', '));
+    return Object.assign(raffleOr404(id), b, 'salesCloseAt' in b ? { salesCloseAt: b.salesCloseAt || null } : {});
+  }],
+  ['POST', /^\/admin\/raffles\/(\d+)\/readiness$/, ([id]) => {
+    const r = raffleOr404(id);
+    const os = db.orders.filter((o) => o.RaffleId === r.id);
+    logAudit('readiness.check', r.id);
+    const valid = db.chances.filter((c) => c.raffleId === r.id && c.status === 'valid');
+    const paid = valid.filter((c) => c.orderId).length;
+    const review = os.filter((o) => o.status === 'needs_review').length;
+    const noPayment = os.filter((o) => o.status === 'pending').length;
+    const closed = !salesOpen(r) && r.status !== 'draft';
+    const blockers = [];
+    if (!closed) blockers.push('La venta sigue abierta');
+    if (review) blockers.push(`${review} compra(s) para revisar (monto distinto)`);
+    return {
+      checkedAt: new Date(now()).toISOString(), salesClosed: closed, salesCloseAt: r.salesCloseAt || null, checked: noPayment, recovered: 0,
+      awaiting: 0, noPayment, errors: 0, notChecked: 0, needsReview: review, abandoned: 0,
+      unconfirmedFree: db.freeEntries.filter((f) => f.RaffleId === r.id && f.status === 'unconfirmed').length,
+      validChances: valid.length, paidChances: paid, freeChances: valid.length - paid, ready: !blockers.length, blockers,
+    };
   }],
   ['GET', /^\/admin\/raffles\/(\d+)\/packs$/, ([id]) => adminPacks(packConfig(raffleOr404(id).id))],
   ['PUT', /^\/admin\/raffles\/(\d+)\/packs$/, ([id], b) => savePacks(raffleOr404(id).id, b)],
   ['POST', /^\/admin\/raffles\/(\d+)\/winner$/, ([id], b) => {
     const r = raffleOr404(id);
+    assertDrawable(r);
+    const why = redrawReason(r, b.reason);
     const c = db.chances.find((x) => x.raffleId === r.id && x.number === Number(b.number));
     if (!c) throw new Err(400, { error: 'Ese número no fue asignado en este sorteo' });
     if (c.status === 'void') throw new Err(409, { error: 'Ese número está anulado (compra reintegrada): sorteá de nuevo' });
-    Object.assign(r, { winnerNumber: Number(b.number), status: 'drawn' });
-    const o = orderOr404(c.orderId);
-    return { number: Number(b.number), winner: { name: o.buyerName, phone: o.buyerPhone, email: o.buyerEmail, dni: o.buyerDni, orderId: o.id } };
+    return finishDraw(r, c, { method: 'manual', reason: why });
+  }],
+  ['POST', /^\/admin\/raffles\/(\d+)\/draw$/, ([id], b) => {
+    const r = raffleOr404(id);
+    assertDrawable(r);
+    const why = redrawReason(r, b.reason);
+    const valid = db.chances.filter((x) => x.raffleId === r.id && x.status === 'valid').sort((x, y) => x.number - y.number);
+    if (!valid.length) throw new Err(409, { error: 'No hay números válidos para sortear' });
+    const position = crypto.getRandomValues(new Uint32Array(1))[0] % valid.length;
+    return finishDraw(r, valid[position], { method: 'random', reason: why, validCount: valid.length, position });
+  }],
+  ['GET', /^\/admin\/raffles\/(\d+)\/draws$/, ([id]) => draws.filter((d) => d.RaffleId === Number(id))],
+  ['GET', /^\/admin\/audit$/, (_, __, q) => {
+    const rid = q.get('raffleId');
+    return auditLog.filter((l) => !rid || l.RaffleId === Number(rid)).slice(0, Math.min(Number(q.get('limit')) || 50, 200));
   }],
   ['GET', /^\/admin\/raffles\/(\d+)\/stats$/, ([id]) => {
     const r = raffleOr404(id);
@@ -272,13 +433,21 @@ const routes = [
     return {
       chancesSold: chancesSold(r.id), purchases: sold.length, pending: os.filter((o) => o.status === 'pending').length,
       review: os.filter((o) => o.status === 'needs_review').length, revenue: sold.reduce((a, o) => a + Number(o.amount), 0),
+      freeEntries: db.freeEntries.filter((f) => f.RaffleId === r.id && f.status === 'confirmed').length,
+      reversed: os.filter((o) => ['refunded', 'charged_back'].includes(o.status)).length,
+      winnerVoided: false,
     };
+  }],
+  ['GET', /^\/admin\/orders\/([\w-]+)\/history$/, ([id]) => {
+    const o = orderOr404(id);
+    return { status: o.status, voidedAt: o.voidedAt || null, voidReason: o.voidReason || null, voidedNumbers: db.chances.filter((c) => c.orderId === o.id && c.status === 'void').length, events: o.events || [] };
   }],
   ['GET', /^\/admin\/orders$/, (_, __, q) => db.orders
     .filter((o) => (!q.get('raffleId') || String(o.RaffleId) === q.get('raffleId')) && (!q.get('status') || o.status === q.get('status')))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))],
   ['POST', /^\/admin\/orders\/manual$/, (_, b) => {
     const r = raffleOr404(b.raffleId);
+    logAudit('order.manual', r.id, `chances=${b.chances}, amount=${b.amount}`);
     if (r.status === 'drawn') throw new Err(409, { error: 'El sorteo ya se realizó' });
     if (!Number.isInteger(b.chances) || b.chances < 1) throw new Err(400, { error: 'Cantidad de chances inválida' });
     const course = db.courses.find((c) => c.id === Number(b.courseId));
@@ -323,7 +492,7 @@ const routes = [
     throw new Err(400, { error: 'En la demo no hay archivos reales para descargar' });
   }],
   ['GET', /^\/admin\/raffles\/(\d+)\/export\.csv$/, ([id]) => {
-    const rows = db.orders.filter((o) => String(o.RaffleId) === id && ['approved', 'manual', 'needs_review'].includes(o.status));
+    const rows = db.orders.filter((o) => String(o.RaffleId) === id && ['approved', 'manual', 'needs_review', 'refunded', 'charged_back'].includes(o.status));
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     return { __csv: ['Fecha;Nombre;DNI;Teléfono;Email;Curso;Chances;Desde;Hasta;Monto;Estado;Pago MP',
       ...rows.map((o) => [o.createdAt, o.buyerName, o.buyerDni, o.buyerPhone, o.buyerEmail, o.courseTitle, o.chances, o.firstNumber, o.lastNumber, o.amount, o.status, o.mpPaymentId].map(esc).join(';'))].join('\n') };

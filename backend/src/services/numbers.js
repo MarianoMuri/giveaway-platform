@@ -41,8 +41,11 @@ async function assignNumbers(order, transaction) {
 }
 
 // Anula los números de una orden (se usa ante reintegros y contracargos)
-async function voidNumbers(orderId, transaction) {
-  const [count] = await Chance.update({ status: 'void' }, { where: { OrderId: orderId, status: 'valid' }, transaction });
+async function voidNumbers(orderId, transaction, reason = null) {
+  const [count] = await Chance.update(
+    { status: 'void', voidedAt: new Date(), voidReason: reason },
+    { where: { OrderId: orderId, status: 'valid' }, transaction }
+  );
   return count;
 }
 
