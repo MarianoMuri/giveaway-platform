@@ -66,7 +66,8 @@ const Order = sequelize.define('Order', {
   status: {
     // needs_review: pagó un monto distinto al de la orden -> revisar/reintegrar
     // rejected: no se pudo crear el pago en Mercado Pago
-    type: DataTypes.ENUM('pending', 'approved', 'rejected', 'needs_review', 'manual'),
+    // refunded / charged_back: pago devuelto o desconocido por el comprador -> sus números quedan anulados
+    type: DataTypes.ENUM('pending', 'approved', 'rejected', 'needs_review', 'manual', 'refunded', 'charged_back'),
     defaultValue: 'pending',
   },
   // Email de confirmación (outbox): se marca "pending" en la misma transacción que aprueba
@@ -79,7 +80,21 @@ const Order = sequelize.define('Order', {
   mpPreferenceId: DataTypes.STRING,
   mpPaymentId: DataTypes.STRING,
   mpStatusDetail: DataTypes.STRING,
+  voidedAt: DataTypes.DATE,
+  voidReason: DataTypes.STRING,
 });
+
+// Historial de estados de una compra: queda cuándo y por qué cambió, para poder explicarle
+// al cliente (o a Mercado Pago ante un reclamo) qué pasó con cada pago.
+const OrderEvent = sequelize.define(
+  'OrderEvent',
+  {
+    status: { type: DataTypes.STRING, allowNull: false },
+    detail: DataTypes.STRING,
+    mpPaymentId: DataTypes.STRING,
+  },
+  { indexes: [{ fields: ['OrderId'] }] }
+);
 
 // Participación gratuita: 1 número por DNI y por sorteo, asignado recién al confirmar el email.
 // Del IP y del dispositivo solo se guarda un hash: alcanza para limitar abusos sin conservar el dato.
@@ -119,12 +134,16 @@ const Chance = sequelize.define(
   {
     number: { type: DataTypes.INTEGER, allowNull: false },
     status: { type: DataTypes.ENUM('valid', 'void'), defaultValue: 'valid' },
+    voidedAt: DataTypes.DATE,
+    voidReason: DataTypes.STRING,
   },
   { indexes: [{ unique: true, fields: ['RaffleId', 'number'] }, { fields: ['OrderId'] }, { fields: ['FreeEntryId'] }] }
 );
 
 Raffle.hasMany(Chance);
 Chance.belongsTo(Raffle);
+Order.hasMany(OrderEvent);
+OrderEvent.belongsTo(Order);
 Order.hasMany(Chance);
 Chance.belongsTo(Order);
 FreeEntry.hasMany(Chance);
@@ -135,4 +154,4 @@ Order.belongsTo(Course);
 Raffle.hasMany(Pack, { onDelete: 'CASCADE' });
 Pack.belongsTo(Raffle);
 
-module.exports = { sequelize, Raffle, Order, Course, Pack, Chance, FreeEntry };
+module.exports = { sequelize, Raffle, Order, Course, Pack, Chance, FreeEntry, OrderEvent };

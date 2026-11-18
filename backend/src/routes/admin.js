@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const requireAdmin = require('../middleware/auth');
-const { Raffle, Order } = require('../db');
+const { Raffle, Order, Chance, OrderEvent } = require('../db');
 const { createRaffle, manualSale, drawWinner, raffleStats, cleanGoal, HttpError } = require('../services/orders');
 const packs = require('../services/packs');
 const emails = require('../services/emails');
@@ -84,6 +84,15 @@ router.get('/orders', wrap(async (req, res) => {
   res.json(await Order.findAll({ where, order: [['createdAt', 'DESC']], limit: 500 }));
 }));
 
+// Historial de estados de una compra (aprobada, reintegrada, contracargo...)
+router.get('/orders/:id/history', wrap(async (req, res) => {
+  const order = await Order.findByPk(req.params.id);
+  if (!order) throw new HttpError(404, 'Compra no encontrada');
+  const events = await OrderEvent.findAll({ where: { OrderId: order.id }, order: [['createdAt', 'ASC'], ['id', 'ASC']] });
+  const voided = await Chance.count({ where: { OrderId: order.id, status: 'void' } });
+  res.json({ status: order.status, voidedAt: order.voidedAt, voidReason: order.voidReason, voidedNumbers: voided, events });
+}));
+
 router.post('/orders/manual', wrap(async (req, res) => {
   const order = await manualSale(req.body || {});
   res.status(201).json(order);
@@ -104,7 +113,7 @@ router.post('/orders/:id/resend-email', wrap(async (req, res) => {
 // Exportación CSV de compradores (se abre en Excel)
 router.get('/raffles/:id/export.csv', wrap(async (req, res) => {
   const orders = await Order.findAll({
-    where: { RaffleId: req.params.id, status: ['approved', 'manual', 'needs_review'] },
+    where: { RaffleId: req.params.id, status: ['approved', 'manual', 'needs_review', 'refunded', 'charged_back'] },
     order: [['createdAt', 'ASC']],
   });
   const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;

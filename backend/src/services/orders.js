@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { sequelize, Raffle, Order, Course, Chance, FreeEntry } = require('../db');
+const { sequelize, Raffle, Order, Course, Chance, FreeEntry, OrderEvent } = require('../db');
 const { mp } = require('./mercadopago');
 const { HttpError } = require('./errors');
 const packs = require('./packs');
@@ -91,6 +91,7 @@ async function manualSale({ raffleId, chances, courseId, amount, buyer }) {
       { transaction }
     );
     await numbers.assignNumbers(order, transaction);
+    await OrderEvent.create({ OrderId: order.id, status: 'manual', detail: 'Venta cargada desde el panel' }, { transaction });
     await emails.enqueue(order, transaction); // solo si cargaron un email válido
     return order;
   });
@@ -119,7 +120,7 @@ async function drawWinner(raffleId, value) {
 
 async function raffleStats(raffleId) {
   const sold = ['approved', 'manual'];
-  const [chancesSold, purchases, pending, review, revenue, freeEntries] = await Promise.all([
+  const [chancesSold, purchases, pending, review, revenue, freeEntries, reversed, raffle] = await Promise.all([
     // "Vendidas" no incluye las gratuitas: la barra de progreso y la meta miden ventas
     Chance.count({ where: { RaffleId: raffleId, status: 'valid', OrderId: { [Op.ne]: null } } }),
     Order.count({ where: { RaffleId: raffleId, status: sold } }),
@@ -127,8 +128,16 @@ async function raffleStats(raffleId) {
     Order.count({ where: { RaffleId: raffleId, status: 'needs_review' } }),
     Order.sum('amount', { where: { RaffleId: raffleId, status: sold } }),
     FreeEntry.count({ where: { RaffleId: raffleId, status: 'confirmed' } }),
+    Order.count({ where: { RaffleId: raffleId, status: ['refunded', 'charged_back'] } }),
+    Raffle.findByPk(raffleId),
   ]);
-  return { chancesSold, purchases, pending, review, revenue: Number(revenue || 0), freeEntries };
+  // Si el número ganador ya sorteado quedó anulado (reintegro/contracargo posterior), el panel lo avisa
+  let winnerVoided = false;
+  if (raffle && raffle.winnerNumber != null) {
+    const w = await Chance.findOne({ where: { RaffleId: raffleId, number: raffle.winnerNumber } });
+    winnerVoided = !!w && w.status === 'void';
+  }
+  return { chancesSold, purchases, pending, review, revenue: Number(revenue || 0), freeEntries, reversed, winnerVoided };
 }
 
 module.exports = { HttpError, createRaffle, handlePayment, manualSale, drawWinner, raffleStats, cleanGoal };
