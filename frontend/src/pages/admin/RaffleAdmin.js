@@ -12,7 +12,10 @@ const freeLabel = { unconfirmed: 'Sin confirmar', confirmed: 'Confirmada', void:
 const orderLabel = {
   pending: 'Pendiente', approved: 'Pagada', manual: 'Manual',
   rejected: 'Rechazada', needs_review: 'Revisar',
+  refunded: 'Reintegrada', charged_back: 'Contracargo',
 };
+
+const eventLabel = { ...orderLabel, approved: 'Pago acreditado', manual: 'Venta manual' };
 
 export default function RaffleAdmin() {
   const { id } = useParams();
@@ -27,6 +30,7 @@ export default function RaffleAdmin() {
   const [manual, setManual] = useState(emptyManual);
   const { data: courses } = useApi('/admin/courses', { auth: true });
   const { data: freeList, reload: reloadFree } = useApi(`/admin/raffles/${id}/free-entries`, { auth: true });
+  const [history, setHistory] = useState({}); // historial de estados por compra (se carga al abrirlo)
   const [winnerInput, setWinnerInput] = useState('');
   const [winner, setWinner] = useState(null);
   const [confirming, setConfirming] = useState(false);
@@ -59,6 +63,18 @@ export default function RaffleAdmin() {
   };
 
   const setM = (k) => (e) => setManual({ ...manual, [k]: e.target.value });
+
+  const toggleHistory = async (o) => {
+    if (history[o.id]) return setHistory(({ [o.id]: _, ...rest }) => rest);
+    try {
+      setHistory((h) => ({ ...h, [o.id]: { loading: true } }));
+      const data = await api(`/admin/orders/${o.id}/history`, { auth: true });
+      setHistory((h) => ({ ...h, [o.id]: data }));
+    } catch (e) {
+      setHistory(({ [o.id]: _, ...rest }) => rest);
+      setMsg({ type: 'error', text: e.message });
+    }
+  };
 
   // Reenvía el email de confirmación; permite corregir la dirección
   const resendEmail = (o) => {
@@ -144,8 +160,10 @@ export default function RaffleAdmin() {
         <div className="card stat"><span>Compras</span><strong>{stats?.purchases || 0}</strong></div>
         <div className="card stat"><span>Participaciones gratuitas</span><strong>{stats?.freeEntries || 0}</strong></div>
         <div className="card stat"><span>Pendientes de pago</span><strong>{stats?.pending || 0}</strong></div>
+        {stats?.reversed > 0 && <div className="card stat"><span>Anuladas (reintegro / contracargo)</span><strong>{stats.reversed}</strong></div>}
         {stats?.review > 0 && <div className="card stat"><span>Para revisar</span><strong className="gold">{stats.review}</strong></div>}
       </div>
+      {stats?.winnerVoided && <p className="alert">Atención: el número ganador cargado quedó anulado por un reintegro o contracargo. Hay que sortear de nuevo.</p>}
       {raffle.chancesGoal && <SalesProgress raffle={{ ...raffle, chancesSold: stats?.chancesSold || 0 }} />}
 
       <PackEditor raffleId={id} />
@@ -226,9 +244,19 @@ export default function RaffleAdmin() {
                   <div className="small muted">DNI {o.buyerDni} · {o.buyerPhone}</div>
                 </td>
                 <td>{o.courseTitle}</td>
-                <td className="nowrap">{numbersLabel(o)}<div className="small muted">{o.chances} chances{o.double ? ' (Duplicá)' : ''}</div></td>
+                <td className={`nowrap${o.voidedAt ? ' voided' : ''}`}>{numbersLabel(o)}<div className="small muted">{o.chances} chances{o.double ? ' (Duplicá)' : ''}</div></td>
                 <td>{money(o.amount)}</td>
-                <td><span className={`status o-${o.status}`}>{orderLabel[o.status]}</span>{o.mpStatusDetail && o.status === 'needs_review' && <div className="small muted">{o.mpStatusDetail}</div>}</td>
+                <td><span className={`status o-${o.status}`}>{orderLabel[o.status]}</span>{o.mpStatusDetail && o.status === 'needs_review' && <div className="small muted">{o.mpStatusDetail}</div>}
+                  {o.voidedAt && <div className="small muted">{new Date(o.voidedAt).toLocaleString('es-AR')}<br />{o.voidReason}</div>}
+                  <div><button type="button" className="linklike small" onClick={() => toggleHistory(o)}>{history[o.id] ? 'Ocultar historial' : 'Historial'}</button></div>
+                  {history[o.id] && (
+                    <ul className="history small">
+                      {history[o.id].loading ? <li className="muted">Cargando…</li> : history[o.id].events.map((e) => (
+                        <li key={e.id}><strong>{eventLabel[e.status] || e.status}</strong> · {new Date(e.createdAt).toLocaleString('es-AR')}{e.detail && e.detail !== eventLabel[e.status] && <div className="muted">{e.detail}</div>}</li>
+                      ))}
+                    </ul>
+                  )}
+                </td>
                 <td className="nowrap">
                   {['approved', 'manual'].includes(o.status) ? (
                     <>

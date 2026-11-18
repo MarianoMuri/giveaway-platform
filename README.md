@@ -40,6 +40,7 @@ Desarrollada para una concesionaria y publicada como versión **white-label**: l
 - Packs de chances y oferta "Duplicá" editables por sorteo, con vista previa de lo que ve el comprador.
 - Recaudación, chances vendidas, compras, pendientes y compras para revisar.
 - Venta manual (efectivo o transferencia) con asignación de números en el acto.
+- **Reintegros y contracargos**: la compra pasa a anulada, sus números quedan anulados con fecha y motivo y se ve el historial de estados.
 - **Participación gratuita** (sin obligación de compra): lista de participantes, anulación y activación por sorteo.
 - Estado del email de cada compra (enviado, pendiente, falló) y reenvío, incluso a una dirección corregida.
 - Carga del número ganador con los datos del comprador.
@@ -115,6 +116,7 @@ Para probar pagos se usan las **credenciales y usuarios de prueba** de Mercado P
 | GET | `/api/admin/raffles/:id/free-entries` | Participaciones gratuitas del sorteo |
 | POST | `/api/admin/free-entries/:id/void` | Anula una participación gratuita |
 | POST | `/api/admin/orders/manual` | Venta manual: asigna los números en el acto |
+| GET | `/api/admin/orders/:id/history` | Historial de estados de una compra (acreditada, reintegrada, contracargo) |
 | POST | `/api/admin/orders/:id/resend-email` | Reenvía el email de confirmación (opcional: a otra dirección) |
 | POST | `/api/admin/raffles/:id/winner` | Busca al dueño del número ganador |
 | … | `/api/admin/*` | Sorteos, estadísticas, compras, exportación CSV |
