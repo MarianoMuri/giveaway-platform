@@ -7,6 +7,7 @@ const { captcha } = require('./captcha');
 const { freeEntryConfirm, freeEntryNumber } = require('./emailTemplates');
 const numbers = require('./numbers');
 const { HttpError } = require('./errors');
+const sales = require('./sales');
 
 /**
  * Participación gratuita ("sin obligación de compra").
@@ -40,7 +41,7 @@ async function request({ raffleId, name, dni, email, captchaToken, deviceId, ip 
   const raffle = await Raffle.findByPk(raffleId);
   if (!raffle || raffle.status === 'draft') throw new HttpError(404, 'Sorteo no encontrado');
   if (!raffle.freeEntryEnabled) throw new HttpError(409, 'Este sorteo no tiene participación gratuita');
-  if (raffle.status !== 'active') throw new HttpError(409, 'La participación en este sorteo está cerrada');
+  sales.assertOpen(raffle, 'La participación en este sorteo está cerrada');
 
   const data = clean({ name, dni, email });
   if (!DEVICE.test(String(deviceId || ''))) throw new HttpError(400, 'No pudimos identificar tu dispositivo. Recargá la página.');
@@ -102,7 +103,7 @@ async function confirm(token) {
     if (entry.status === 'confirmed') return { entry, already: true };
     if (entry.tokenExpiresAt < new Date()) throw new HttpError(410, 'El link venció. Volvé a pedir tu participación.');
     const raffle = await Raffle.findByPk(entry.RaffleId, { transaction: t });
-    if (raffle.status !== 'active') throw new HttpError(409, 'La participación en este sorteo ya está cerrada');
+    sales.assertOpen(raffle, 'La participación en este sorteo ya está cerrada');
     const { first } = await numbers.reserveBlock(raffle.id, 1, t);
     await Chance.create({ number: first, RaffleId: raffle.id, FreeEntryId: entry.id }, { transaction: t });
     await entry.update({ status: 'confirmed', number: first, confirmedAt: new Date() }, { transaction: t });

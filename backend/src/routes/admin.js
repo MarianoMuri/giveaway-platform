@@ -8,6 +8,7 @@ const { Raffle, Order, Chance, OrderEvent } = require('../db');
 const { createRaffle, manualSale, drawWinner, raffleStats, cleanGoal, HttpError } = require('../services/orders');
 const packs = require('../services/packs');
 const emails = require('../services/emails');
+const readiness = require('../services/readiness');
 const freeEntries = require('../services/freeEntries');
 
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10 });
@@ -49,9 +50,13 @@ router.put('/raffles/:id/packs', wrap(async (req, res) => {
 router.patch('/raffles/:id', wrap(async (req, res) => {
   const raffle = await Raffle.findByPk(req.params.id);
   if (!raffle) throw new HttpError(404, 'Sorteo inexistente');
-  const allowed = ['title', 'description', 'prize', 'imageUrl', 'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'chancesGoal', 'freeEntryEnabled'];
+  const allowed = ['title', 'description', 'prize', 'imageUrl', 'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'chancesGoal', 'freeEntryEnabled', 'salesCloseAt'];
   const changes = Object.fromEntries(Object.entries(req.body || {}).filter(([k]) => allowed.includes(k)));
   if ('chancesGoal' in changes) changes.chancesGoal = cleanGoal(changes.chancesGoal);
+  if ('salesCloseAt' in changes) {
+    if (changes.salesCloseAt === '' || changes.salesCloseAt === null) changes.salesCloseAt = null;
+    else if (Number.isNaN(new Date(changes.salesCloseAt).getTime())) throw new HttpError(400, 'La fecha de cierre no es válida');
+  }
   if (changes.status && !['draft', 'active', 'closed'].includes(changes.status)) {
     throw new HttpError(400, 'Estado inválido'); // "drawn" solo se pone al cargar el ganador
   }
@@ -61,6 +66,11 @@ router.patch('/raffles/:id', wrap(async (req, res) => {
 // Cargar el número ganador del sorteo en vivo
 router.post('/raffles/:id/winner', wrap(async (req, res) => {
   res.json(await drawWinner(req.params.id, req.body?.number));
+}));
+
+// Control previo al sorteo: carga los pagos que faltaban (consulta a Mercado Pago) y resume el estado
+router.post('/raffles/:id/readiness', wrap(async (req, res) => {
+  res.json(await readiness.check(req.params.id));
 }));
 
 router.get('/raffles/:id/stats', wrap(async (req, res) => {

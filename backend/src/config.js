@@ -42,6 +42,8 @@ module.exports = {
     confirmHours: Number(process.env.FREE_ENTRY_CONFIRM_HOURS || 24),
     requestsPer15Min: Number(process.env.FREE_ENTRY_REQUESTS_PER_15_MIN || 20), // límite de la ruta por IP
   },
+  // Compras iniciadas sin pago: hasta estas horas se consideran "en curso" (después, abandonadas)
+  pendingGraceHours: Number(process.env.PENDING_GRACE_HOURS || 24),
   // Captcha Cloudflare Turnstile. Sin TURNSTILE_SECRET queda desactivado (desarrollo y tests).
   captcha: { secret: process.env.TURNSTILE_SECRET },
   mp: {

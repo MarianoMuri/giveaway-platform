@@ -7,7 +7,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "node --test --test-concurrency=1 test/admin.test.js test/courses.test.js test/packs.test.js test/purchases.test.js test/emails.test.js test/myPurchases.test.js test/freeEntries.test.js test/reversals.test.js",
+    "test": "node --test --test-concurrency=1 test/admin.test.js test/courses.test.js test/packs.test.js test/purchases.test.js test/emails.test.js test/myPurchases.test.js test/freeEntries.test.js test/reversals.test.js test/salesClose.test.js",
     "start": "node src/server.js",
     "dev": "node --watch src/server.js"
   },

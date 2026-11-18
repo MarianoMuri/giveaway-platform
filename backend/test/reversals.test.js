@@ -176,6 +176,7 @@ test('la exportación CSV incluye las compras anuladas con su estado', async () 
 test('si se anula el número ya sorteado, el panel avisa y no se puede volver a elegir', async () => {
   const { orderId, paymentId } = await approvedOrder();
   const order = await Order.findByPk(orderId);
+  await Raffle.update({ status: 'closed' }, { where: { id: raffleId } });
   const win = await request(app).post(`/api/admin/raffles/${raffleId}/winner`).set(auth).send({ number: order.firstNumber });
   assert.equal(win.status, 200);
   assert.equal((await request(app).get(`/api/admin/raffles/${raffleId}/stats`).set(auth)).body.winnerVoided, false);
@@ -190,6 +191,7 @@ test('antes de dar un ganador se verifica el pago en MP: si ya fue reintegrado, 
   await Raffle.update({ status: 'active', winnerNumber: null }, { where: { id: raffleId } }); // el test anterior ya sorteó
   const { orderId, paymentId } = await approvedOrder();
   change(paymentId, 'refunded'); // MP ya lo reintegró, pero el aviso todavía no llegó (no se llama al webhook)
+  await Raffle.update({ status: 'closed' }, { where: { id: raffleId } });
   const order = await Order.findByPk(orderId);
   const res = await request(app).post(`/api/admin/raffles/${raffleId}/winner`).set(auth).send({ number: order.firstNumber });
   assert.equal(res.status, 409);
@@ -201,8 +203,10 @@ test('antes de dar un ganador se verifica el pago en MP: si ya fue reintegrado, 
 });
 
 test('si no se puede verificar el pago en MP, no se carga el ganador', async () => {
+  await Raffle.update({ status: 'active', winnerNumber: null }, { where: { id: raffleId } });
   const { orderId, paymentId } = await approvedOrder();
   const order = await Order.findByPk(orderId);
+  await Raffle.update({ status: 'closed' }, { where: { id: raffleId } });
   const original = mp.getPayment;
   mp.getPayment = async () => { throw new Error('MP caído'); };
   try {

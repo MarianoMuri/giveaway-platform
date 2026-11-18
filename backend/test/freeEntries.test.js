@@ -16,7 +16,7 @@ process.env.FREE_ENTRY_REQUESTS_PER_15_MIN = '10000';
 const app = require('../src/app');
 const config = require('../src/config');
 
-const { sequelize, Order, FreeEntry, Chance } = require('../src/db');
+const { sequelize, Raffle, Order, FreeEntry, Chance } = require('../src/db');
 const { mp } = require('../src/services/mercadopago');
 const { mailer } = require('../src/services/mailer');
 const { captcha } = require('../src/services/captcha');
@@ -254,6 +254,7 @@ test('los emails escapan los datos', () => {
 test('si sale una participación gratuita, el panel muestra al ganador (y una anulada no puede ganar)', async () => {
   const data = body({ name: 'Marta Ruiz', email: 'marta@test.com' });
   const ok = await join(data);
+  await Raffle.update({ status: 'closed' }, { where: { id: raffleId } });
   const win = await drawWinner(raffleId, ok.body.number);
   assert.equal(win.winner.source, 'free');
   assert.equal(win.winner.name, 'Marta Ruiz');

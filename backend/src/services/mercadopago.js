@@ -37,6 +37,15 @@ const mp = {
     return { id: pref.id, initPoint: pref.init_point };
   },
 
+  // Pagos de una compra (por external_reference): sirve para controlar, antes de sortear, que no
+  // falte cargar ninguno aunque el aviso (webhook) se haya perdido
+  async searchPayments(externalReference) {
+    const r = await new Payment(getClient()).search({
+      options: { external_reference: externalReference, sort: 'date_created', criteria: 'desc' },
+    });
+    return (r.results || []).map((p) => ({ id: String(p.id), status: p.status }));
+  },
+
   async getPayment(paymentId) {
     const p = await new Payment(getClient()).get({ id: paymentId });
     return {
