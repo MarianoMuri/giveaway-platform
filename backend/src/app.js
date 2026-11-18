@@ -10,6 +10,9 @@ app.use(cors({ origin: config.frontendUrl }));
 app.use(express.json({ limit: '100kb' }));
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
+const courses = require('./routes/courses');
+app.use('/api/courses', courses.publicRouter);
+app.use('/api/admin/courses', courses.adminRouter);
 app.use('/api', require('./routes/public'));
 app.use('/api/webhooks', require('./routes/webhooks'));
 app.use('/api/admin', require('./routes/admin'));

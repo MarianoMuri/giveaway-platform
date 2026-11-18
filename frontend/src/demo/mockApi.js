@@ -6,9 +6,21 @@ import { computeTotal, validatePromos } from '../pricing';
 
 const RESERVATION_MS = 15 * 60 * 1000;
 let nextRaffleId = 4;
+let nextCourseId = 6;
 const now = () => Date.now();
 
+const demoCourse = (id, title, description, position) => ({
+  id, title, description, coverUrl: '', active: true, position, pdfName: `${title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]+/g, '-')}.pdf`, pdfSize: 1800000 + id * 210000, createdAt: new Date().toISOString(),
+});
+
 const db = {
+  courses: [
+    demoCourse(1, 'Cocina básica', 'Técnicas y recetas para arrancar en la cocina.', 1),
+    demoCourse(2, 'Jardinería en casa', 'Huerta, plantas de interior y cuidados por estación.', 2),
+    demoCourse(3, 'Carpintería inicial', 'Herramientas, uniones y un primer mueble paso a paso.', 3),
+    demoCourse(4, 'Herrería', 'Corte, soldadura y terminaciones para proyectos simples.', 4),
+    { ...demoCourse(5, 'Fotografía con el celular', 'Encuadre, luz y edición rápida.', 5), active: false },
+  ],
   raffles: [
     {
       id: 1, title: 'Gran Sorteo Edición Premium', prize: 'Chevrolet Onix 0km',
@@ -174,6 +186,33 @@ const routes = [
     db.orders.unshift(o);
     return o;
   }],
+  ['GET', /^\/courses$/, () => db.courses.filter((c) => c.active).sort((a, b) => a.position - b.position)
+    .map(({ id, title, description, coverUrl, position }) => ({ id, title, description, coverUrl, position }))],
+  ['GET', /^\/admin\/courses$/, () => [...db.courses].sort((a, b) => a.position - b.position)],
+  ['POST', /^\/admin\/courses$/, (_, b) => {
+    if (!b.title) throw new Err(400, { error: 'El título es obligatorio' });
+    if (!b.pdf) throw new Err(400, { error: 'Falta el archivo PDF' });
+    const c = { id: nextCourseId++, title: b.title, description: b.description || '', coverUrl: b.coverUrl || '', active: b.active !== 'false',
+      position: Number(b.position) || 0, pdfName: b.pdf.name, pdfSize: b.pdf.size, createdAt: new Date().toISOString() };
+    db.courses.push(c);
+    return c;
+  }],
+  ['PATCH', /^\/admin\/courses\/(\d+)$/, ([id], b) => {
+    const c = db.courses.find((x) => String(x.id) === id);
+    if (!c) throw new Err(404, { error: 'Curso no encontrado' });
+    for (const k of ['title', 'description', 'coverUrl']) if (b[k] !== undefined) c[k] = b[k];
+    if (b.active !== undefined) c.active = b.active === true || b.active === 'true';
+    if (b.position !== undefined) c.position = Number(b.position) || 0;
+    if (b.pdf) Object.assign(c, { pdfName: b.pdf.name, pdfSize: b.pdf.size });
+    return c;
+  }],
+  ['DELETE', /^\/admin\/courses\/(\d+)$/, ([id]) => {
+    db.courses = db.courses.filter((x) => String(x.id) !== id);
+    return {};
+  }],
+  ['POST', /^\/admin\/courses\/(\d+)\/download-link$/, () => {
+    throw new Err(400, { error: 'En la demo no hay archivos reales para descargar' });
+  }],
   ['GET', /^\/admin\/raffles\/(\d+)\/export\.csv$/, ([id]) => {
     const rows = db.orders.filter((o) => String(o.RaffleId) === id && ['approved', 'manual'].includes(o.status));
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -190,7 +229,7 @@ export function installMockApi() {
     if (idx === -1) return realFetch(input, init);
     const path = url.pathname.slice(idx + 4);
     const method = (init.method || 'GET').toUpperCase();
-    const body = init.body ? JSON.parse(init.body) : {};
+    const body = init.body instanceof FormData ? Object.fromEntries(init.body.entries()) : init.body ? JSON.parse(init.body) : {};
     expire();
     await new Promise((r) => setTimeout(r, 150)); // latencia simulada
     for (const [m, re, fn] of routes) {

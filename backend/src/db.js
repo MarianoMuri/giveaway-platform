@@ -24,6 +24,17 @@ const Raffle = sequelize.define('Raffle', {
   winnerNumber: DataTypes.INTEGER,
 });
 
+const Course = sequelize.define('Course', {
+  title: { type: DataTypes.STRING, allowNull: false },
+  description: DataTypes.TEXT,
+  coverUrl: DataTypes.STRING,
+  pdfKey: { type: DataTypes.STRING, allowNull: false }, // key en el almacenamiento, nunca una ruta
+  pdfName: { type: DataTypes.STRING, allowNull: false }, // nombre original para la descarga
+  pdfSize: { type: DataTypes.INTEGER, allowNull: false },
+  active: { type: DataTypes.BOOLEAN, defaultValue: true },
+  position: { type: DataTypes.INTEGER, defaultValue: 0 },
+});
+
 const Order = sequelize.define('Order', {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
   buyerName: { type: DataTypes.STRING, allowNull: false },
@@ -60,4 +71,4 @@ Order.belongsTo(Raffle);
 Order.hasMany(Ticket);
 Ticket.belongsTo(Order);
 
-module.exports = { sequelize, Raffle, Order, Ticket };
+module.exports = { sequelize, Raffle, Order, Ticket, Course };

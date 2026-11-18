@@ -35,9 +35,15 @@ export function setToken(t) {
 
 export async function api(path, { method = 'GET', body, auth = false, raw = false } = {}) {
   const headers = {};
-  if (body) headers['Content-Type'] = 'application/json';
+  // FormData (subida de archivos): el navegador arma el Content-Type con el boundary
+  const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
+  if (body && !isForm) headers['Content-Type'] = 'application/json';
   if (auth) headers.Authorization = `Bearer ${getToken()}`;
-  const res = await fetch(`${BASE}/api${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const res = await fetch(`${BASE}/api${path}`, {
+    method,
+    headers,
+    body: body ? (isForm ? body : JSON.stringify(body)) : undefined,
+  });
   if (raw) {
     if (!res.ok) throw new ApiError(res.status, {});
     return res;

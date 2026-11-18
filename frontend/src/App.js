@@ -11,6 +11,7 @@ import Links from './pages/Links';
 import Login from './pages/admin/Login';
 import Dashboard from './pages/admin/Dashboard';
 import RaffleAdmin from './pages/admin/RaffleAdmin';
+import Courses from './pages/admin/Courses';
 
 function RequireAdmin({ children }) {
   return getToken() ? children : <Navigate to="/admin/login" replace />;
@@ -75,6 +76,7 @@ export default function App() {
           {DEMO && <Route path="/demo-pago/:id" element={<DemoPayment />} />}
           <Route path="/admin/login" element={<Login />} />
           <Route path="/admin" element={<RequireAdmin><Dashboard /></RequireAdmin>} />
+          <Route path="/admin/cursos" element={<RequireAdmin><Courses /></RequireAdmin>} />
           <Route path="/admin/sorteo/:id" element={<RequireAdmin><RaffleAdmin /></RequireAdmin>} />
           <Route path="*" element={<div className="container"><h2>Página no encontrada</h2><Link to="/">Volver al inicio</Link></div>} />
         </Routes>

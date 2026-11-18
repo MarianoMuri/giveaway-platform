@@ -46,6 +46,7 @@ export default function Dashboard() {
       <div className="row between">
         <h1>Sorteos</h1>
         <div className="row">
+          <Link to="/admin/cursos" className="btn btn-ghost">Cursos</Link>
           <button className="btn" onClick={() => setCreating(!creating)}>{creating ? 'Cancelar' : '+ Nuevo sorteo'}</button>
           <button className="btn btn-ghost" onClick={() => { setToken(null); nav('/admin/login'); }}>Salir</button>
         </div>

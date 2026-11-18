@@ -4,6 +4,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Unreleased]
 
+### Added
+- Cursos digitales: modelo, ABM en el panel y subida de PDF (#3).
+- Almacenamiento de archivos con interfaz intercambiable (disco local hoy, S3/R2 a futuro).
+- Descarga de cursos con links firmados que vencen (`DOWNLOAD_LINK_HOURS`).
+- Validación del PDF por contenido (magic bytes) y límite de tamaño (`MAX_PDF_MB`).
+
 ## [0.1.0] - 2026-11-18
 
 ### Added
