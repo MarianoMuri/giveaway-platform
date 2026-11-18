@@ -9,6 +9,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - Almacenamiento de archivos con interfaz intercambiable (disco local hoy, S3/R2 a futuro).
 - Descarga de cursos con links firmados que vencen (`DOWNLOAD_LINK_HOURS`).
 - Validación del PDF por contenido (magic bytes) y límite de tamaño (`MAX_PDF_MB`).
+- Packs de chances configurables por sorteo, con "El más elegido" y orden (#4).
+- Oferta "Duplicá tus chances": activa/inactiva, precio por chance extra y packs donde aparece.
+- Cotización en el backend (`POST /api/raffles/:id/quote`), calculada en centavos enteros.
+- Escalera de packs sugerida al crear un sorteo.
 
 ## [0.1.0] - 2026-11-18
 

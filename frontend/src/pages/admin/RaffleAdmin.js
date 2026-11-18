@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useApi } from '../../hooks';
 import { api, money, DEMO } from '../../api';
 import { PromoEditor, cleanPromos } from '../../components/Promos';
+import PackEditor from '../../components/PackEditor';
 
 const orderLabel = {
   pending: 'Pendiente', approved: 'Pagada', manual: 'Manual', expired: 'Vencida',
@@ -107,6 +108,8 @@ export default function RaffleAdmin() {
       </div>
 
       {msg && <p className={msg.type}>{msg.text}</p>}
+
+      <PackEditor raffleId={id} />
 
       <div className="stats">
         <div className="card stat"><span>Recaudado</span><strong>{money(stats?.revenue || 0)}</strong></div>

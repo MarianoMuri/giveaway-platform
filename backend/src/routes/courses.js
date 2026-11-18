@@ -6,7 +6,7 @@ const requireAdmin = require('../middleware/auth');
 const storage = require('../services/storage');
 const { Course } = require('../db');
 const svc = require('../services/courses');
-const { HttpError } = require('../services/orders');
+const { HttpError } = require('../services/errors');
 
 const wrap = (fn) => (req, res, next) => fn(req, res).catch(next);
 

@@ -90,10 +90,13 @@ Para probar pagos se usan las **credenciales y usuarios de prueba** de Mercado P
 | GET | `/api/raffles/:id/numbers` | Estado de la grilla (`0` libre, `1` reservado, `2` vendido) |
 | POST | `/api/orders` | Reserva números y devuelve la URL de pago |
 | GET | `/api/orders/:id` | Estado de una compra |
+| GET | `/api/raffles/:id/packs` | Packs a la venta con el total de "Duplicá" ya calculado |
+| POST | `/api/raffles/:id/quote` | Cotización de una compra (`packId`, `double`): el total lo calcula siempre el backend |
 | GET | `/api/courses` | Cursos activos |
 | GET | `/api/courses/download?token=` | Descarga del PDF con link firmado y con vencimiento |
 | POST | `/api/webhooks/mercadopago` | Notificaciones de pago |
 | POST | `/api/admin/login` | Login del administrador (JWT) |
+| GET/PUT | `/api/admin/raffles/:id/packs` | Packs del sorteo y oferta "Duplicá" (alta, edición y baja en una transacción) |
 | GET/POST/PATCH/DELETE | `/api/admin/courses` | ABM de cursos con subida de PDF (`multipart/form-data`) |
 | … | `/api/admin/*` | Sorteos, estadísticas, ventas, ganador, exportación |
 

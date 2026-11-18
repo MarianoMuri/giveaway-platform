@@ -3,14 +3,8 @@ const { sequelize, Raffle, Order, Ticket } = require('../db');
 const { mp } = require('./mercadopago');
 const config = require('../config');
 const { computeTotal, validatePromos } = require('./pricing');
-
-class HttpError extends Error {
-  constructor(status, message, extra) {
-    super(message);
-    this.status = status;
-    this.extra = extra;
-  }
-}
+const { HttpError } = require('./errors');
+const packs = require('./packs');
 
 // Un número está libre si está "available" o si su reserva ya venció.
 const freeCondition = () => ({
@@ -29,6 +23,7 @@ async function createRaffle(data) {
   }
   return sequelize.transaction(async (t) => {
     const raffle = await Raffle.create({ ...data, promos }, { transaction: t });
+    await packs.seedDefaults(raffle, t); // escalera sugerida, editable desde el panel
     const rows = Array.from({ length: raffle.totalNumbers }, (_, i) => ({ RaffleId: raffle.id, number: i + 1 }));
     for (let i = 0; i < rows.length; i += 1000) {
       await Ticket.bulkCreate(rows.slice(i, i + 1000), { transaction: t });
