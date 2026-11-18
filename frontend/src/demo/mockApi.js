@@ -266,6 +266,41 @@ const routes = [
     }
     return { number: f.number, already, name: f.name, raffle: { id: r.id, title: r.title, prize: r.prize, drawDate: r.drawDate, youtubeUrl: r.youtubeUrl } };
   }],
+  ['GET', /^\/admin\/raffles\/(\d+)\/search$/, ([id], _b, query) => {
+    const r = raffleOr404(id);
+    const q = String(query?.get('q') || '').trim();
+    if (q.length < 3) throw new Err(400, { error: 'Escribí al menos 3 caracteres' });
+    const digits = q.replace(/[.\s]/g, '');
+    const lq = q.toLowerCase();
+    const orderCard = (o) => ({
+      kind: 'order', id: o.id, status: o.status, createdAt: o.createdAt, buyerName: o.buyerName, buyerDni: o.buyerDni, buyerEmail: o.buyerEmail,
+      buyerPhone: o.buyerPhone, courseTitle: o.courseTitle, chances: o.chances, amount: o.amount, firstNumber: o.firstNumber, lastNumber: o.lastNumber,
+      voidedNumbers: db.chances.filter((c) => c.orderId === o.id && c.status === 'void').length, mpPaymentId: o.mpPaymentId || null,
+      mpStatusDetail: o.mpStatusDetail || null, voidedAt: o.voidedAt || null, voidReason: o.voidReason || null,
+    });
+    const freeCard = (f) => ({ kind: 'free', id: f.id, status: f.status, createdAt: f.createdAt, name: f.name, dni: f.dni, email: f.email, number: f.number, confirmedAt: f.confirmedAt });
+    const orders = db.orders.filter((o) => o.RaffleId === r.id && o.status !== 'rejected');
+    const frees = db.freeEntries.filter((f) => f.RaffleId === r.id && f.status !== 'unconfirmed');
+    let type; let match = null; let oo = []; let ff = [];
+    if (/^\d{6}$/.test(digits)) {
+      type = 'number';
+      const c = db.chances.find((x) => x.raffleId === r.id && x.number === Number(digits));
+      if (c) {
+        match = { number: c.number, status: c.status, voidedAt: c.voidedAt || null, voidReason: c.voidReason || null, source: c.orderId ? 'purchase' : 'free' };
+        oo = orders.filter((o) => o.id === c.orderId);
+        ff = frees.filter((f) => f.id === c.freeEntryId);
+      }
+    } else if (/^\d{7,8}$/.test(digits)) {
+      type = 'dni';
+      oo = orders.filter((o) => o.buyerDni === digits);
+      ff = frees.filter((f) => f.dni === digits);
+    } else {
+      type = 'text';
+      oo = orders.filter((o) => o.buyerEmail.toLowerCase().includes(lq) || o.buyerName.toLowerCase().includes(lq));
+      ff = frees.filter((f) => f.email.toLowerCase().includes(lq) || f.name.toLowerCase().includes(lq));
+    }
+    return { type, query: q, match, results: [...oo.slice(0, 50).map(orderCard), ...ff.slice(0, 50).map(freeCard)], truncated: oo.length > 50 || ff.length > 50 };
+  }],
   ['GET', /^\/admin\/raffles\/(\d+)\/free-entries$/, ([id]) => db.freeEntries.filter((f) => f.RaffleId === raffleOr404(id).id)
     .map(({ token, ...f }) => f)],
   ['POST', /^\/admin\/free-entries\/([\w-]+)\/void$/, ([id]) => {

@@ -4,6 +4,7 @@ import { useApi } from '../../hooks';
 import { api, money, DEMO, numbersLabel, dateTime } from '../../api';
 import PackEditor from '../../components/PackEditor';
 import SalesProgress from '../../components/SalesProgress';
+import SearchPanel from '../../components/SearchPanel';
 
 const emailLabel = { none: 'Sin email', pending: 'Pendiente', sent: 'Enviado', failed: 'Falló' };
 
@@ -218,6 +219,8 @@ export default function RaffleAdmin() {
 
       <PackEditor raffleId={id} />
 
+      <SearchPanel raffleId={id} />
+
       <section className="card readiness">
         <h3>Cierre de venta y control previo al sorteo</h3>
         <form className="row" onSubmit={saveCloseAt}>
@@ -296,7 +299,7 @@ export default function RaffleAdmin() {
             <option value="">Todas</option>
             {Object.entries(orderLabel).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
-          <button className="btn btn-ghost btn-sm" onClick={exportCsv}>Exportar a Excel</button>
+          <button className="btn btn-ghost btn-sm" onClick={exportCsv}>Exportar listado completo (Excel)</button>
         </div>
       </div>
       {csvText && (
@@ -328,6 +331,7 @@ export default function RaffleAdmin() {
                 <td className={`nowrap${o.voidedAt ? ' voided' : ''}`}>{numbersLabel(o)}<div className="small muted">{o.chances} chances{o.double ? ' (Duplicá)' : ''}</div></td>
                 <td>{money(o.amount)}</td>
                 <td><span className={`status o-${o.status}`}>{orderLabel[o.status]}</span>{o.mpStatusDetail && o.status === 'needs_review' && <div className="small muted">{o.mpStatusDetail}</div>}
+                  {o.mpPaymentId && <div className="small muted">Op. MP {o.mpPaymentId}</div>}
                   {o.voidedAt && <div className="small muted">{new Date(o.voidedAt).toLocaleString('es-AR')}<br />{o.voidReason}</div>}
                   <div><button type="button" className="linklike small" onClick={() => toggleHistory(o)}>{history[o.id] ? 'Ocultar historial' : 'Historial'}</button></div>
                   {history[o.id] && (
