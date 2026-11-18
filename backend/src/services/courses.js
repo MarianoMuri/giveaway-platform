@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const config = require('../config');
 const storage = require('./storage');
 const { Course } = require('../db');
-const { HttpError } = require('./orders');
+const { HttpError } = require('./errors');
 
 const PURPOSE = 'course-download';
 
