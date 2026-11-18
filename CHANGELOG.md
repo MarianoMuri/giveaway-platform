@@ -13,6 +13,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - Oferta "Duplicá tus chances": activa/inactiva, precio por chance extra y packs donde aparece.
 - Cotización en el backend (`POST /api/raffles/:id/quote`), calculada en centavos enteros.
 - Escalera de packs sugerida al crear un sorteo.
+- Compra de curso + pack (`POST /api/raffles/:id/purchases`) (#5).
+- Números consecutivos desde 100000 por sorteo, asignados cuando Mercado Pago confirma el pago, sin duplicados aunque los pagos lleguen a la vez.
+- Los números anulados no se reutilizan.
+- Job de CI que corre la suite contra PostgreSQL, incluidos los tests de concurrencia.
+
+### Changed
+- Un curso con compras no se puede eliminar: se desactiva.
+- Las compras por pack admiten medios de pago en efectivo, porque no hay reserva que pueda vencer.
 
 ## [0.1.0] - 2026-11-18
 
