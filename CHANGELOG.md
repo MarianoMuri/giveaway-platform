@@ -4,6 +4,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-18
+
+El comprador elige un curso y un pack de chances; los números se asignan solos al confirmarse el pago.
+
 ### Added
 - Cursos digitales: modelo, ABM en el panel y subida de PDF (#3).
 - Almacenamiento de archivos con interfaz intercambiable (disco local hoy, S3/R2 a futuro).
