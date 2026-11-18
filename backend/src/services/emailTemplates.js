@@ -98,4 +98,43 @@ function purchaseConfirmation({ order, raffle, brand, downloadUrl, orderUrl, lin
   return { subject, html, text };
 }
 
-module.exports = { purchaseConfirmation, esc };
+/**
+ * Email con el link mágico de "Mis compras".
+ * @returns {{ subject: string, html: string, text: string }}
+ */
+function accessLink({ brand, url, minutes, count }) {
+  const color = /^#[0-9a-f]{3,8}$/i.test(brand.color) ? brand.color : '#e3262f';
+  const subject = 'Tu link para ver tus compras';
+  const plural = count === 1 ? '1 compra' : `${count} compras`;
+
+  const html = `<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(subject)}</title></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden">
+  <tr><td style="background:#0d0d0f;padding:20px 24px;text-align:center">
+    ${brand.logoUrl ? `<img src="${esc(brand.logoUrl)}" alt="${esc(brand.name)}" height="48" style="height:48px;border:0">` : `<span style="color:#ffffff;font-size:20px;font-weight:800;letter-spacing:2px">${esc(brand.name)}</span>`}
+  </td></tr>
+  <tr><td style="padding:28px 24px;text-align:center">
+    <h1 style="margin:0 0 8px;font-size:22px;color:#18181b">Entrá a tus compras</h1>
+    <p style="margin:0 0 12px;color:#52525b;font-size:15px">Encontramos ${esc(plural)} con este email. Tocá el botón para ver tus números y descargar tus cursos.</p>
+    ${button(url, 'Ver mis compras', color)}
+    <p style="margin:12px 0 0;font-size:12px;color:#71717a">El link vence en ${esc(minutes)} minutos. Si no lo pediste vos, ignorá este email: nadie puede ver tus compras sin este link.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+
+  const text = [
+    'Entrá a tus compras',
+    '',
+    `Encontramos ${plural} con este email. Abrí este link para ver tus números y descargar tus cursos:`,
+    url,
+    '',
+    `El link vence en ${minutes} minutos. Si no lo pediste vos, ignorá este email.`,
+  ].join('\n');
+
+  return { subject, html, text };
+}
+
+module.exports = { purchaseConfirmation, accessLink, esc };

@@ -5,6 +5,7 @@ const { Raffle, Order, Pack, Chance } = require('../db');
 const packs = require('../services/packs');
 const { createPurchase } = require('../services/purchases');
 const courses = require('../services/courses');
+const myPurchases = require('../services/myPurchases');
 
 const publicFields = [
   'id', 'title', 'description', 'prize', 'imageUrl', 'chancesGoal',
@@ -84,6 +85,22 @@ router.post('/orders/:id/download-link', downloadLimiter, wrap(async (req, res) 
   if (!['approved', 'manual'].includes(order.status)) return res.status(409).json({ error: 'La compra todavía no está acreditada' });
   if (!order.CourseId) return res.status(404).json({ error: 'El curso ya no está disponible' });
   res.json({ url: courses.downloadUrl(order.CourseId, 1) });
+}));
+
+// "Mis compras" con link mágico: el comprador pide un link por email y con él ve sus compras.
+// Responde siempre lo mismo exista o no el email (no se puede averiguar quién compró).
+const linkLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false });
+router.post('/my-purchases/link', linkLimiter, wrap(async (req, res) => {
+  const pending = myPurchases.requestLink(req.body?.email);
+  // Un email con formato inválido se rechaza al instante; el resto se resuelve sin esperar al proveedor de mail
+  await Promise.race([pending, new Promise((r) => setTimeout(r, 0))]);
+  pending.catch((e) => { if (!e.status) console.error('[mis-compras] no se pudo enviar el link:', e.message); });
+  res.status(202).json({ ok: true });
+}));
+
+router.get('/my-purchases', wrap(async (req, res) => {
+  const token = (req.get('authorization') || '').replace(/^Bearer /, '');
+  res.json(await myPurchases.listPurchases(token));
 }));
 
 module.exports = router;
