@@ -33,12 +33,13 @@ export function setToken(t) {
   }
 }
 
-export async function api(path, { method = 'GET', body, auth = false, raw = false } = {}) {
+export async function api(path, { method = 'GET', body, auth = false, raw = false, token } = {}) {
   const headers = {};
   // FormData (subida de archivos): el navegador arma el Content-Type con el boundary
   const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
   if (body && !isForm) headers['Content-Type'] = 'application/json';
   if (auth) headers.Authorization = `Bearer ${getToken()}`;
+  else if (token) headers.Authorization = `Bearer ${token}`; // link mágico de "Mis compras"
   const res = await fetch(`${BASE}/api${path}`, {
     method,
     headers,
