@@ -4,7 +4,7 @@ import { useApi } from '../../hooks';
 import { api, dateShort, setToken } from '../../api';
 
 const statusLabel = { draft: 'Borrador', active: 'A la venta', closed: 'Venta cerrada', drawn: 'Sorteado' };
-const empty = { title: '', prize: '', description: '', imageUrl: '', chancesGoal: '', drawDate: '', youtubeUrl: '', permitNumber: '', terms: '' };
+const empty = { title: '', prize: '', description: '', imageUrl: '', chancesGoal: '', drawDate: '', salesCloseAt: '', youtubeUrl: '', permitNumber: '', terms: '' };
 
 export default function Dashboard() {
   const nav = useNavigate();
@@ -25,6 +25,7 @@ export default function Dashboard() {
           ...form,
           chancesGoal: form.chancesGoal ? Number(form.chancesGoal) : null,
           drawDate: form.drawDate ? new Date(form.drawDate).toISOString() : null,
+          salesCloseAt: form.salesCloseAt ? new Date(form.salesCloseAt).toISOString() : null,
         },
       });
       setForm(empty);
@@ -53,6 +54,7 @@ export default function Dashboard() {
           <label>Premio<input required value={form.prize} onChange={set('prize')} placeholder="Chevrolet Onix 0km" /></label>
           <label>Meta de chances (opcional, para la barra de progreso)<input type="number" min="1" value={form.chancesGoal} onChange={set('chancesGoal')} placeholder="10000" /></label>
           <label>Fecha y hora del sorteo<input type="datetime-local" value={form.drawDate} onChange={set('drawDate')} /></label>
+          <label>Cierre de venta (opcional)<input type="datetime-local" value={form.salesCloseAt} onChange={set('salesCloseAt')} /></label>
           <label>N° de autorización<input value={form.permitNumber} onChange={set('permitNumber')} /></label>
           <label>URL de la imagen del premio<input value={form.imageUrl} onChange={set('imageUrl')} /></label>
           <label>Link del vivo de YouTube<input value={form.youtubeUrl} onChange={set('youtubeUrl')} /></label>
