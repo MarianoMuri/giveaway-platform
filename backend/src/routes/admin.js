@@ -38,14 +38,15 @@ router.post('/raffles', wrap(async (req, res) => {
 
 // No se permite cambiar el precio base ni la cantidad de números una vez creado (las promos sí)
 // Packs de chances + oferta "Duplicá" del sorteo
+// preview: cómo lo ve el comprador, calculado por el mismo código que cobra
+const adminPacksView = (config) => ({ packs: config.packs, offer: config.offer, preview: packs.publicView(config).packs });
+
 router.get('/raffles/:id/packs', wrap(async (req, res) => {
-  const { packs: list, offer } = await packs.getConfig(req.params.id);
-  res.json({ packs: list, offer });
+  res.json(adminPacksView(await packs.getConfig(req.params.id)));
 }));
 
 router.put('/raffles/:id/packs', wrap(async (req, res) => {
-  const { packs: list, offer } = await packs.saveConfig(req.params.id, req.body);
-  res.json({ packs: list, offer });
+  res.json(adminPacksView(await packs.saveConfig(req.params.id, req.body)));
 }));
 
 router.patch('/raffles/:id', wrap(async (req, res) => {

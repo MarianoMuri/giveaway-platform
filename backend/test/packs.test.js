@@ -74,6 +74,8 @@ test('un sorteo nuevo arranca con la escalera sugerida y "Duplicá" activa', asy
   assert.deepEqual(res.body.packs.map((p) => p.chances), DEFAULT_PACKS.map((p) => p.chances));
   assert.equal(res.body.packs.filter((p) => p.featured).length, 1);
   assert.deepEqual(res.body.offer, { enabled: true, pricePerChance: 1000 });
+  const featured = res.body.preview.find((p) => p.featured);
+  assert.deepEqual([featured.chances, featured.price, featured.double.total], [20, 45000, 65000]);
 });
 
 test('la configuración de packs requiere login', async () => {
