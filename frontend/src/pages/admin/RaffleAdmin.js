@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useApi } from '../../hooks';
-import { api, money, DEMO } from '../../api';
-import { PromoEditor, cleanPromos } from '../../components/Promos';
+import { api, money, DEMO, numbersLabel } from '../../api';
+import PackEditor from '../../components/PackEditor';
+import SalesProgress from '../../components/SalesProgress';
+
+const emailLabel = { none: 'Sin email', pending: 'Pendiente', sent: 'Enviado', failed: 'Falló' };
 
 const orderLabel = {
-  pending: 'Pendiente', approved: 'Pagada', manual: 'Manual', expired: 'Vencida',
+  pending: 'Pendiente', approved: 'Pagada', manual: 'Manual',
   rejected: 'Rechazada', needs_review: 'Revisar',
 };
 
@@ -18,12 +21,13 @@ export default function RaffleAdmin() {
     `/admin/orders?raffleId=${id}${filter ? `&status=${filter}` : ''}`,
     { auth: true }
   );
-  const [manual, setManual] = useState({ numbers: '', name: '', phone: '', dni: '' });
+  const emptyManual = { chances: '', courseId: '', amount: '', name: '', phone: '', dni: '', email: '' };
+  const [manual, setManual] = useState(emptyManual);
+  const { data: courses } = useApi('/admin/courses', { auth: true });
   const [winnerInput, setWinnerInput] = useState('');
   const [winner, setWinner] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const [csvText, setCsvText] = useState(null);
-  const [promoEdit, setPromoEdit] = useState(null);
   const [msg, setMsg] = useState(null);
 
   const raffle = (raffles || []).find((r) => String(r.id) === id);
@@ -43,16 +47,41 @@ export default function RaffleAdmin() {
     }
   };
 
+  const setM = (k) => (e) => setManual({ ...manual, [k]: e.target.value });
+
+  // Reenvía el email de confirmación; permite corregir la dirección
+  const resendEmail = (o) => {
+    const email = window.prompt('Reenviar el email de confirmación a:', o.buyerEmail === '-' ? '' : o.buyerEmail);
+    if (email === null) return;
+    run(() => api(`/admin/orders/${o.id}/resend-email`, { method: 'POST', auth: true, body: { email } }), `Email reenviado a ${email}`);
+  };
+
   const setStatus = (status) =>
     run(() => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { status } }), 'Estado actualizado');
 
   const sellManual = (e) => {
     e.preventDefault();
-    const numbers = manual.numbers.split(/[\s,;]+/).map(Number).filter(Boolean);
+    let order;
     run(
-      () => api('/admin/orders/manual', { method: 'POST', auth: true, body: { raffleId: raffle.id, numbers, buyer: manual } }),
-      `Venta registrada: ${numbers.join(', ')}`
-    ).then((ok) => ok && setManual({ numbers: '', name: '', phone: '', dni: '' }));
+      async () => {
+        order = await api('/admin/orders/manual', {
+          method: 'POST',
+          auth: true,
+          body: {
+            raffleId: raffle.id,
+            chances: Number(manual.chances),
+            courseId: Number(manual.courseId),
+            amount: Number(manual.amount),
+            buyer: { name: manual.name, phone: manual.phone, dni: manual.dni, email: manual.email },
+          },
+        });
+      },
+      'Venta registrada'
+    ).then((ok) => {
+      if (!ok) return;
+      setMsg({ type: 'ok', text: `Venta registrada: números ${numbersLabel(order)}` });
+      setManual(emptyManual);
+    });
   };
 
   const drawWinner = async (e) => {
@@ -78,9 +107,6 @@ export default function RaffleAdmin() {
     URL.revokeObjectURL(url);
   };
 
-  const s = stats?.byStatus || {};
-  const sold = s.sold || 0;
-  const pct = Math.round((sold / raffle.totalNumbers) * 100);
 
   return (
     <div className="container">
@@ -88,15 +114,7 @@ export default function RaffleAdmin() {
       <div className="row between mt-sm">
         <div>
           <h1>{raffle.title}</h1>
-          <p className="muted">{raffle.prize} · 1 número {money(raffle.pricePerNumber)}{(raffle.promos || []).map((p) => ` · ${p.qty} por ${money(p.price)}`).join('')}{' '}
-            <button className="linklike" onClick={() => setPromoEdit(promoEdit ? null : (raffle.promos || []))}>{promoEdit ? 'cancelar' : 'editar promos'}</button>
-          </p>
-          {promoEdit && (
-            <div className="card">
-              <PromoEditor value={promoEdit} onChange={setPromoEdit} />
-              <button className="btn btn-sm mt-sm" onClick={() => run(() => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { promos: cleanPromos(promoEdit) } }), 'Promos actualizadas').then((ok) => ok && setPromoEdit(null))}>Guardar promos</button>
-            </div>
-          )}
+          <p className="muted">{raffle.prize}</p>
         </div>
         <div className="row">
           {raffle.status === 'draft' && <button className="btn" onClick={() => setStatus('active')}>Publicar y abrir venta</button>}
@@ -110,43 +128,49 @@ export default function RaffleAdmin() {
 
       <div className="stats">
         <div className="card stat"><span>Recaudado</span><strong>{money(stats?.revenue || 0)}</strong></div>
-        <div className="card stat"><span>Vendidos</span><strong>{sold} <small className="muted">/ {raffle.totalNumbers}</small></strong></div>
-        <div className="card stat"><span>Reservados ahora</span><strong>{s.reserved || 0}</strong></div>
-        <div className="card stat"><span>Libres</span><strong>{s.available || 0}</strong></div>
+        <div className="card stat"><span>Chances vendidas</span><strong>{(stats?.chancesSold || 0).toLocaleString('es-AR')}</strong></div>
+        <div className="card stat"><span>Compras</span><strong>{stats?.purchases || 0}</strong></div>
+        <div className="card stat"><span>Pendientes de pago</span><strong>{stats?.pending || 0}</strong></div>
+        {stats?.review > 0 && <div className="card stat"><span>Para revisar</span><strong className="gold">{stats.review}</strong></div>}
       </div>
-      <div className="progress"><div style={{ width: `${pct}%` }} /></div>
-      <p className="small muted">{pct}% vendido</p>
+      {raffle.chancesGoal && <SalesProgress raffle={{ ...raffle, chancesSold: stats?.chancesSold || 0 }} />}
+
+      <PackEditor raffleId={id} />
 
       <div className="two-col">
         <form className="card" onSubmit={sellManual}>
           <h3>Venta manual</h3>
-          <p className="small muted">Para ventas en efectivo o por transferencia.</p>
-          <label>Números (separados por coma)<input required value={manual.numbers} onChange={(e) => setManual({ ...manual, numbers: e.target.value })} placeholder="12, 45, 300" /></label>
-          <label>Nombre<input required value={manual.name} onChange={(e) => setManual({ ...manual, name: e.target.value })} /></label>
-          <label>Teléfono<input value={manual.phone} onChange={(e) => setManual({ ...manual, phone: e.target.value })} /></label>
-          <label>DNI<input value={manual.dni} onChange={(e) => setManual({ ...manual, dni: e.target.value })} /></label>
+          <p className="small muted">Para ventas en efectivo o por transferencia. Los números se asignan en el acto.</p>
+          <div className="row">
+            <label style={{ flex: 1 }}>Chances<input required type="number" min="1" value={manual.chances} onChange={setM('chances')} /></label>
+            <label style={{ flex: 1 }}>Monto cobrado ($)<input required type="number" min="0" value={manual.amount} onChange={setM('amount')} /></label>
+          </div>
+          <label>Curso
+            <select required value={manual.courseId} onChange={setM('courseId')}>
+              <option value="">Elegí el curso</option>
+              {(courses || []).map((c) => <option key={c.id} value={c.id}>{c.title}{c.active ? '' : ' (inactivo)'}</option>)}
+            </select>
+          </label>
+          <label>Nombre y apellido<input required value={manual.name} onChange={setM('name')} /></label>
+          <label>DNI<input required inputMode="numeric" value={manual.dni} onChange={setM('dni')} /></label>
+          <label>Teléfono<input value={manual.phone} onChange={setM('phone')} /></label>
+          <label>Email<input type="email" value={manual.email} onChange={setM('email')} /></label>
           <button className="btn btn-block">Registrar venta</button>
         </form>
 
         <form className="card" onSubmit={drawWinner}>
           <h3>Número ganador</h3>
           {raffle.winnerNumber && <p>Ganador cargado: <strong className="gold">{raffle.winnerNumber}</strong></p>}
-          <label>Número que salió en el vivo<input required type="number" min="1" max={raffle.totalNumbers} value={winnerInput} onChange={(e) => { setWinnerInput(e.target.value); setConfirming(false); }} /></label>
+          <label>Número que salió en el vivo<input required type="number" min="100000" value={winnerInput} onChange={(e) => { setWinnerInput(e.target.value); setConfirming(false); }} /></label>
           {confirming && <p className="alert small">¿Confirmás el {winnerInput} como ganador? El sorteo pasa a "Sorteado".</p>}
           <button className="btn btn-block">{confirming ? `Sí, confirmar el ${winnerInput}` : 'Cargar ganador'}</button>
           {winner && (
             <div className="ticket mt">
-              {winner.sold && winner.winner ? (
-                <>
-                  <div className="small muted">Ganador del número {winner.number}</div>
-                  <div><strong>{winner.winner.name}</strong></div>
-                  <div>DNI {winner.winner.dni}</div>
-                  <div>{winner.winner.phone}</div>
-                  <div>{winner.winner.email}</div>
-                </>
-              ) : (
-                <div>El número {winner.number} no fue vendido.</div>
-              )}
+              <div className="small muted">Ganador del número {winner.number}</div>
+              <div><strong>{winner.winner.name}</strong></div>
+              <div>DNI {winner.winner.dni}</div>
+              <div>{winner.winner.phone}</div>
+              <div>{winner.winner.email}</div>
             </div>
           )}
         </form>
@@ -177,17 +201,28 @@ export default function RaffleAdmin() {
       )}
       <div className="table-wrap">
         <table>
-          <thead><tr><th>Fecha</th><th>Comprador</th><th>DNI</th><th>Teléfono</th><th>Números</th><th>Monto</th><th>Estado</th><th>Pago MP</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Comprador</th><th>Curso</th><th>Números</th><th>Monto</th><th>Estado</th><th>Email</th><th>Pago MP</th></tr></thead>
           <tbody>
             {(orders || []).map((o) => (
               <tr key={o.id}>
                 <td className="nowrap">{new Date(o.createdAt).toLocaleString('es-AR')}</td>
-                <td>{o.buyerName}<div className="small muted">{o.buyerEmail}</div></td>
-                <td>{o.buyerDni}</td>
-                <td>{o.buyerPhone}</td>
-                <td>{o.numbers.join(', ')}</td>
+                <td>
+                  {o.buyerName}
+                  <div className="small muted">{o.buyerEmail}</div>
+                  <div className="small muted">DNI {o.buyerDni} · {o.buyerPhone}</div>
+                </td>
+                <td>{o.courseTitle}</td>
+                <td className="nowrap">{numbersLabel(o)}<div className="small muted">{o.chances} chances{o.double ? ' (Duplicá)' : ''}</div></td>
                 <td>{money(o.amount)}</td>
                 <td><span className={`status o-${o.status}`}>{orderLabel[o.status]}</span>{o.mpStatusDetail && o.status === 'needs_review' && <div className="small muted">{o.mpStatusDetail}</div>}</td>
+                <td className="nowrap">
+                  {['approved', 'manual'].includes(o.status) ? (
+                    <>
+                      <span className={`status e-${o.emailStatus}`} title={o.emailLastError || ''}>{emailLabel[o.emailStatus] || '-'}</span>
+                      <div><button type="button" className="linklike small" onClick={() => resendEmail(o)}>{o.emailStatus === 'none' ? 'Enviar' : 'Reenviar'}</button></div>
+                    </>
+                  ) : <span className="muted">-</span>}
+                </td>
                 <td className="small">{o.mpPaymentId || '-'}</td>
               </tr>
             ))}

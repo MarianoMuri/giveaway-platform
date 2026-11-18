@@ -7,7 +7,7 @@
 | `main` | Producción. Solo recibe merges desde `develop` al cerrar un sprint (con tag de versión). |
 | `develop` | Integración. Acá se mergean las funcionalidades terminadas. |
 | `feature/<issue>-<descripcion>` | Una funcionalidad. Ej: `feature/12-participacion-gratuita` |
-| `fix/<issue>-<descripcion>` | Corrección de un bug. Ej: `fix/18-reserva-no-vence` |
+| `fix/<issue>-<descripcion>` | Corrección de un bug. Ej: `fix/21-webhook-monto-distinto` |
 
 Flujo:
 
@@ -37,7 +37,7 @@ Se usa [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/):
 | `chore` | Configuración, dependencias, tooling |
 | `ci` | Pipelines |
 
-Ejemplos: `feat(api): reserva de números con vencimiento`, `fix(web): grilla no refresca tras el pago`.
+Ejemplos: `feat(api): add pack quote endpoint`, `fix(web): refresh order status after payment`.
 
 ## Sprints
 
@@ -53,6 +53,15 @@ El plan está en [`docs/ROADMAP.md`](docs/ROADMAP.md).
 ```bash
 cd backend && npm test
 cd frontend && CI=true npm run build
+```
+
+`npm test` usa SQLite en memoria y saltea los tests de concurrencia, porque SQLite no admite transacciones en paralelo. Para correr la suite completa contra PostgreSQL, como hace el CI:
+
+```bash
+# Postgres descartable solo para tests: los tests borran y recrean las tablas
+docker run --rm -d --name pg-test -p 5433:5432 -e POSTGRES_PASSWORD=test -e POSTGRES_DB=test postgres:16-alpine
+cd backend && DATABASE_URL=postgres://postgres:test@localhost:5433/test npm test
+docker stop pg-test
 ```
 
 Nunca subas archivos `.env`, credenciales de Mercado Pago ni datos de clientes. La marca de cada cliente vive fuera del repo (carpeta `clients/`, ignorada por git).

@@ -33,11 +33,18 @@ export function setToken(t) {
   }
 }
 
-export async function api(path, { method = 'GET', body, auth = false, raw = false } = {}) {
+export async function api(path, { method = 'GET', body, auth = false, raw = false, token } = {}) {
   const headers = {};
-  if (body) headers['Content-Type'] = 'application/json';
+  // FormData (subida de archivos): el navegador arma el Content-Type con el boundary
+  const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
+  if (body && !isForm) headers['Content-Type'] = 'application/json';
   if (auth) headers.Authorization = `Bearer ${getToken()}`;
-  const res = await fetch(`${BASE}/api${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  else if (token) headers.Authorization = `Bearer ${token}`; // link mágico de "Mis compras"
+  const res = await fetch(`${BASE}/api${path}`, {
+    method,
+    headers,
+    body: body ? (isForm ? body : JSON.stringify(body)) : undefined,
+  });
   if (raw) {
     if (!res.ok) throw new ApiError(res.status, {});
     return res;
@@ -49,6 +56,12 @@ export async function api(path, { method = 'GET', body, auth = false, raw = fals
   }
   if (!res.ok) throw new ApiError(res.status, data);
   return data;
+}
+
+// Números de una compra: bloque consecutivo asignado al confirmarse el pago
+export function numbersLabel(o) {
+  if (!o.firstNumber) return 'Se asignan al acreditarse el pago';
+  return o.firstNumber === o.lastNumber ? String(o.firstNumber) : `${o.firstNumber} al ${o.lastNumber}`;
 }
 
 export const money = (n) =>

@@ -6,7 +6,7 @@ const brand = {
   name: 'AUTO SORTEOS',
   tagline: 'Sorteos en vivo por YouTube · Autos 0km',
   description:
-    'Elegí tus números, pagá con Mercado Pago y seguí el sorteo en vivo. Todos los sorteos se transmiten en directo.',
+    'Comprá un curso digital y llevate chances para ganar un 0km. Pagás con Mercado Pago y seguís el sorteo en vivo.',
   logoUrl: logo, // reemplazá src/assets/logo.jpg por el logo del cliente
   colors: {
     primary: '#e3262f', // color principal de la marca
@@ -15,6 +15,8 @@ const brand = {
     surface: '#18181c',
     text: '#f4f4f5',
     muted: '#a1a1aa',
+    offer: '#f5b301', // oferta "Duplicá tus chances": se diferencia del color principal
+    offerText: '#1a1300',
   },
   // Reemplazá estos links por los perfiles reales. Si dejás uno vacío (''), no se muestra.
   social: {

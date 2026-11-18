@@ -19,8 +19,23 @@ module.exports = {
   },
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
   publicApiUrl: process.env.PUBLIC_API_URL || 'http://localhost:4000',
-  reservationMinutes: Number(process.env.RESERVATION_MINUTES || 15),
-  maxNumbersPerOrder: Number(process.env.MAX_NUMBERS_PER_ORDER || 50),
+  storageDir: process.env.STORAGE_DIR || './storage',
+  maxPdfMb: Number(process.env.MAX_PDF_MB || 20),
+  downloadLinkHours: Number(process.env.DOWNLOAD_LINK_HOURS || 72),
+  // Email transaccional. Sin SMTP_URL los mails se muestran en la consola (desarrollo).
+  // Ej: smtps://resend:API_KEY@smtp.resend.com:465 · smtp://usuario:clave@smtp-relay.brevo.com:587
+  mail: {
+    smtpUrl: process.env.SMTP_URL,
+    from: process.env.MAIL_FROM || 'Sorteos <no-responder@localhost>',
+    replyTo: process.env.MAIL_REPLY_TO,
+  },
+  // Marca en los emails (el frontend tiene su propio brand.js)
+  brand: {
+    name: process.env.BRAND_NAME || 'AUTO SORTEOS',
+    color: process.env.BRAND_COLOR || '#e3262f',
+    logoUrl: process.env.BRAND_LOGO_URL || '',
+    whatsapp: process.env.BRAND_WHATSAPP_URL || '',
+  },
   mp: {
     accessToken: required('MP_ACCESS_TOKEN'),
     webhookSecret: process.env.MP_WEBHOOK_SECRET, // "Clave secreta" del panel de Webhooks de MP

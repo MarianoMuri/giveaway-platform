@@ -1,67 +1,106 @@
 const router = require('express').Router();
 const rateLimit = require('express-rate-limit');
-const { Op } = require('sequelize');
-const { Raffle, Order, Ticket } = require('../db');
-const { reserveAndCreateOrder } = require('../services/orders');
+const { Op, fn, col } = require('sequelize');
+const { Raffle, Order, Pack, Chance } = require('../db');
+const packs = require('../services/packs');
+const { createPurchase } = require('../services/purchases');
+const courses = require('../services/courses');
+const myPurchases = require('../services/myPurchases');
 
 const publicFields = [
-  'id', 'title', 'description', 'prize', 'imageUrl', 'pricePerNumber', 'promos', 'totalNumbers',
+  'id', 'title', 'description', 'prize', 'imageUrl', 'chancesGoal',
   'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'winnerNumber',
 ];
 
-router.get('/raffles', async (req, res) => {
+// Agrega a cada sorteo las chances vendidas (barra de progreso) y el precio del pack más barato
+async function withSales(raffles) {
+  const ids = raffles.map((r) => r.id);
+  if (!ids.length) return [];
+  const [sold, prices] = await Promise.all([
+    Chance.findAll({ where: { RaffleId: ids, status: 'valid' }, attributes: ['RaffleId', [fn('COUNT', col('id')), 'n']], group: ['RaffleId'], raw: true }),
+    Pack.findAll({ where: { RaffleId: ids }, attributes: ['RaffleId', [fn('MIN', col('price')), 'min']], group: ['RaffleId'], raw: true }),
+  ]);
+  const soldBy = new Map(sold.map((r) => [r.RaffleId, Number(r.n)]));
+  const priceBy = new Map(prices.map((r) => [r.RaffleId, Number(r.min)]));
+  return raffles.map((r) => ({ ...r.toJSON(), chancesSold: soldBy.get(r.id) || 0, fromPrice: priceBy.get(r.id) ?? null }));
+}
+
+const wrap = (handler) => (req, res, next) => handler(req, res).catch(next);
+
+router.get('/raffles', wrap(async (req, res) => {
   const raffles = await Raffle.findAll({
     where: { status: { [Op.ne]: 'draft' } },
     attributes: publicFields,
     order: [['drawDate', 'DESC']],
   });
-  res.json(raffles);
-});
+  res.json(await withSales(raffles));
+}));
 
-router.get('/raffles/:id', async (req, res) => {
+router.get('/raffles/:id', wrap(async (req, res) => {
   const raffle = await Raffle.findOne({
     where: { id: req.params.id, status: { [Op.ne]: 'draft' } },
     attributes: publicFields,
   });
   if (!raffle) return res.status(404).json({ error: 'Sorteo no encontrado' });
-  res.json(raffle);
-});
-
-// Estado de la grilla: 0 = libre, 1 = reservado, 2 = vendido (compacto para miles de números)
-router.get('/raffles/:id/numbers', async (req, res) => {
-  const tickets = await Ticket.findAll({
-    where: { RaffleId: req.params.id },
-    attributes: ['number', 'status', 'reservedUntil'],
-    order: [['number', 'ASC']],
-    raw: true,
-  });
-  const now = new Date();
-  const grid = tickets.map((t) => {
-    if (t.status === 'sold') return 2;
-    if (t.status === 'reserved' && new Date(t.reservedUntil) > now) return 1;
-    return 0;
-  });
-  res.json({ grid });
-});
-
+  res.json((await withSales([raffle]))[0]);
+}));
 const buyLimiter = rateLimit({ windowMs: 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false });
+const quoteLimiter = rateLimit({ windowMs: 60 * 1000, limit: 60 });
 
-router.post('/orders', buyLimiter, async (req, res, next) => {
-  try {
-    const { raffleId, numbers, buyer } = req.body;
-    res.status(201).json(await reserveAndCreateOrder({ raffleId, numbers, buyer }));
-  } catch (e) {
-    next(e);
-  }
-});
+// Packs a la venta, con el total de "Duplicá" ya calculado por el backend
+router.get('/raffles/:id/packs', wrap(async (req, res) => {
+  const config = await packs.getConfig(req.params.id);
+  if (config.raffle.status === 'draft') return res.status(404).json({ error: 'Sorteo no encontrado' });
+  res.json(packs.publicView(config));
+}));
+
+// Compra de curso + pack: crea la orden y devuelve el link de pago
+router.post('/raffles/:id/purchases', buyLimiter, wrap(async (req, res) => {
+  const { packId, double, courseId, buyer } = req.body || {};
+  res.status(201).json(await createPurchase({ raffleId: req.params.id, packId, double: double === true, courseId, buyer }));
+}));
+
+// Cotización de una compra: el frontend nunca calcula el total
+router.post('/raffles/:id/quote', quoteLimiter, wrap(async (req, res) => {
+  const { packId, double } = req.body || {};
+  res.json(await packs.quoteForRaffle(req.params.id, { packId, double }));
+}));
 
 // Página de retorno: el comprador consulta el estado de su compra
-router.get('/orders/:id', async (req, res) => {
+// El id es un UUID imposible de adivinar: funciona como "link privado" de la compra
+router.get('/orders/:id', wrap(async (req, res) => {
   const order = await Order.findByPk(req.params.id, {
-    attributes: ['id', 'status', 'numbers', 'amount', 'buyerName', 'expiresAt', 'RaffleId'],
+    attributes: ['id', 'status', 'amount', 'buyerName', 'RaffleId', 'chances', 'double', 'firstNumber', 'lastNumber', 'courseTitle', 'createdAt'],
+    include: { model: Raffle, attributes: ['id', 'title', 'prize', 'drawDate', 'youtubeUrl'] },
   });
   if (!order) return res.status(404).json({ error: 'Compra no encontrada' });
   res.json(order);
-});
+}));
+
+// Link de descarga nuevo para una compra pagada (el del email vence)
+const downloadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30 });
+router.post('/orders/:id/download-link', downloadLimiter, wrap(async (req, res) => {
+  const order = await Order.findByPk(req.params.id, { attributes: ['id', 'status', 'CourseId'] });
+  if (!order) return res.status(404).json({ error: 'Compra no encontrada' });
+  if (!['approved', 'manual'].includes(order.status)) return res.status(409).json({ error: 'La compra todavía no está acreditada' });
+  if (!order.CourseId) return res.status(404).json({ error: 'El curso ya no está disponible' });
+  res.json({ url: courses.downloadUrl(order.CourseId, 1) });
+}));
+
+// "Mis compras" con link mágico: el comprador pide un link por email y con él ve sus compras.
+// Responde siempre lo mismo exista o no el email (no se puede averiguar quién compró).
+const linkLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false });
+router.post('/my-purchases/link', linkLimiter, wrap(async (req, res) => {
+  const pending = myPurchases.requestLink(req.body?.email);
+  // Un email con formato inválido se rechaza al instante; el resto se resuelve sin esperar al proveedor de mail
+  await Promise.race([pending, new Promise((r) => setTimeout(r, 0))]);
+  pending.catch((e) => { if (!e.status) console.error('[mis-compras] no se pudo enviar el link:', e.message); });
+  res.status(202).json({ ok: true });
+}));
+
+router.get('/my-purchases', wrap(async (req, res) => {
+  const token = (req.get('authorization') || '').replace(/^Bearer /, '');
+  res.json(await myPurchases.listPurchases(token));
+}));
 
 module.exports = router;
