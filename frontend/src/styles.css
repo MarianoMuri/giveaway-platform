@@ -185,3 +185,8 @@ th { color: var(--muted); font-weight: 500; font-size: .78rem; text-transform: u
 .numbers-box { margin: 1.25rem 0 .25rem; padding: 1rem; border-radius: 14px; background: linear-gradient(180deg, #e3262f22, transparent); border: 1px solid #e3262f55; }
 .numbers-range { display: flex; justify-content: center; align-items: baseline; gap: .5rem; margin: .3rem 0; white-space: nowrap; }
 .numbers-range strong { font: 900 clamp(1.4rem, 7vw, 2.4rem) 'Archivo', sans-serif; color: var(--primary); letter-spacing: .01em; }
+
+/* Mis compras */
+.header-link { margin-left: auto; font-size: .9rem; color: var(--muted); text-decoration: none; }
+.header-link:hover { color: var(--text); }
+.purchase-numbers { font-family: 'Archivo', sans-serif; font-weight: 900; font-size: 1.5rem; color: var(--primary); margin: .15rem 0; }

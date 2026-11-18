@@ -198,6 +198,27 @@ const routes = [
     if (!['approved', 'manual'].includes(o.status)) throw new Err(409, { error: 'La compra todavía no está acreditada' });
     throw new Err(400, { error: 'En la demo no hay archivos reales para descargar. En la versión real se descarga el PDF.' });
   }],
+  // "Mis compras": en la demo no se manda email, el link se abre desde la propia pantalla
+  ['POST', /^\/my-purchases\/link$/, (_, b) => {
+    const email = String(b.email || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new Err(400, { error: 'Ingresá un email válido' });
+    return { ok: true, demoToken: `demo:${email}` };
+  }],
+  ['GET', /^\/my-purchases$/, (_, __, ___, headers) => {
+    const token = String(headers.Authorization || '').replace(/^Bearer /, '');
+    if (!token.startsWith('demo:')) throw new Err(401, { error: 'El link venció o no es válido. Pedí uno nuevo.' });
+    const email = token.slice(5);
+    return db.orders
+      .filter((o) => ['approved', 'manual'].includes(o.status) && String(o.buyerEmail).toLowerCase() === email)
+      .map((o) => {
+        const r = raffleOr404(o.RaffleId);
+        return {
+          id: o.id, createdAt: o.createdAt, courseTitle: o.courseTitle, hasCourse: true, chances: o.chances, double: o.double,
+          firstNumber: o.firstNumber, lastNumber: o.lastNumber, amount: o.amount,
+          raffle: { id: r.id, title: r.title, prize: r.prize, drawDate: r.drawDate, youtubeUrl: r.youtubeUrl },
+        };
+      });
+  }],
   ['POST', /^\/admin\/orders\/([\w-]+)\/resend-email$/, ([id], b) => {
     const o = orderOr404(id);
     if (!['approved', 'manual'].includes(o.status)) throw new Err(409, { error: 'Solo se reenvía el email de compras acreditadas' });
@@ -323,7 +344,7 @@ export function installMockApi() {
       const match = method === m && path.match(re);
       if (!match) continue;
       try {
-        const data = fn(match.slice(1), body, url.searchParams);
+        const data = fn(match.slice(1), body, url.searchParams, init.headers || {});
         if (data && data.__csv) return new Response(data.__csv, { status: 200, headers: { 'Content-Type': 'text/csv' } });
         return new Response(JSON.stringify(data ?? {}), { status: 200, headers: { 'Content-Type': 'application/json' } });
       } catch (e) {
