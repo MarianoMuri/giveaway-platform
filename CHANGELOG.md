@@ -4,30 +4,26 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-18
+
+Participación gratuita, control de ventas y sorteo en vivo verificable.
+
 ### Added
-- Sorteo en vivo (#12): pantalla completa para la transmisión con botón "Sortear". El servidor elige al azar (`crypto.randomInt`) solo entre los números válidos (pagos acreditados y participaciones gratuitas confirmadas). En pantalla solo se muestra el número y el nombre abreviado del ganador.
-- Cada sorteo queda registrado con fecha, hora, usuario, cantidad de números válidos y posición elegida (verificable). Repetir el sorteo exige un motivo y conserva el historial: el anterior queda como "reemplazado".
-- Si el número elegido resulta anulado al verificar su pago en Mercado Pago, se descarta (queda registrado) y se vuelve a sortear.
-- Registro de auditoría de las acciones de los administradores (ingresos, cambios del sorteo y de packs, ventas manuales, anulaciones, sorteos) sin datos personales ni contraseñas. Solo se puede leer.
-- Buscador del panel (#11): por número exacto, DNI, email o nombre; muestra la ficha de cada compra con el número de operación de Mercado Pago, estado, números (tachados si están anulados con fecha y motivo) e historial. Los números anulados también se encuentran.
-- La exportación a Excel pasa a ser el listado completo del sorteo: compras (con las anuladas y su motivo) y participaciones gratuitas.
-- Fecha de cierre de ventas por sorteo (#28): al llegar, no se compran más chances ni se suman participaciones gratuitas; las compras iniciadas antes y acreditadas después se respetan. La página pública muestra hasta cuándo se puede participar.
-- Botón "Consultar" antes del sorteo: pregunta a Mercado Pago por las compras sin pago registrado, carga las que faltaban y resume pagos en proceso, compras a revisar y total de chances válidas (pagas y gratuitas).
-- El ganador solo se puede cargar con la venta cerrada.
-- Botón "Habilitar venta" / "Deshabilitar venta" en el panel, con el estado a la vista; si la fecha de cierre ya pasó, habilitar la venta quita esa fecha. Un sorteo ya sorteado no se puede reabrir.
-- Reintegros y contracargos: el webhook procesa `refunded` y `charged_back`, la compra queda anulada y sus números pasan a "anulado" con fecha y motivo; los números no se reutilizan (#10).
-- Al cargar el ganador se verifica su pago en Mercado Pago: si ya fue reintegrado o tiene contracargo (aunque el aviso no haya llegado) se anula en el acto y no puede ganar; si MP no responde, no se carga el ganador.
-- Historial de estados de cada compra (`OrderEvent`) y vista en el panel; contador de compras anuladas y aviso si se anula el número ya sorteado.
-- Participación gratuita "sin obligación de compra": formulario con nombre, DNI y email, 1 número por DNI y por sorteo, asignado recién al confirmar el email (#9).
-- Captcha Cloudflare Turnstile y límites por IP (configurable) y por dispositivo; del IP y del dispositivo solo se guarda un hash.
-- Panel: contador, listado y anulación de participaciones gratuitas, y botón para activar o desactivar la modalidad por sorteo.
-- Si sale una participación gratuita como ganadora, el panel la muestra (se contacta por email).
-- Aviso de la modalidad gratuita en la página de compra, el inicio y las bases del sorteo.
+- Participación gratuita "sin obligación de compra" (#9): formulario con nombre, DNI y email, 1 número por DNI y por sorteo, asignado recién al confirmar el email. Captcha Cloudflare Turnstile y límites por IP (configurable) y por dispositivo, de los que solo se guarda un hash. Panel con contador, listado, anulación y activación por sorteo. Aviso de la modalidad en la compra, el inicio y las bases.
+- Reintegros y contracargos (#10): el webhook procesa `refunded` y `charged_back`; la compra queda anulada y sus números pasan a "anulado" con fecha y motivo, sin reutilizarse. Historial de estados de cada compra (`OrderEvent`), contador de anuladas y aviso si se anula el número ya sorteado.
+- Buscador del panel (#11): por número exacto, DNI, email o nombre, con la ficha de cada compra (número de operación de Mercado Pago, estado, números e historial). La exportación a Excel es ahora el listado completo del sorteo, con anuladas y participaciones gratuitas.
+- Fecha de cierre de ventas (#28): al llegar no se compran más chances ni se suman participaciones gratuitas; las compras iniciadas antes y acreditadas después se respetan. Botones "Habilitar venta" y "Deshabilitar venta". El ganador solo se carga con la venta cerrada.
+- Botón "Consultar" antes del sorteo: pregunta a Mercado Pago por las compras sin pago registrado, carga las que faltaban y resume pagos en proceso, compras a revisar y chances válidas.
+- Sorteo en vivo (#12): pantalla completa para la transmisión. El servidor elige al azar (`crypto.randomInt`) solo entre los números válidos; en pantalla se ve el número y el nombre abreviado del ganador.
+- Cada sorteo queda registrado con fecha, hora, usuario, cantidad de números válidos y posición elegida. Repetir exige un motivo y conserva el historial.
+- Al cargar el ganador se verifica su pago en Mercado Pago: si fue reintegrado o tiene contracargo se anula en el acto, se registra el descarte y se vuelve a sortear.
+- Registro de auditoría de las acciones de los administradores, sin datos personales ni contraseñas, de solo lectura.
 
 ### Changed
-- El CSV neutraliza celdas que empiezan con `=`, `+` o `@` (nombres y emails los escribe el público y Excel los abriría como fórmulas).
-- Las compras anuladas no cuentan en chances vendidas ni recaudación, y la exportación CSV las incluye con su estado.
-- Las participaciones gratuitas no cuentan como chances vendidas ni como recaudación.
+- Las participaciones gratuitas y las compras anuladas no cuentan como chances vendidas ni recaudación.
+- Un sorteo ya sorteado no se puede reabrir.
+- El CSV neutraliza celdas que empiezan con `=`, `+` o `@`.
+- Cargar el ganador usa una actualización condicional: dos administradores no se pisan.
 
 ## [0.2.0] - 2026-11-18
 
