@@ -8,6 +8,7 @@ const { Raffle, Order } = require('../db');
 const { createRaffle, manualSale, drawWinner, raffleStats, cleanGoal, HttpError } = require('../services/orders');
 const packs = require('../services/packs');
 const emails = require('../services/emails');
+const freeEntries = require('../services/freeEntries');
 
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10 });
 
@@ -48,7 +49,7 @@ router.put('/raffles/:id/packs', wrap(async (req, res) => {
 router.patch('/raffles/:id', wrap(async (req, res) => {
   const raffle = await Raffle.findByPk(req.params.id);
   if (!raffle) throw new HttpError(404, 'Sorteo inexistente');
-  const allowed = ['title', 'description', 'prize', 'imageUrl', 'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'chancesGoal'];
+  const allowed = ['title', 'description', 'prize', 'imageUrl', 'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'chancesGoal', 'freeEntryEnabled'];
   const changes = Object.fromEntries(Object.entries(req.body || {}).filter(([k]) => allowed.includes(k)));
   if ('chancesGoal' in changes) changes.chancesGoal = cleanGoal(changes.chancesGoal);
   if (changes.status && !['draft', 'active', 'closed'].includes(changes.status)) {
@@ -64,6 +65,16 @@ router.post('/raffles/:id/winner', wrap(async (req, res) => {
 
 router.get('/raffles/:id/stats', wrap(async (req, res) => {
   res.json(await raffleStats(req.params.id));
+}));
+
+// Participaciones gratuitas del sorteo y su anulación
+router.get('/raffles/:id/free-entries', wrap(async (req, res) => {
+  res.json(await freeEntries.list(req.params.id));
+}));
+
+router.post('/free-entries/:id/void', wrap(async (req, res) => {
+  const entry = await freeEntries.voidEntry(req.params.id);
+  res.json({ id: entry.id, status: entry.status });
 }));
 
 router.get('/orders', wrap(async (req, res) => {

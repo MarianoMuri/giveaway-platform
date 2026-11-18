@@ -1,4 +1,5 @@
-const { sequelize, Raffle, Order, Course, Chance } = require('../db');
+const { Op } = require('sequelize');
+const { sequelize, Raffle, Order, Course, Chance, FreeEntry } = require('../db');
 const { mp } = require('./mercadopago');
 const { HttpError } = require('./errors');
 const packs = require('./packs');
@@ -103,24 +104,31 @@ async function drawWinner(raffleId, value) {
   if (!raffle) throw new HttpError(404, 'Sorteo inexistente');
   const number = Number(value);
   if (!Number.isInteger(number)) throw new HttpError(400, 'Número inválido');
-  const chance = await Chance.findOne({ where: { RaffleId: raffle.id, number }, include: Order });
+  const chance = await Chance.findOne({ where: { RaffleId: raffle.id, number }, include: [Order, FreeEntry] });
   if (!chance) throw new HttpError(400, 'Ese número no fue asignado en este sorteo');
   if (chance.status === 'void') throw new HttpError(409, 'Ese número está anulado (compra reintegrada): sorteá de nuevo');
   await raffle.update({ winnerNumber: number, status: 'drawn' });
+  if (chance.FreeEntry) {
+    // Ganó una participación gratuita: no hay teléfono, se contacta por email
+    const f = chance.FreeEntry;
+    return { number, winner: { name: f.name, phone: null, email: f.email, dni: f.dni, orderId: null, freeEntryId: f.id, source: 'free' } };
+  }
   const o = chance.Order;
-  return { number, winner: { name: o.buyerName, phone: o.buyerPhone, email: o.buyerEmail, dni: o.buyerDni, orderId: o.id } };
+  return { number, winner: { name: o.buyerName, phone: o.buyerPhone, email: o.buyerEmail, dni: o.buyerDni, orderId: o.id, source: 'purchase' } };
 }
 
 async function raffleStats(raffleId) {
   const sold = ['approved', 'manual'];
-  const [chancesSold, purchases, pending, review, revenue] = await Promise.all([
-    Chance.count({ where: { RaffleId: raffleId, status: 'valid' } }),
+  const [chancesSold, purchases, pending, review, revenue, freeEntries] = await Promise.all([
+    // "Vendidas" no incluye las gratuitas: la barra de progreso y la meta miden ventas
+    Chance.count({ where: { RaffleId: raffleId, status: 'valid', OrderId: { [Op.ne]: null } } }),
     Order.count({ where: { RaffleId: raffleId, status: sold } }),
     Order.count({ where: { RaffleId: raffleId, status: 'pending' } }),
     Order.count({ where: { RaffleId: raffleId, status: 'needs_review' } }),
     Order.sum('amount', { where: { RaffleId: raffleId, status: sold } }),
+    FreeEntry.count({ where: { RaffleId: raffleId, status: 'confirmed' } }),
   ]);
-  return { chancesSold, purchases, pending, review, revenue: Number(revenue || 0) };
+  return { chancesSold, purchases, pending, review, revenue: Number(revenue || 0), freeEntries };
 }
 
 module.exports = { HttpError, createRaffle, handlePayment, manualSale, drawWinner, raffleStats, cleanGoal };
