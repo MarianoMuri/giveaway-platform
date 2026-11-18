@@ -87,6 +87,7 @@ sequenceDiagram
 | Tests de concurrencia contra PostgreSQL en el CI | SQLite no admite transacciones en paralelo; la garantía se prueba en la misma base que producción. |
 | Marca como configuración (`brand.js`) | El mismo código sirve para varios clientes; los datos de cada cliente quedan fuera del repo. |
 | Modo demo con API simulada | Permite mostrar el producto completo sin servidor ni cobros reales. |
+| Migraciones versionadas en vez de `sync()` | `sync()` solo crea tablas que faltan: no agrega columnas a una base con datos, así que una actualización dejaría la producción rota. Las migraciones son archivos ordenados que cambian el esquema paso a paso, conservan los datos y se pueden deshacer. La API no toca el esquema y no arranca si faltan, para no correr con una base a medias. Un test las compara con los modelos. |
 
 ## Estructura
 

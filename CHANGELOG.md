@@ -4,6 +4,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Unreleased]
 
+### Added
+- Migraciones de base de datos con `sequelize-cli` (#13): esquema inicial (v0.2.0) y migración del Sprint 2, para actualizar una base con datos sin perderlos. Comandos `npm run migrate`, `migrate:status`, `migrate:undo` y `seed` (sorteo demo de desarrollo).
+- Test que compara el esquema de las migraciones con el de los modelos, prueba migrar con datos existentes y deshacer cada migración.
+
+### Changed
+- Con PostgreSQL la API ya no usa `sync()`: no arranca si faltan migraciones y avisa cuál correr. Sin `DATABASE_URL` (SQLite) sigue creando el esquema sola.
+- `docker compose` aplica las migraciones antes de iniciar la API.
+
 ## [0.3.0] - 2026-11-18
 
 Participación gratuita, control de ventas y sorteo en vivo verificable.

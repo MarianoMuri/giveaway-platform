@@ -30,7 +30,7 @@ Sprints de 1 semana. Cada ítem es un issue en GitHub, agrupado en un milestone.
 
 ## Sprint 3 · Producción — `v1.0.0`
 
-- [ ] #13 Migraciones de base de datos con `sequelize-cli`
+- [x] #13 Migraciones de base de datos con `sequelize-cli`
 - [ ] #14 Deploy en Railway y Netlify con dominio propio
 - [ ] #15 Alerta de conexión con Mercado Pago en el panel
 - [ ] #16 Pruebas end-to-end con credenciales de prueba de Mercado Pago
