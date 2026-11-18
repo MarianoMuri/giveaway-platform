@@ -54,7 +54,7 @@ test.before(async () => {
   const login = await request(app).post('/api/admin/login').send({ email: 'admin@test', password: 'clave123' });
   auth = { Authorization: `Bearer ${login.body.token}` };
   const r = await request(app).post('/api/admin/raffles').set(auth)
-    .send({ title: 'Sorteo Onix', prize: 'Onix 0km', pricePerNumber: 1, totalNumbers: 1 });
+    .send({ title: 'Sorteo Onix', prize: 'Onix 0km' });
   raffleId = r.body.id;
   await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active' });
   const c = await request(app).post('/api/admin/courses').set(auth)
@@ -214,7 +214,7 @@ test('la base rechaza un número duplicado aunque falle la lógica', async () =>
 
 test('cada sorteo numera por separado desde 100000', async () => {
   const r = await request(app).post('/api/admin/raffles').set(auth)
-    .send({ title: 'Otro', prize: 'Moto', pricePerNumber: 1, totalNumbers: 1 });
+    .send({ title: 'Otro', prize: 'Moto' });
   await request(app).patch(`/api/admin/raffles/${r.body.id}`).set(auth).send({ status: 'active' });
   const p5 = (await request(app).get(`/api/raffles/${r.body.id}/packs`)).body.packs[0];
   const { orderId } = await createPurchase({ raffleId: r.body.id, packId: p5.id, courseId, buyer });
