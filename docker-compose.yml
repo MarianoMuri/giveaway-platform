@@ -10,6 +10,7 @@ services:
   api:
     build: ./backend
     env_file: ./backend/.env
+    command: sh -c "npm run migrate && node src/server.js"
     ports:
       - "4000:4000"
     depends_on:
