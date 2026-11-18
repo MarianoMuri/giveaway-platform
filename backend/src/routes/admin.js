@@ -6,6 +6,7 @@ const config = require('../config');
 const requireAdmin = require('../middleware/auth');
 const { sequelize, Raffle, Order, Ticket } = require('../db');
 const { createRaffle, manualSale, HttpError, validatePromos } = require('../services/orders');
+const packs = require('../services/packs');
 
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10 });
 
@@ -36,6 +37,17 @@ router.post('/raffles', wrap(async (req, res) => {
 }));
 
 // No se permite cambiar el precio base ni la cantidad de números una vez creado (las promos sí)
+// Packs de chances + oferta "Duplicá" del sorteo
+router.get('/raffles/:id/packs', wrap(async (req, res) => {
+  const { packs: list, offer } = await packs.getConfig(req.params.id);
+  res.json({ packs: list, offer });
+}));
+
+router.put('/raffles/:id/packs', wrap(async (req, res) => {
+  const { packs: list, offer } = await packs.saveConfig(req.params.id, req.body);
+  res.json({ packs: list, offer });
+}));
+
 router.patch('/raffles/:id', wrap(async (req, res) => {
   const raffle = await Raffle.findByPk(req.params.id);
   if (!raffle) throw new HttpError(404, 'Sorteo inexistente');
