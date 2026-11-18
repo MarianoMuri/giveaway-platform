@@ -22,6 +22,17 @@ const Raffle = sequelize.define('Raffle', {
     defaultValue: 'draft',
   },
   winnerNumber: DataTypes.INTEGER,
+  // Oferta "Duplicá tus chances": se suma este precio por cada chance extra
+  doubleEnabled: { type: DataTypes.BOOLEAN, defaultValue: false },
+  doublePricePerChance: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+});
+
+const Pack = sequelize.define('Pack', {
+  chances: { type: DataTypes.INTEGER, allowNull: false },
+  price: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
+  position: { type: DataTypes.INTEGER, defaultValue: 0 },
+  featured: { type: DataTypes.BOOLEAN, defaultValue: false }, // "El más elegido"
+  doubleEligible: { type: DataTypes.BOOLEAN, defaultValue: true }, // muestra la oferta "Duplicá" en este pack
 });
 
 const Course = sequelize.define('Course', {
@@ -71,4 +82,7 @@ Order.belongsTo(Raffle);
 Order.hasMany(Ticket);
 Ticket.belongsTo(Order);
 
-module.exports = { sequelize, Raffle, Order, Ticket, Course };
+Raffle.hasMany(Pack, { onDelete: 'CASCADE' });
+Pack.belongsTo(Raffle);
+
+module.exports = { sequelize, Raffle, Order, Ticket, Course, Pack };
