@@ -26,6 +26,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - Envío con patrón outbox: reintentos con espera creciente y estado del envío en cada compra.
 - Reenvío del email desde el panel, opcionalmente a una dirección corregida.
 - Botón "Descargar el curso" en la página de la compra, que genera un link nuevo cada vez.
+- Página "Mis compras" con acceso por link mágico: el comprador pone su email, recibe un link que vence en 30 minutos y ve sus números, comprobantes y cursos (#8).
+- `POST /api/my-purchases/link` y `GET /api/my-purchases`, con respuesta idéntica exista o no el email, límite por IP y por email, y token de propósito único.
 
 ### Changed
 - Un curso con compras no se puede eliminar: se desactiva.

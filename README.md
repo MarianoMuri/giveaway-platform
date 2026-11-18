@@ -11,11 +11,13 @@ Plataforma web para organizar **sorteos en vivo de autos 0km** con un modelo de 
 Desarrollada para una concesionaria y publicada como versión **white-label**: la marca de cada cliente (nombre, logo, colores, redes) se configura en un solo archivo y queda fuera del repositorio.
 
 <p align="center">
-  <img src="docs/screenshots/home-mobile.png" width="220" alt="Landing en celular" />
+  <img src="docs/screenshots/home-mobile.png" width="170" alt="Landing en celular" />
   &nbsp;
-  <img src="docs/screenshots/compra-mobile.png" width="220" alt="Elección de pack y oferta Duplicá" />
+  <img src="docs/screenshots/compra-mobile.png" width="170" alt="Elección de pack y oferta Duplicá" />
   &nbsp;
-  <img src="docs/screenshots/confirmacion-mobile.png" width="220" alt="Confirmación con los números asignados" />
+  <img src="docs/screenshots/confirmacion-mobile.png" width="170" alt="Confirmación con los números asignados" />
+  &nbsp;
+  <img src="docs/screenshots/mis-compras-mobile.png" width="170" alt="Mis compras con acceso por link" />
 </p>
 
 <p align="center">
@@ -29,7 +31,7 @@ Desarrollada para una concesionaria y publicada como versión **white-label**: l
 - Oferta **"Duplicá tus chances"**: el doble de chances pagando un extra por chance.
 - Paga con Mercado Pago Checkout Pro (también en efectivo, porque no hay reserva que pueda vencer).
 - Recibe sus números **consecutivos** (desde el 100000) apenas se acredita el pago, en una página que funciona como comprobante.
-- Le llega un **email de confirmación** con sus números, el botón para descargar el curso y los datos del sorteo. Desde su compra puede volver a descargarlo cuando quiera.
+- Le llega un **email de confirmación** con sus números, el botón para descargar el curso y los datos del sorteo. Desde su compra, o desde **Mis compras** (con un link que le llega por email, sin contraseña), puede volver a ver sus números y descargar el curso cuando quiera.
 - Barra de progreso de chances vendidas y bases y condiciones con los precios de cada pack.
 - Página de links para la bio de Instagram, con el sorteo activo y las redes.
 
@@ -99,6 +101,8 @@ Para probar pagos se usan las **credenciales y usuarios de prueba** de Mercado P
 | POST | `/api/raffles/:id/purchases` | Compra de curso + pack (`courseId`, `packId`, `double`, `buyer`): devuelve el link de pago |
 | GET | `/api/orders/:id` | Estado de una compra y números asignados |
 | POST | `/api/orders/:id/download-link` | Link de descarga nuevo del curso de una compra pagada |
+| POST | `/api/my-purchases/link` | Envía por email el link de acceso a "Mis compras" (responde igual exista o no el email) |
+| GET | `/api/my-purchases` | Compras acreditadas del dueño del link (header `Authorization: Bearer <token>`) |
 | GET | `/api/courses` | Cursos activos |
 | GET | `/api/courses/download?token=` | Descarga del PDF con link firmado y con vencimiento |
 | POST | `/api/webhooks/mercadopago` | Notificaciones de pago: asigna los números al aprobarse |

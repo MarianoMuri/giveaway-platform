@@ -55,6 +55,10 @@ sequenceDiagram
 | Email con patrón outbox | El mail se marca pendiente en la transacción que aprueba el pago: si el servidor se cae, no se pierde. El envío ocurre después del commit, así el webhook responde rápido y un SMTP caído no rompe la compra. |
 | Reintentos con espera creciente (1, 5, 15, 60 y 360 min) | Un proveedor caído un rato no deja compradores sin su comprobante; después de 6 intentos queda "falló" para reenviar desde el panel. |
 | "Claim" con `UPDATE` condicional antes de enviar | Si el envío inmediato y el proceso periódico coinciden, solo uno manda el mail. |
+| "Mis compras" con link mágico, sin cuentas ni contraseñas | El comprador ya dio su email al comprar; un link de corta vida a esa casilla alcanza para probar que es suyo y no suma una contraseña más que olvidar. |
+| Respuesta idéntica exista o no el email | Evita que alguien averigüe quién compró probando direcciones (anti-enumeración). |
+| Token con propósito propio (`my-purchases`) y vencimiento de 30 min | Un link de descarga o un token de admin no abre las compras, y uno robado vence rápido. El token viaja en el header, no en la URL de la API, y el frontend lo saca de la barra de direcciones apenas lo lee. |
+| Un pedido de link por email por minuto, más límite por IP | Impide usar el sistema para llenar de mails la casilla de otra persona. Hoy el control por email vive en memoria; con varias instancias se mueve a la base o a Redis. |
 | Total calculado en el backend, en centavos enteros | El total que se cobra nunca depende del navegador, y no hay errores de coma flotante. |
 | Ahorro calculado contra el pack más chico | Se muestra un ahorro real (precio por chance), no precios "antes" inventados. |
 | Packs que conservan su id al editarse | Las compras los referencian; se actualizan, crean y borran dentro de una transacción. |

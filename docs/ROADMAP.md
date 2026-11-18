@@ -18,7 +18,7 @@ Sprints de 1 semana. Cada ítem es un issue en GitHub, agrupado en un milestone.
 - [x] #5 Números consecutivos asignados al confirmarse el pago
 - [x] #6 Nueva página de compra: curso + pack (reemplaza la grilla de números del Sprint 0)
 - [x] #7 Email de confirmación con números y descarga del curso
-- [ ] #8 Página "Mis compras" con acceso por link mágico
+- [x] #8 Página "Mis compras" con acceso por link mágico
 
 ## Sprint 2 · Participación gratuita, control y sorteo — `v0.3.0`
 
