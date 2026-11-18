@@ -2,6 +2,7 @@ const app = require('./app');
 const config = require('./config');
 const { sequelize } = require('./db');
 const emails = require('./services/emails');
+const mpHealth = require('./services/mpHealth');
 const { pendingMigrations } = require('./services/schema');
 const { productionProblems } = require('./productionCheck');
 
@@ -26,5 +27,6 @@ const { productionProblems } = require('./productionCheck');
   }
   // Reintentos de emails pendientes (outbox)
   setInterval(() => emails.processPending().catch((e) => console.error('[mail] processPending', e)), 60 * 1000);
+  mpHealth.start(); // chequeo periódico de la conexión con Mercado Pago
   app.listen(config.port, () => console.log(`API escuchando en :${config.port}`));
 })();

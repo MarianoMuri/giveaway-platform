@@ -118,3 +118,4 @@ frontend/
 ```
 | La API se niega a arrancar con configuración incompleta en producción | Un error claro al desplegar es mejor que descubrir en plena venta que no salen los mails, que el captcha está apagado o que el webhook no se valida. Lista todo lo que falta de una vez. |
 | PDF en un volumen persistente, no en el repo ni en la base | El disco de Railway se borra en cada deploy; el volumen sobrevive. La interfaz de `storage.js` permite pasar a almacenamiento de objetos (R2/S3) más adelante sin tocar el resto. |
+| Monitor de Mercado Pago con dos fallos seguidos para alertar, y estado en memoria | Un tropiezo de red no debe alarmar al cliente, pero una caída real (token vencido, Mercado Pago sin servicio) hay que enterarse antes de que se pierdan ventas. Avisa una vez, recuerda cada 6 horas y avisa al recuperarse. Guardar el estado en la base no aporta: si el servidor se reinicia, vuelve a verificar y, como máximo, repite un aviso. |

@@ -46,6 +46,12 @@ module.exports = {
   pendingGraceHours: Number(process.env.PENDING_GRACE_HOURS || 24),
   // Captcha Cloudflare Turnstile. Sin TURNSTILE_SECRET queda desactivado (desarrollo y tests).
   captcha: { secret: process.env.TURNSTILE_SECRET },
+  // Monitor de la conexión con Mercado Pago: cada cuántos minutos se chequea y a quién se avisa
+  // (por defecto, al email del administrador; ALERT_EMAILS acepta varios separados por coma)
+  mpHealth: {
+    intervalMin: Number(process.env.MP_HEALTH_INTERVAL_MIN || 5),
+    alertEmails: (process.env.ALERT_EMAILS || '').split(',').map((e) => e.trim()).filter(Boolean),
+  },
   mp: {
     accessToken: required('MP_ACCESS_TOKEN'),
     webhookSecret: process.env.MP_WEBHOOK_SECRET, // "Clave secreta" del panel de Webhooks de MP
