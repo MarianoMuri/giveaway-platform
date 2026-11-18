@@ -5,6 +5,8 @@ import { api, money, DEMO, numbersLabel } from '../../api';
 import PackEditor from '../../components/PackEditor';
 import SalesProgress from '../../components/SalesProgress';
 
+const emailLabel = { none: 'Sin email', pending: 'Pendiente', sent: 'Enviado', failed: 'Falló' };
+
 const orderLabel = {
   pending: 'Pendiente', approved: 'Pagada', manual: 'Manual',
   rejected: 'Rechazada', needs_review: 'Revisar',
@@ -46,6 +48,13 @@ export default function RaffleAdmin() {
   };
 
   const setM = (k) => (e) => setManual({ ...manual, [k]: e.target.value });
+
+  // Reenvía el email de confirmación; permite corregir la dirección
+  const resendEmail = (o) => {
+    const email = window.prompt('Reenviar el email de confirmación a:', o.buyerEmail === '-' ? '' : o.buyerEmail);
+    if (email === null) return;
+    run(() => api(`/admin/orders/${o.id}/resend-email`, { method: 'POST', auth: true, body: { email } }), `Email reenviado a ${email}`);
+  };
 
   const setStatus = (status) =>
     run(() => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { status } }), 'Estado actualizado');
@@ -192,22 +201,32 @@ export default function RaffleAdmin() {
       )}
       <div className="table-wrap">
         <table>
-          <thead><tr><th>Fecha</th><th>Comprador</th><th>DNI</th><th>Teléfono</th><th>Curso</th><th>Números</th><th>Monto</th><th>Estado</th><th>Pago MP</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Comprador</th><th>Curso</th><th>Números</th><th>Monto</th><th>Estado</th><th>Email</th><th>Pago MP</th></tr></thead>
           <tbody>
             {(orders || []).map((o) => (
               <tr key={o.id}>
                 <td className="nowrap">{new Date(o.createdAt).toLocaleString('es-AR')}</td>
-                <td>{o.buyerName}<div className="small muted">{o.buyerEmail}</div></td>
-                <td>{o.buyerDni}</td>
-                <td>{o.buyerPhone}</td>
+                <td>
+                  {o.buyerName}
+                  <div className="small muted">{o.buyerEmail}</div>
+                  <div className="small muted">DNI {o.buyerDni} · {o.buyerPhone}</div>
+                </td>
                 <td>{o.courseTitle}</td>
                 <td className="nowrap">{numbersLabel(o)}<div className="small muted">{o.chances} chances{o.double ? ' (Duplicá)' : ''}</div></td>
                 <td>{money(o.amount)}</td>
                 <td><span className={`status o-${o.status}`}>{orderLabel[o.status]}</span>{o.mpStatusDetail && o.status === 'needs_review' && <div className="small muted">{o.mpStatusDetail}</div>}</td>
+                <td className="nowrap">
+                  {['approved', 'manual'].includes(o.status) ? (
+                    <>
+                      <span className={`status e-${o.emailStatus}`} title={o.emailLastError || ''}>{emailLabel[o.emailStatus] || '-'}</span>
+                      <div><button type="button" className="linklike small" onClick={() => resendEmail(o)}>{o.emailStatus === 'none' ? 'Enviar' : 'Reenviar'}</button></div>
+                    </>
+                  ) : <span className="muted">-</span>}
+                </td>
                 <td className="small">{o.mpPaymentId || '-'}</td>
               </tr>
             ))}
-            {orders && orders.length === 0 && <tr><td colSpan="9" className="muted">Sin compras.</td></tr>}
+            {orders && orders.length === 0 && <tr><td colSpan="8" className="muted">Sin compras.</td></tr>}
           </tbody>
         </table>
       </div>
