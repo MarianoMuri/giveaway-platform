@@ -5,12 +5,15 @@ const jwt = require('jsonwebtoken');
 const config = require('../config');
 const requireAdmin = require('../middleware/auth');
 const { Raffle, Order, Chance, OrderEvent, FreeEntry } = require('../db');
-const { createRaffle, manualSale, drawWinner, raffleStats, cleanGoal, HttpError } = require('../services/orders');
+const { createRaffle, manualSale, raffleStats, cleanGoal, HttpError } = require('../services/orders');
 const packs = require('../services/packs');
 const emails = require('../services/emails');
 const readiness = require('../services/readiness');
 const freeEntries = require('../services/freeEntries');
 const { search } = require('../services/search');
+const audit = require('../services/audit');
+const draw = require('../services/draw');
+const { AuditLog } = require('../db');
 
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10 });
 
@@ -20,11 +23,16 @@ router.post('/login', loginLimiter, async (req, res) => {
     email === config.admin.email &&
     config.admin.passwordHash &&
     (await bcrypt.compare(String(password || ''), config.admin.passwordHash));
-  if (!valid) return res.status(401).json({ error: 'Credenciales inválidas' });
+  if (!valid) {
+    await audit.record({ actor: String(email || '').slice(0, 100) || 'desconocido', action: 'login.failed', ip: req.ip });
+    return res.status(401).json({ error: 'Credenciales inválidas' });
+  }
+  await audit.record({ actor: email, action: 'login.ok', ip: req.ip });
   res.json({ token: jwt.sign({ email }, config.jwtSecret, { expiresIn: '12h' }) });
 });
 
 router.use(requireAdmin);
+router.use(audit.trail);
 
 const wrap = (fn) => (req, res, next) => fn(req, res).catch(next);
 
@@ -67,7 +75,26 @@ router.patch('/raffles/:id', wrap(async (req, res) => {
 
 // Cargar el número ganador del sorteo en vivo
 router.post('/raffles/:id/winner', wrap(async (req, res) => {
-  res.json(await drawWinner(req.params.id, req.body?.number));
+  res.locals.audited = true; // lo registra el servicio, con el detalle del sorteo
+  res.json(await draw.loadManual(req.params.id, req.body?.number, { ...audit.who(req), reason: req.body?.reason }));
+}));
+
+// Sorteo en vivo: el servidor elige el ganador al azar entre los números válidos
+router.post('/raffles/:id/draw', wrap(async (req, res) => {
+  res.locals.audited = true;
+  res.json(await draw.drawRandom(req.params.id, { ...audit.who(req), reason: req.body?.reason }));
+}));
+
+router.get('/raffles/:id/draws', wrap(async (req, res) => {
+  res.json(await draw.listDraws(req.params.id));
+}));
+
+// Registro de auditoría (solo lectura): lo más reciente primero
+router.get('/audit', wrap(async (req, res) => {
+  const where = {};
+  if (req.query.raffleId) where.RaffleId = Number(req.query.raffleId) || -1;
+  const limit = Math.min(Number(req.query.limit) || 50, 200);
+  res.json(await AuditLog.findAll({ where, order: [['createdAt', 'DESC'], ['id', 'DESC']], limit }));
 }));
 
 // Control previo al sorteo: carga los pagos que faltaban (consulta a Mercado Pago) y resume el estado
