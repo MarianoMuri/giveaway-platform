@@ -96,6 +96,48 @@ class Err { constructor(status, body) { this.status = status; this.body = body; 
 const pub = (r) => { const { createdAt, ...rest } = r; return rest; };
 const raffleOr404 = (id) => { const r = db.raffles.find((x) => String(x.id) === String(id)); if (!r) throw new Err(404, { error: 'Sorteo no encontrado' }); return r; };
 
+
+// ---- Packs (demo): mismo comportamiento que backend/src/services/packs.js ----
+const DEFAULT_PACKS = [[5, 15000], [10, 25000], [20, 45000, true], [30, 60000], [50, 90000], [100, 130000]];
+let nextPackId = 1;
+const packStore = {};
+function packConfig(raffleId) {
+  if (!packStore[raffleId]) {
+    packStore[raffleId] = {
+      offer: { enabled: true, pricePerChance: 1000 },
+      packs: DEFAULT_PACKS.map(([chances, price, featured], i) => ({ id: nextPackId++, chances, price, position: i, featured: !!featured, doubleEligible: true })),
+    };
+  }
+  return packStore[raffleId];
+}
+const packQuote = (p, offer, double) => {
+  const extra = double ? p.chances * Math.round(offer.pricePerChance * 100) : 0;
+  return { packId: p.id, chances: p.chances * (double ? 2 : 1), packPrice: p.price, double, doubleExtra: extra / 100, total: (Math.round(p.price * 100) + extra) / 100 };
+};
+const packPreview = ({ packs, offer }) => packs.map((p) => ({
+  id: p.id, chances: p.chances, price: p.price, featured: p.featured, position: p.position,
+  double: offer.enabled && p.doubleEligible ? packQuote(p, offer, true) : null,
+}));
+const adminPacks = (c) => ({ packs: c.packs, offer: c.offer, preview: packPreview(c) });
+function savePacks(raffleId, body) {
+  const packs = body.packs || [];
+  const bad = (m) => { throw new Err(400, { error: m }); };
+  if (!packs.length) bad('Tiene que haber al menos un pack');
+  const seen = new Set();
+  packs.forEach((p, i) => {
+    if (!Number.isInteger(p.chances) || p.chances < 1 || p.chances > 10000) bad(`Pack ${i + 1}: la cantidad de chances debe ser un entero entre 1 y 10000`);
+    if (!(p.price > 0)) bad(`Pack ${i + 1}: el precio debe ser mayor a 0`);
+    if (seen.has(p.chances)) bad(`Hay dos packs de ${p.chances} chances`);
+    seen.add(p.chances);
+  });
+  if (packs.filter((p) => p.featured).length > 1) bad('Solo un pack puede ser "El más elegido"');
+  const offer = { enabled: !!body.offer?.enabled, pricePerChance: Number(body.offer?.pricePerChance) || 0 };
+  if (offer.enabled && !(offer.pricePerChance > 0)) bad('Indicá el precio por chance extra de "Duplicá"');
+  if (offer.enabled && !packs.some((p) => p.doubleEligible)) bad('"Duplicá" está activa pero no aparece en ningún pack');
+  packStore[raffleId] = { offer, packs: packs.map((p, i) => ({ ...p, id: p.id || nextPackId++, position: i, featured: !!p.featured, doubleEligible: p.doubleEligible !== false })) };
+  return adminPacks(packStore[raffleId]);
+}
+
 const routes = [
   ['GET', /^\/raffles$/, () => db.raffles.filter((r) => r.status !== 'draft').map(pub)],
   ['GET', /^\/raffles\/(\d+)$/, ([id]) => { const r = raffleOr404(id); if (r.status === 'draft') throw new Err(404, { error: 'Sorteo no encontrado' }); return pub(r); }],
@@ -186,6 +228,23 @@ const routes = [
     db.orders.unshift(o);
     return o;
   }],
+  ['GET', /^\/raffles\/(\d+)\/packs$/, ([id]) => {
+    const r = raffleOr404(id);
+    if (r.status === 'draft') throw new Err(404, { error: 'Sorteo no encontrado' });
+    const c = packConfig(r.id);
+    return { offer: c.offer, packs: packPreview(c) };
+  }],
+  ['POST', /^\/raffles\/(\d+)\/quote$/, ([id], b) => {
+    const r = raffleOr404(id);
+    if (r.status !== 'active') throw new Err(409, { error: 'El sorteo no está a la venta' });
+    const c = packConfig(r.id);
+    const p = c.packs.find((x) => x.id === Number(b.packId));
+    if (!p) throw new Err(400, { error: 'Pack inválido' });
+    if (b.double === true && !(c.offer.enabled && p.doubleEligible)) throw new Err(400, { error: 'La oferta "Duplicá" no está disponible para este pack' });
+    return packQuote(p, c.offer, b.double === true);
+  }],
+  ['GET', /^\/admin\/raffles\/(\d+)\/packs$/, ([id]) => adminPacks(packConfig(raffleOr404(id).id))],
+  ['PUT', /^\/admin\/raffles\/(\d+)\/packs$/, ([id], b) => savePacks(raffleOr404(id).id, b)],
   ['GET', /^\/courses$/, () => db.courses.filter((c) => c.active).sort((a, b) => a.position - b.position)
     .map(({ id, title, description, coverUrl, position }) => ({ id, title, description, coverUrl, position }))],
   ['GET', /^\/admin\/courses$/, () => [...db.courses].sort((a, b) => a.position - b.position)],
