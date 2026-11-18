@@ -5,6 +5,7 @@ const config = require('../config');
 const { computeTotal, validatePromos } = require('./pricing');
 const { HttpError } = require('./errors');
 const packs = require('./packs');
+const { confirmPackOrder } = require('./purchases');
 
 // Un número está libre si está "available" o si su reserva ya venció.
 const freeCondition = () => ({
@@ -108,6 +109,7 @@ async function handlePayment(paymentId) {
   return sequelize.transaction(async (t) => {
     const order = await Order.findByPk(payment.externalReference, { lock: t.LOCK.UPDATE, transaction: t });
     if (!order) return { ignored: true };
+    if (order.chances) return confirmPackOrder(order, payment, t); // compra por pack: números consecutivos
     if (['approved', 'needs_review', 'manual'].includes(order.status)) return { order, alreadyProcessed: true };
 
     if (payment.status === 'approved') {

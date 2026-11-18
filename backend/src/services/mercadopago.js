@@ -10,14 +10,18 @@ function getClient() {
 
 // Se puede reemplazar en tests.
 const mp = {
-  async createPreference({ order, raffle }) {
+  // title: descripción que ve el comprador en el checkout.
+  // Si la orden tiene vencimiento (grilla con reserva), el link de pago vence con ella
+  // y se excluyen los medios en efectivo, que se acreditan días después.
+  async createPreference({ order, raffle, title }) {
+    const expiring = Boolean(order.expiresAt);
     const pref = await new Preference(getClient()).create({
       body: {
         items: [
           {
             id: String(raffle.id),
             // Un solo ítem con el total: así se respetan las promos por cantidad
-            title: `${raffle.title} - ${order.numbers.length} número(s): ${order.numbers.join(', ')}`.slice(0, 250),
+            title: (title || `${raffle.title} - ${order.numbers.length} número(s): ${order.numbers.join(', ')}`).slice(0, 250),
             quantity: 1,
             unit_price: Number(order.amount),
             currency_id: 'ARS',
@@ -32,10 +36,11 @@ const mp = {
           failure: `${config.frontendUrl}/compra/${order.id}`,
         },
         auto_return: 'approved',
-        expires: true,
-        expiration_date_to: order.expiresAt.toISOString(),
-        // Evita medios en efectivo (Rapipago/PagoFácil) que se acreditan después de vencida la reserva
-        payment_methods: { excluded_payment_types: [{ id: 'ticket' }, { id: 'atm' }] },
+        ...(expiring && {
+          expires: true,
+          expiration_date_to: order.expiresAt.toISOString(),
+          payment_methods: { excluded_payment_types: [{ id: 'ticket' }, { id: 'atm' }] },
+        }),
       },
     });
     return { id: pref.id, initPoint: pref.init_point };
