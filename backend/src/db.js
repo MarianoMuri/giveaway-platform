@@ -10,9 +10,8 @@ const Raffle = sequelize.define('Raffle', {
   description: DataTypes.TEXT,
   prize: { type: DataTypes.STRING, allowNull: false },
   imageUrl: DataTypes.STRING,
-  pricePerNumber: { type: DataTypes.DECIMAL(12, 2), allowNull: false }, // precio de 1 número
-  promos: { type: DataTypes.JSON, defaultValue: [] }, // [{ qty: 2, price: 15000 }, ...]
-  totalNumbers: { type: DataTypes.INTEGER, allowNull: false },
+  // Meta de chances (opcional): solo para la barra de progreso. No es un tope: la venta sigue.
+  chancesGoal: DataTypes.INTEGER,
   drawDate: DataTypes.DATE,
   youtubeUrl: DataTypes.STRING,
   permitNumber: DataTypes.STRING, // N° de autorización de la lotería provincial
@@ -54,8 +53,7 @@ const Order = sequelize.define('Order', {
   buyerEmail: { type: DataTypes.STRING, allowNull: false },
   buyerPhone: { type: DataTypes.STRING, allowNull: false },
   buyerDni: { type: DataTypes.STRING, allowNull: false },
-  numbers: { type: DataTypes.JSON, allowNull: false, defaultValue: [] }, // grilla (Sprint 0): copia para historial
-  // Compra por pack: los números se asignan al confirmarse el pago, en un bloque consecutivo
+  // Los números se asignan al confirmarse el pago, en un bloque consecutivo
   PackId: DataTypes.INTEGER, // referencia informativa (el pack se puede editar o borrar después)
   double: { type: DataTypes.BOOLEAN, defaultValue: false },
   chances: DataTypes.INTEGER,
@@ -64,32 +62,18 @@ const Order = sequelize.define('Order', {
   courseTitle: DataTypes.STRING, // copia: el curso puede cambiar de nombre
   amount: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
   status: {
-    // needs_review: pagó pero sus números ya no estaban disponibles -> revisar/reintegrar
-    type: DataTypes.ENUM('pending', 'approved', 'rejected', 'expired', 'needs_review', 'manual'),
+    // needs_review: pagó un monto distinto al de la orden -> revisar/reintegrar
+    // rejected: no se pudo crear el pago en Mercado Pago
+    type: DataTypes.ENUM('pending', 'approved', 'rejected', 'needs_review', 'manual'),
     defaultValue: 'pending',
   },
-  expiresAt: DataTypes.DATE,
   mpPreferenceId: DataTypes.STRING,
   mpPaymentId: DataTypes.STRING,
   mpStatusDetail: DataTypes.STRING,
 });
 
-const Ticket = sequelize.define(
-  'Ticket',
-  {
-    number: { type: DataTypes.INTEGER, allowNull: false },
-    status: { type: DataTypes.ENUM('available', 'reserved', 'sold'), defaultValue: 'available' },
-    reservedUntil: DataTypes.DATE,
-  },
-  { indexes: [{ unique: true, fields: ['RaffleId', 'number'] }, { fields: ['RaffleId', 'status'] }] }
-);
-
-Raffle.hasMany(Ticket);
-Ticket.belongsTo(Raffle);
 Raffle.hasMany(Order);
 Order.belongsTo(Raffle);
-Order.hasMany(Ticket);
-Ticket.belongsTo(Order);
 
 // Un número asignado. La restricción única es la red de seguridad: aunque hubiera
 // un bug en la asignación, la base nunca acepta el mismo número dos veces en un sorteo.
@@ -112,4 +96,4 @@ Order.belongsTo(Course);
 Raffle.hasMany(Pack, { onDelete: 'CASCADE' });
 Pack.belongsTo(Raffle);
 
-module.exports = { sequelize, Raffle, Order, Ticket, Course, Pack, Chance };
+module.exports = { sequelize, Raffle, Order, Course, Pack, Chance };
