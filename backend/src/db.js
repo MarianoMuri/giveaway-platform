@@ -144,6 +144,38 @@ const Chance = sequelize.define(
 
 Raffle.hasMany(Chance);
 Chance.belongsTo(Raffle);
+// Cada sorteo realizado (o ganador cargado a mano). Un sorteo repetido no borra el anterior: lo marca
+// como reemplazado y guarda el motivo. "validCount" y "position" permiten verificar el resultado:
+// el ganador es el número que ocupa esa posición entre los válidos ordenados de menor a mayor.
+const Draw = sequelize.define(
+  'Draw',
+  {
+    number: { type: DataTypes.INTEGER, allowNull: false },
+    method: { type: DataTypes.ENUM('random', 'manual'), allowNull: false },
+    validCount: DataTypes.INTEGER,
+    position: DataTypes.INTEGER,
+    actor: { type: DataTypes.STRING, allowNull: false },
+    reason: DataTypes.STRING,
+    supersededAt: DataTypes.DATE,
+  },
+  { indexes: [{ fields: ['RaffleId'] }] }
+);
+Raffle.hasMany(Draw);
+Draw.belongsTo(Raffle);
+
+// Registro de auditoría: solo se agrega, no hay forma de editarlo ni borrarlo desde la API
+const AuditLog = sequelize.define(
+  'AuditLog',
+  {
+    actor: { type: DataTypes.STRING, allowNull: false },
+    action: { type: DataTypes.STRING, allowNull: false },
+    RaffleId: DataTypes.INTEGER,
+    detail: DataTypes.TEXT,
+    ip: DataTypes.STRING,
+  },
+  { updatedAt: false, indexes: [{ fields: ['createdAt'] }, { fields: ['RaffleId'] }] }
+);
+
 Order.hasMany(OrderEvent);
 OrderEvent.belongsTo(Order);
 Order.hasMany(Chance);
@@ -156,4 +188,4 @@ Order.belongsTo(Course);
 Raffle.hasMany(Pack, { onDelete: 'CASCADE' });
 Pack.belongsTo(Raffle);
 
-module.exports = { sequelize, Raffle, Order, Course, Pack, Chance, FreeEntry, OrderEvent };
+module.exports = { sequelize, Raffle, Order, Course, Pack, Chance, FreeEntry, OrderEvent, Draw, AuditLog };

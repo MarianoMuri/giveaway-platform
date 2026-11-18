@@ -5,6 +5,7 @@ import { api, money, DEMO, numbersLabel, dateTime } from '../../api';
 import PackEditor from '../../components/PackEditor';
 import SalesProgress from '../../components/SalesProgress';
 import SearchPanel from '../../components/SearchPanel';
+import ActivityLog from '../../components/ActivityLog';
 
 const emailLabel = { none: 'Sin email', pending: 'Pendiente', sent: 'Enviado', failed: 'Falló' };
 
@@ -43,6 +44,7 @@ export default function RaffleAdmin() {
   const [readiness, setReadiness] = useState(null);
   const [checking, setChecking] = useState(false);
   const [winnerInput, setWinnerInput] = useState('');
+  const [redoReason, setRedoReason] = useState('');
   const [winner, setWinner] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const [csvText, setCsvText] = useState(null);
@@ -160,7 +162,7 @@ export default function RaffleAdmin() {
     if (!confirming) return setConfirming(true);
     setConfirming(false);
     try {
-      setWinner(await api(`/admin/raffles/${id}/winner`, { method: 'POST', auth: true, body: { number: Number(winnerInput) } }));
+      setWinner(await api(`/admin/raffles/${id}/winner`, { method: 'POST', auth: true, body: { number: Number(winnerInput), ...(raffle.status === 'drawn' ? { reason: redoReason } : {}) } }));
       refresh();
     } catch (err) {
       setMsg({ type: 'alert', text: err.message });
@@ -193,6 +195,7 @@ export default function RaffleAdmin() {
           {(raffle.status === 'closed' || saleClosedByDate) && <button className="btn btn-ghost" onClick={enableSales}>Habilitar venta</button>}
           <button className="btn btn-ghost" onClick={toggleFree}>{raffle.freeEntryEnabled ? 'Desactivar participación gratuita' : 'Activar participación gratuita'}</button>
           {raffle.status !== 'draft' && <Link className="btn btn-ghost" to={`/sorteo/${id}`} target="_blank">Ver página</Link>}
+          {raffle.status !== 'draft' && <Link className="btn" to={`/admin/sorteo/${id}/en-vivo`}>Sorteo en vivo</Link>}
         </div>
       </div>
 
@@ -273,9 +276,11 @@ export default function RaffleAdmin() {
         </form>
 
         <form className="card" onSubmit={drawWinner}>
-          <h3>Número ganador</h3>
+          <h3>Cargar ganador a mano</h3>
+          <p className="small muted">Para cuando el sorteo se hizo por otro medio. Si lo hacés desde acá con la pantalla en vivo, no hace falta.</p>
           {raffle.status !== 'drawn' && <p className="small muted">Se carga con la venta cerrada.</p>}
           {raffle.winnerNumber && <p>Ganador cargado: <strong className="gold">{raffle.winnerNumber}</strong></p>}
+          {raffle.status === 'drawn' && <label>Motivo del cambio (obligatorio)<input value={redoReason} onChange={(e) => setRedoReason(e.target.value)} /></label>}
           <label>Número que salió en el vivo<input required type="number" min="100000" value={winnerInput} onChange={(e) => { setWinnerInput(e.target.value); setConfirming(false); }} /></label>
           {confirming && <p className="alert small">¿Confirmás el {winnerInput} como ganador? El sorteo pasa a "Sorteado".</p>}
           <button className="btn btn-block">{confirming ? `Sí, confirmar el ${winnerInput}` : 'Cargar ganador'}</button>
@@ -377,6 +382,8 @@ export default function RaffleAdmin() {
           </tbody>
         </table>
       </div>
+
+      <ActivityLog raffleId={id} refreshKey={`${raffle.status}-${raffle.winnerNumber}-${stats?.chancesSold}`} />
     </div>
   );
 }

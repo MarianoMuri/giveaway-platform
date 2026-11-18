@@ -101,19 +101,24 @@ async function manualSale({ raffleId, chances, courseId, amount, buyer }) {
   return order;
 }
 
+function assertClosedForDraw(raffle) {
+  if (raffle.status === 'draft' || sales.isOpen(raffle)) {
+    throw new HttpError(409, 'Cerrá la venta antes de cargar el ganador (podés poner una fecha de cierre o usar "Cerrar venta")');
+  }
+}
+
 // Busca al dueño del número que salió en el vivo
-async function drawWinner(raffleId, value) {
+async function drawWinner(raffleId, value, { redraw = false, expect = null } = {}) {
   const raffle = await Raffle.findByPk(raffleId);
   if (!raffle) throw new HttpError(404, 'Sorteo inexistente');
   const number = Number(value);
   if (!Number.isInteger(number)) throw new HttpError(400, 'Número inválido');
   // El sorteo se hace con la lista cerrada: con la venta abierta todavía pueden entrar números
-  if (raffle.status === 'draft' || sales.isOpen(raffle)) {
-    throw new HttpError(409, 'Cerrá la venta antes de cargar el ganador (podés poner una fecha de cierre o usar "Cerrar venta")');
-  }
+  assertClosedForDraw(raffle);
   const chance = await Chance.findOne({ where: { RaffleId: raffle.id, number }, include: [Order, FreeEntry] });
   if (!chance) throw new HttpError(400, 'Ese número no fue asignado en este sorteo');
   if (chance.status === 'void') throw new HttpError(409, 'Ese número está anulado (compra reintegrada): sorteá de nuevo');
+  if (raffle.status === 'drawn' && !redraw) throw new HttpError(409, 'Ya hay un ganador. Para repetir el sorteo indicá el motivo.');
   // Antes de dar a alguien como ganador se vuelve a preguntar a Mercado Pago por su pago: si fue
   // reintegrado o tiene contracargo y el aviso todavía no llegó, se anula acá y no puede ganar.
   const paid = chance.Order;
@@ -132,7 +137,13 @@ async function drawWinner(raffleId, value) {
       throw new HttpError(409, 'Ese número quedó anulado: el pago fue reintegrado o tiene contracargo. Sorteá de nuevo.');
     }
   }
-  await raffle.update({ winnerNumber: number, status: 'drawn' });
+  // Compare-and-swap: si otro administrador cargó un ganador mientras tanto, no se pisa en silencio
+  const before = expect || raffle;
+  const [changed] = await Raffle.update(
+    { winnerNumber: number, status: 'drawn' },
+    { where: { id: raffle.id, status: before.status, winnerNumber: before.winnerNumber ?? null } }
+  );
+  if (!changed) throw new HttpError(409, 'Otro administrador cargó el ganador al mismo tiempo. Actualizá la pantalla.');
   if (chance.FreeEntry) {
     // Ganó una participación gratuita: no hay teléfono, se contacta por email
     const f = chance.FreeEntry;
@@ -164,4 +175,4 @@ async function raffleStats(raffleId) {
   return { chancesSold, purchases, pending, review, revenue: Number(revenue || 0), freeEntries, reversed, winnerVoided };
 }
 
-module.exports = { HttpError, createRaffle, handlePayment, manualSale, drawWinner, raffleStats, cleanGoal };
+module.exports = { HttpError, createRaffle, handlePayment, manualSale, drawWinner, assertClosedForDraw, raffleStats, cleanGoal };

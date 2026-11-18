@@ -5,6 +5,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ## [Unreleased]
 
 ### Added
+- Sorteo en vivo (#12): pantalla completa para la transmisión con botón "Sortear". El servidor elige al azar (`crypto.randomInt`) solo entre los números válidos (pagos acreditados y participaciones gratuitas confirmadas). En pantalla solo se muestra el número y el nombre abreviado del ganador.
+- Cada sorteo queda registrado con fecha, hora, usuario, cantidad de números válidos y posición elegida (verificable). Repetir el sorteo exige un motivo y conserva el historial: el anterior queda como "reemplazado".
+- Si el número elegido resulta anulado al verificar su pago en Mercado Pago, se descarta (queda registrado) y se vuelve a sortear.
+- Registro de auditoría de las acciones de los administradores (ingresos, cambios del sorteo y de packs, ventas manuales, anulaciones, sorteos) sin datos personales ni contraseñas. Solo se puede leer.
 - Buscador del panel (#11): por número exacto, DNI, email o nombre; muestra la ficha de cada compra con el número de operación de Mercado Pago, estado, números (tachados si están anulados con fecha y motivo) e historial. Los números anulados también se encuentran.
 - La exportación a Excel pasa a ser el listado completo del sorteo: compras (con las anuladas y su motivo) y participaciones gratuitas.
 - Fecha de cierre de ventas por sorteo (#28): al llegar, no se compran más chances ni se suman participaciones gratuitas; las compras iniciadas antes y acreditadas después se respetan. La página pública muestra hasta cuándo se puede participar.

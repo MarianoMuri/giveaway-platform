@@ -170,11 +170,43 @@ const REVERSALS = { refunded: 'Pago reintegrado', charged_back: 'Contracargo: el
   Object.assign(o, { status, voidedAt: at, voidReason: REVERSALS[status], mpStatusDetail: status });
   o.events.push({ id: 2, status, detail: REVERSALS[status], mpPaymentId: o.mpPaymentId, createdAt: at });
 });
+const ADMIN = 'admin@demo';
+const auditLog = []; // más reciente primero
+const draws = [];
+let auditSeq = 1;
+const logAudit = (action, raffleId, detail, at) => auditLog.unshift({ id: auditSeq++, actor: ADMIN, action, RaffleId: raffleId || null, detail: detail || null, ip: '127.0.0.1', createdAt: at || new Date(now()).toISOString() });
+logAudit('login.ok', null, null, iso(5 * 3600000));
+logAudit('raffle.update', 1, 'status=active', iso(4 * 3600000));
+logAudit('packs.update', 1, '6 packs', iso(3 * 3600000));
 [2, 3].forEach((id, k) => {
   for (let i = 0; i < 12; i++) seedOrder(id, i + k * 20, { minutesAgo: (40 + k * 90) * 24 * 60 });
   const r = db.raffles.find((x) => x.id === id);
   r.winnerNumber = 100000 + rnd(r.nextNumber - 100000);
 });
+
+function assertDrawable(r) {
+  if (r.status === 'draft' || salesOpen(r)) throw new Err(409, { error: 'Cerrá la venta antes de cargar el ganador (podés poner una fecha de cierre o usar "Cerrar venta")' });
+}
+function redrawReason(r, reason) {
+  if (r.status !== 'drawn') return null;
+  const t = String(reason || '').trim();
+  if (!t) throw new Err(409, { error: 'Ya hay un ganador. Para repetir el sorteo indicá el motivo.' });
+  if (t.length < 10) throw new Err(400, { error: 'El motivo es muy corto: explicá por qué se repite el sorteo' });
+  return t;
+}
+function finishDraw(r, c, { method, reason, validCount = null, position = null }) {
+  draws.forEach((d) => { if (d.RaffleId === r.id && !d.supersededAt) d.supersededAt = new Date(now()).toISOString(); });
+  draws.unshift({ id: draws.length + 1, RaffleId: r.id, number: c.number, method, validCount, position, actor: ADMIN, reason, supersededAt: null, createdAt: new Date(now()).toISOString() });
+  Object.assign(r, { winnerNumber: c.number, status: 'drawn' });
+  const kind = method === 'random' ? (reason ? 'draw.redo' : 'draw.run') : (reason ? 'winner.manual_redo' : 'winner.manual');
+  logAudit(kind, r.id, `number=${c.number}${validCount ? `, valid=${validCount}, position=${position}` : ''}${reason ? `, reason=${reason}` : ''}`);
+  if (c.freeEntryId) {
+    const f = db.freeEntries.find((x) => x.id === c.freeEntryId);
+    return { number: c.number, draw: draws[0], winner: { name: f.name, phone: null, email: f.email, dni: f.dni, orderId: null, source: 'free' } };
+  }
+  const o = orderOr404(c.orderId);
+  return { number: c.number, draw: draws[0], winner: { name: o.buyerName, phone: o.buyerPhone, email: o.buyerEmail, dni: o.buyerDni, orderId: o.id, source: 'purchase' } };
+}
 
 const routes = [
   ['GET', /^\/raffles$/, () => db.raffles.filter((r) => r.status !== 'draft').sort((a, b) => b.drawDate.localeCompare(a.drawDate)).map(pub)],
@@ -306,6 +338,7 @@ const routes = [
   ['POST', /^\/admin\/free-entries\/([\w-]+)\/void$/, ([id]) => {
     const f = db.freeEntries.find((x) => x.id === id);
     if (!f) throw new Err(404, { error: 'Participación no encontrada' });
+    logAudit('free_entry.void', f.RaffleId, `entry=${f.id}`);
     db.chances.filter((c) => c.freeEntryId === f.id).forEach((c) => { c.status = 'void'; });
     f.status = 'void';
     return { id: f.id, status: f.status };
@@ -345,11 +378,14 @@ const routes = [
     if (b.status && !['draft', 'active', 'closed'].includes(b.status)) throw new Err(400, { error: 'Estado inválido' });
     if (b.status && raffleOr404(id).status === 'drawn') throw new Err(409, { error: 'El sorteo ya se realizó: no se puede cambiar el estado de la venta' });
     if (b.salesCloseAt && Number.isNaN(Date.parse(b.salesCloseAt))) throw new Err(400, { error: 'La fecha de cierre no es válida' });
+    const changed = Object.keys(b).filter((k) => ['status', 'salesCloseAt', 'freeEntryEnabled', 'drawDate', 'chancesGoal'].includes(k)).map((k) => `${k}=${b[k]}`).join(', ');
+    logAudit('raffle.update', Number(id), changed || Object.keys(b).join(', '));
     return Object.assign(raffleOr404(id), b, 'salesCloseAt' in b ? { salesCloseAt: b.salesCloseAt || null } : {});
   }],
   ['POST', /^\/admin\/raffles\/(\d+)\/readiness$/, ([id]) => {
     const r = raffleOr404(id);
-    const os = db.orders.filter((o) => o.raffleId === r.id);
+    const os = db.orders.filter((o) => o.RaffleId === r.id);
+    logAudit('readiness.check', r.id);
     const valid = db.chances.filter((c) => c.raffleId === r.id && c.status === 'valid');
     const paid = valid.filter((c) => c.orderId).length;
     const review = os.filter((o) => o.status === 'needs_review').length;
@@ -369,17 +405,26 @@ const routes = [
   ['PUT', /^\/admin\/raffles\/(\d+)\/packs$/, ([id], b) => savePacks(raffleOr404(id).id, b)],
   ['POST', /^\/admin\/raffles\/(\d+)\/winner$/, ([id], b) => {
     const r = raffleOr404(id);
-    if (r.status === 'draft' || salesOpen(r)) throw new Err(409, { error: 'Cerrá la venta antes de cargar el ganador (podés poner una fecha de cierre o usar "Cerrar venta")' });
+    assertDrawable(r);
+    const why = redrawReason(r, b.reason);
     const c = db.chances.find((x) => x.raffleId === r.id && x.number === Number(b.number));
     if (!c) throw new Err(400, { error: 'Ese número no fue asignado en este sorteo' });
     if (c.status === 'void') throw new Err(409, { error: 'Ese número está anulado (compra reintegrada): sorteá de nuevo' });
-    Object.assign(r, { winnerNumber: Number(b.number), status: 'drawn' });
-    if (c.freeEntryId) {
-      const f = db.freeEntries.find((x) => x.id === c.freeEntryId);
-      return { number: Number(b.number), winner: { name: f.name, phone: null, email: f.email, dni: f.dni, orderId: null, source: 'free' } };
-    }
-    const o = orderOr404(c.orderId);
-    return { number: Number(b.number), winner: { name: o.buyerName, phone: o.buyerPhone, email: o.buyerEmail, dni: o.buyerDni, orderId: o.id } };
+    return finishDraw(r, c, { method: 'manual', reason: why });
+  }],
+  ['POST', /^\/admin\/raffles\/(\d+)\/draw$/, ([id], b) => {
+    const r = raffleOr404(id);
+    assertDrawable(r);
+    const why = redrawReason(r, b.reason);
+    const valid = db.chances.filter((x) => x.raffleId === r.id && x.status === 'valid').sort((x, y) => x.number - y.number);
+    if (!valid.length) throw new Err(409, { error: 'No hay números válidos para sortear' });
+    const position = crypto.getRandomValues(new Uint32Array(1))[0] % valid.length;
+    return finishDraw(r, valid[position], { method: 'random', reason: why, validCount: valid.length, position });
+  }],
+  ['GET', /^\/admin\/raffles\/(\d+)\/draws$/, ([id]) => draws.filter((d) => d.RaffleId === Number(id))],
+  ['GET', /^\/admin\/audit$/, (_, __, q) => {
+    const rid = q.get('raffleId');
+    return auditLog.filter((l) => !rid || l.RaffleId === Number(rid)).slice(0, Math.min(Number(q.get('limit')) || 50, 200));
   }],
   ['GET', /^\/admin\/raffles\/(\d+)\/stats$/, ([id]) => {
     const r = raffleOr404(id);
@@ -402,6 +447,7 @@ const routes = [
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))],
   ['POST', /^\/admin\/orders\/manual$/, (_, b) => {
     const r = raffleOr404(b.raffleId);
+    logAudit('order.manual', r.id, `chances=${b.chances}, amount=${b.amount}`);
     if (r.status === 'drawn') throw new Err(409, { error: 'El sorteo ya se realizó' });
     if (!Number.isInteger(b.chances) || b.chances < 1) throw new Err(400, { error: 'Cantidad de chances inválida' });
     const course = db.courses.find((c) => c.id === Number(b.courseId));
