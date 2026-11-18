@@ -1,16 +1,17 @@
 // Backend simulado para la DEMO (REACT_APP_DEMO=true). Intercepta fetch a /api/*.
-// Replica la lógica del backend real: reservas con vencimiento, pago, venta manual, ganador.
+// Replica el comportamiento del backend real: packs, compra, pago, números consecutivos,
+// venta manual y ganador. No hay servidor ni cobros reales.
 
 import brand from '../brand';
-import { computeTotal, validatePromos } from '../pricing';
 
-const RESERVATION_MS = 15 * 60 * 1000;
 let nextRaffleId = 4;
 let nextCourseId = 6;
 const now = () => Date.now();
+const iso = (msAgo = 0) => new Date(now() - msAgo).toISOString();
+const DAY = 86400000;
 
 const demoCourse = (id, title, description, position) => ({
-  id, title, description, coverUrl: '', active: true, position, pdfName: `${title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]+/g, '-')}.pdf`, pdfSize: 1800000 + id * 210000, createdAt: new Date().toISOString(),
+  id, title, description, coverUrl: '', active: true, position, pdfName: `${title.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]+/g, '-')}.pdf`, pdfSize: 1800000 + id * 210000, createdAt: iso(),
 });
 
 const db = {
@@ -25,77 +26,27 @@ const db = {
     {
       id: 1, title: 'Gran Sorteo Edición Premium', prize: 'Chevrolet Onix 0km',
       description: 'Sorteo en vivo por YouTube. Te llevás el auto patentado y listo para salir. ¡Participá desde cualquier lugar del país!',
-      imageUrl: brand.logoUrl, pricePerNumber: '10000.00', promos: [{ qty: 2, price: 15000 }, { qty: 5, price: 30000 }, { qty: 10, price: 50000 }], totalNumbers: 1000,
-      drawDate: (() => { const d = new Date(Date.now() + 20 * 86400000); d.setHours(21, 0, 0, 0); return d.toISOString(); })(), youtubeUrl: null,
-      permitNumber: 'DEMO-2026-001', status: 'active', winnerNumber: null, createdAt: new Date().toISOString(),
-      terms: 'DEMO: este texto es de ejemplo.\n\n1. Participan mayores de 18 años.\n2. El sorteo se realiza en vivo por YouTube en la fecha indicada.\n3. El ganador será contactado por teléfono y email.',
+      imageUrl: brand.logoUrl, chancesGoal: 10000, nextNumber: 100000,
+      drawDate: (() => { const d = new Date(now() + 20 * DAY); d.setHours(21, 0, 0, 0); return d.toISOString(); })(), youtubeUrl: null,
+      permitNumber: 'DEMO-2026-001', status: 'active', winnerNumber: null, createdAt: iso(),
+      terms: 'DEMO: este texto es de ejemplo.\n\n1. Participan mayores de 18 años.\n2. Cada compra incluye un curso digital y chances de regalo.\n3. El sorteo se realiza en vivo por YouTube en la fecha indicada.\n4. El ganador será contactado por teléfono y email.',
     },
     {
-      id: 2, title: 'Sorteo de Primavera', prize: 'Fiat Cronos 0km', description: '',
-      imageUrl: null, pricePerNumber: '2000.00', totalNumbers: 200, drawDate: new Date(Date.now() - 30 * 86400000).toISOString(),
-      youtubeUrl: null, permitNumber: 'DEMO-2026-000', status: 'drawn', winnerNumber: 87, terms: '',
-      createdAt: new Date(Date.now() - 60 * 86400000).toISOString(),
+      id: 2, title: 'Sorteo de Primavera', prize: 'Fiat Cronos 0km', description: '', imageUrl: null, chancesGoal: null, nextNumber: 100000,
+      drawDate: iso(30 * DAY), youtubeUrl: null, permitNumber: 'DEMO-2026-000', status: 'drawn', winnerNumber: null, terms: '', createdAt: iso(60 * DAY),
     },
     {
-      id: 3, title: 'Sorteo de Invierno', prize: 'Renault Kwid 0km', description: '',
-      imageUrl: null, pricePerNumber: '3000.00', totalNumbers: 300, drawDate: new Date(Date.now() - 120 * 86400000).toISOString(),
-      youtubeUrl: null, permitNumber: 'DEMO-2026-00A', status: 'drawn', winnerNumber: 214, terms: '',
-      createdAt: new Date(Date.now() - 150 * 86400000).toISOString(),
+      id: 3, title: 'Sorteo de Invierno', prize: 'Renault Kwid 0km', description: '', imageUrl: null, chancesGoal: null, nextNumber: 100000,
+      drawDate: iso(120 * DAY), youtubeUrl: null, permitNumber: 'DEMO-2026-00A', status: 'drawn', winnerNumber: null, terms: '', createdAt: iso(150 * DAY),
     },
   ],
-  tickets: {}, // raffleId -> [{status, reservedUntil, orderId}]
+  chances: [], // { raffleId, number, orderId, status }
   orders: [],
 };
 
-function initTickets(r) {
-  db.tickets[r.id] = Array.from({ length: r.totalNumbers }, () => ({ status: 'available', reservedUntil: 0, orderId: null }));
-}
-db.raffles.forEach(initTickets);
-
-const names = ['Ana Gómez', 'Carlos Ruiz', 'Lucía Fernández', 'Martín Sosa', 'Paula Díaz', 'Jorge Molina', 'Sofía Herrera', 'Diego Castro'];
-function seedOrder(raffleId, numbers, i, status = 'approved', minutesAgo = 60) {
-  const r = db.raffles.find((x) => x.id === raffleId);
-  const o = {
-    id: crypto.randomUUID(), RaffleId: raffleId, buyerName: names[i % names.length], buyerEmail: `cliente${i}@ejemplo.com`,
-    buyerPhone: `291 4${String(100000 + i * 7919).slice(0, 6)}`, buyerDni: String(25000000 + i * 123457),
-    numbers, amount: computeTotal(r.pricePerNumber, r.promos, numbers.length).total.toFixed(2), status,
-    mpPaymentId: status === 'approved' ? String(1300000000 + i) : null, mpStatusDetail: status === 'approved' ? 'accredited' : null,
-    createdAt: new Date(now() - minutesAgo * 60000).toISOString(), expiresAt: null,
-  };
-  numbers.forEach((n) => { db.tickets[raffleId][n - 1] = { status: 'sold', reservedUntil: 0, orderId: o.id }; });
-  db.orders.push(o);
-}
-// Datos de ejemplo
-let seed = 1;
-for (let i = 0; i < 60; i++) {
-  const nums = [];
-  const count = 1 + (seed % 4);
-  for (let k = 0; k < count; k++) { seed = (seed * 9301 + 49297) % 233280; nums.push(1 + (seed % 1000)); }
-  const uniq = [...new Set(nums)].filter((n) => db.tickets[1][n - 1].status === 'available');
-  if (uniq.length) seedOrder(1, uniq.sort((a, b) => a - b), i, i % 9 === 0 ? 'manual' : 'approved', 60 * 24 * 5 - i * 100);
-}
-seedOrder(2, [87, 12, 140], 3);
-seedOrder(3, [214, 9], 5);
-// Una reserva en curso de otra persona
-(() => {
-  const o = { id: crypto.randomUUID(), RaffleId: 1, buyerName: 'Comprador en curso', buyerEmail: 'x@ejemplo.com', buyerPhone: '-', buyerDni: '-', numbers: [5, 6], amount: '15000.00', status: 'pending', createdAt: new Date().toISOString(), expiresAt: new Date(now() + RESERVATION_MS).toISOString() };
-  [5, 6].forEach((n) => { db.tickets[1][n - 1] = { status: 'reserved', reservedUntil: now() + RESERVATION_MS, orderId: o.id }; });
-  db.orders.push(o);
-})();
-
-const isFree = (t) => t.status === 'available' || (t.status === 'reserved' && t.reservedUntil < now());
-
-function expire() {
-  db.orders.filter((o) => o.status === 'pending' && new Date(o.expiresAt).getTime() < now()).forEach((o) => {
-    db.tickets[o.RaffleId].forEach((t) => { if (t.orderId === o.id && t.status === 'reserved') Object.assign(t, { status: 'available', reservedUntil: 0, orderId: null }); });
-    o.status = 'expired';
-  });
-}
-
 class Err { constructor(status, body) { this.status = status; this.body = body; } }
-const pub = (r) => { const { createdAt, ...rest } = r; return rest; };
 const raffleOr404 = (id) => { const r = db.raffles.find((x) => String(x.id) === String(id)); if (!r) throw new Err(404, { error: 'Sorteo no encontrado' }); return r; };
-
+const orderOr404 = (id) => { const o = db.orders.find((x) => x.id === id); if (!o) throw new Err(404, { error: 'Compra no encontrada' }); return o; };
 
 // ---- Packs (demo): mismo comportamiento que backend/src/services/packs.js ----
 const DEFAULT_PACKS = [[5, 15000], [10, 25000], [20, 45000, true], [30, 60000], [50, 90000], [100, 130000]];
@@ -112,12 +63,23 @@ function packConfig(raffleId) {
 }
 const packQuote = (p, offer, double) => {
   const extra = double ? p.chances * Math.round(offer.pricePerChance * 100) : 0;
-  return { packId: p.id, chances: p.chances * (double ? 2 : 1), packPrice: p.price, double, doubleExtra: extra / 100, total: (Math.round(p.price * 100) + extra) / 100 };
+  const chances = p.chances * (double ? 2 : 1);
+  const totalCents = Math.round(p.price * 100) + extra;
+  return { packId: p.id, chances, packPrice: p.price, double, doubleExtra: extra / 100, total: totalCents / 100, perChance: Math.round(totalCents / chances) / 100 };
 };
-const packPreview = ({ packs, offer }) => packs.map((p) => ({
-  id: p.id, chances: p.chances, price: p.price, featured: p.featured, position: p.position,
-  double: offer.enabled && p.doubleEligible ? packQuote(p, offer, true) : null,
-}));
+const savingsPct = (per, base) => { const pct = Math.round((1 - per / base) * 100); return pct > 0 ? pct : null; };
+const packPreview = ({ packs, offer }) => {
+  const smallest = packs.reduce((a, p) => (!a || p.chances < a.chances ? p : a), null);
+  const base = smallest ? packQuote(smallest, offer, false).perChance : null;
+  return packs.map((p) => {
+    const plain = packQuote(p, offer, false);
+    const dbl = offer.enabled && p.doubleEligible ? packQuote(p, offer, true) : null;
+    return {
+      id: p.id, chances: p.chances, price: p.price, perChance: plain.perChance, savingsPct: savingsPct(plain.perChance, base),
+      featured: p.featured, position: p.position, double: dbl && { ...dbl, savingsPct: savingsPct(dbl.perChance, base) },
+    };
+  });
+};
 const adminPacks = (c) => ({ packs: c.packs, offer: c.offer, preview: packPreview(c) });
 function savePacks(raffleId, body) {
   const packs = body.packs || [];
@@ -138,44 +100,104 @@ function savePacks(raffleId, body) {
   return adminPacks(packStore[raffleId]);
 }
 
+function quoteFor(raffleId, b) {
+  const r = raffleOr404(raffleId);
+  if (r.status !== 'active') throw new Err(409, { error: 'El sorteo no está a la venta' });
+  const c = packConfig(r.id);
+  const p = c.packs.find((x) => x.id === Number(b.packId));
+  if (!p) throw new Err(400, { error: 'Pack inválido' });
+  if (b.double === true && !(c.offer.enabled && p.doubleEligible)) throw new Err(400, { error: 'La oferta "Duplicá" no está disponible para este pack' });
+  return packQuote(p, c.offer, b.double === true);
+}
+
+
+// ---- Números consecutivos (demo): mismo comportamiento que backend/src/services/numbers.js ----
+function assignNumbers(o) {
+  const r = raffleOr404(o.RaffleId);
+  const first = r.nextNumber;
+  r.nextNumber += o.chances;
+  for (let n = first; n < r.nextNumber; n++) db.chances.push({ raffleId: r.id, number: n, orderId: o.id, status: 'valid' });
+  Object.assign(o, { firstNumber: first, lastNumber: r.nextNumber - 1 });
+}
+const chancesSold = (raffleId) => db.chances.filter((c) => c.raffleId === raffleId && c.status === 'valid').length;
+const pub = (r) => {
+  const { createdAt, nextNumber, ...rest } = r;
+  const prices = packConfig(r.id).packs.map((p) => p.price);
+  return { ...rest, chancesSold: chancesSold(r.id), fromPrice: prices.length ? Math.min(...prices) : null };
+};
+
+// ---- Datos de ejemplo ----
+const names = ['Ana Gómez', 'Carlos Ruiz', 'Lucía Fernández', 'Martín Sosa', 'Paula Díaz', 'Jorge Molina', 'Sofía Herrera', 'Diego Castro'];
+let seed = 7;
+const rnd = (n) => { seed = (seed * 9301 + 49297) % 233280; return seed % n; };
+function seedOrder(raffleId, i, { status = 'approved', minutesAgo = 60 } = {}) {
+  const c = packConfig(raffleId);
+  const p = c.packs[rnd(c.packs.length)];
+  const double = c.offer.enabled && rnd(3) === 0;
+  const q = packQuote(p, c.offer, double);
+  const course = db.courses[rnd(4)];
+  const o = {
+    id: crypto.randomUUID(), RaffleId: raffleId, buyerName: names[i % names.length], buyerEmail: `cliente${i}@ejemplo.com`,
+    buyerPhone: `2914${String(100000 + i * 7919).slice(0, 6)}`, buyerDni: String(25000000 + i * 123457),
+    PackId: p.id, double, chances: q.chances, amount: q.total.toFixed(2), CourseId: course.id, courseTitle: course.title, status,
+    firstNumber: null, lastNumber: null,
+    mpPaymentId: status === 'approved' ? String(1300000000 + i) : null, mpStatusDetail: status === 'approved' ? 'accredited' : null,
+    createdAt: iso(minutesAgo * 60000),
+  };
+  db.orders.push(o);
+  if (status === 'approved' || status === 'manual') assignNumbers(o);
+  return o;
+}
+for (let i = 0; i < 70; i++) seedOrder(1, i, { status: i % 11 === 0 ? 'manual' : 'approved', minutesAgo: 60 * 24 * 5 - i * 90 });
+seedOrder(1, 99, { status: 'pending', minutesAgo: 3 });
+[2, 3].forEach((id, k) => {
+  for (let i = 0; i < 12; i++) seedOrder(id, i + k * 20, { minutesAgo: (40 + k * 90) * 24 * 60 });
+  const r = db.raffles.find((x) => x.id === id);
+  r.winnerNumber = 100000 + rnd(r.nextNumber - 100000);
+});
+
 const routes = [
-  ['GET', /^\/raffles$/, () => db.raffles.filter((r) => r.status !== 'draft').map(pub)],
+  ['GET', /^\/raffles$/, () => db.raffles.filter((r) => r.status !== 'draft').sort((a, b) => b.drawDate.localeCompare(a.drawDate)).map(pub)],
   ['GET', /^\/raffles\/(\d+)$/, ([id]) => { const r = raffleOr404(id); if (r.status === 'draft') throw new Err(404, { error: 'Sorteo no encontrado' }); return pub(r); }],
-  ['GET', /^\/raffles\/(\d+)\/numbers$/, ([id]) => ({
-    grid: db.tickets[raffleOr404(id).id].map((t) => (t.status === 'sold' ? 2 : t.status === 'reserved' && t.reservedUntil > now() ? 1 : 0)),
-  })],
-  ['POST', /^\/orders$/, (_, body) => {
-    const r = raffleOr404(body.raffleId);
-    if (r.status !== 'active') throw new Err(404, { error: 'Sorteo no disponible' });
-    const nums = [...new Set(body.numbers.map(Number))];
-    const tk = db.tickets[r.id];
-    const unavailable = nums.filter((n) => !tk[n - 1] || !isFree(tk[n - 1]));
-    if (unavailable.length) throw new Err(409, { error: 'Algunos números ya no están disponibles', unavailable });
-    const b = body.buyer;
+  ['GET', /^\/raffles\/(\d+)\/packs$/, ([id]) => {
+    const r = raffleOr404(id);
+    if (r.status === 'draft') throw new Err(404, { error: 'Sorteo no encontrado' });
+    const c = packConfig(r.id);
+    return { offer: c.offer, packs: packPreview(c) };
+  }],
+  ['POST', /^\/raffles\/(\d+)\/quote$/, ([id], b) => quoteFor(id, b)],
+  ['POST', /^\/raffles\/(\d+)\/purchases$/, ([id], b) => {
+    const buyer = b.buyer || {};
+    if (String(buyer.name || '').trim().length < 3) throw new Err(400, { error: 'Ingresá tu nombre y apellido' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(buyer.email || '').trim())) throw new Err(400, { error: 'El email no es válido' });
+    if (String(buyer.phone || '').replace(/\D/g, '').length < 8) throw new Err(400, { error: 'El teléfono no es válido' });
+    const dni = String(buyer.dni || '').replace(/\D/g, '');
+    if (dni.length < 7 || dni.length > 8) throw new Err(400, { error: 'El DNI no es válido' });
+    const course = db.courses.find((c) => c.id === Number(b.courseId) && c.active);
+    if (!course) throw new Err(400, { error: 'Elegí un curso' });
+    const q = quoteFor(id, b);
     const o = {
-      id: crypto.randomUUID(), RaffleId: r.id, buyerName: b.name, buyerEmail: b.email, buyerPhone: b.phone, buyerDni: b.dni,
-      numbers: nums.sort((a, c) => a - c), amount: computeTotal(r.pricePerNumber, r.promos, nums.length).total.toFixed(2), status: 'pending',
-      createdAt: new Date().toISOString(), expiresAt: new Date(now() + RESERVATION_MS).toISOString(),
+      id: crypto.randomUUID(), RaffleId: Number(id), buyerName: buyer.name.trim(), buyerEmail: buyer.email.trim().toLowerCase(), buyerPhone: buyer.phone, buyerDni: dni,
+      PackId: q.packId, double: q.double, chances: q.chances, amount: q.total.toFixed(2), CourseId: course.id, courseTitle: course.title,
+      status: 'pending', firstNumber: null, lastNumber: null, createdAt: iso(),
     };
-    nums.forEach((n) => { tk[n - 1] = { status: 'reserved', reservedUntil: now() + RESERVATION_MS, orderId: o.id }; });
     db.orders.unshift(o);
-    return { orderId: o.id, checkoutUrl: `/demo-pago/${o.id}`, expiresAt: o.expiresAt };
+    return { orderId: o.id, checkoutUrl: `/demo-pago/${o.id}`, total: q.total, chances: q.chances };
   }],
   ['GET', /^\/orders\/([\w-]+)$/, ([id]) => {
-    const o = db.orders.find((x) => x.id === id);
-    if (!o) throw new Err(404, { error: 'Compra no encontrada' });
-    return o;
+    const o = orderOr404(id);
+    const r = raffleOr404(o.RaffleId);
+    return { ...o, Raffle: { id: r.id, title: r.title, prize: r.prize, drawDate: r.drawDate, youtubeUrl: r.youtubeUrl } };
   }],
-  // Simulación del aviso de pago (lo que en producción hace el webhook de Mercado Pago)
+  // Simula el aviso de Mercado Pago (en la app real llega por webhook)
   ['POST', /^\/demo\/pay\/([\w-]+)$/, ([id], body) => {
-    const o = db.orders.find((x) => x.id === id);
-    if (!o || o.status !== 'pending') return o;
+    const o = orderOr404(id);
+    if (o.status !== 'pending') return o;
     if (body.result === 'approved') {
-      db.tickets[o.RaffleId].forEach((t) => { if (t.orderId === o.id) Object.assign(t, { status: 'sold', reservedUntil: 0 }); });
+      assignNumbers(o);
       Object.assign(o, { status: 'approved', mpPaymentId: 'DEMO-' + Math.floor(Math.random() * 1e9), mpStatusDetail: 'accredited' });
     } else {
-      db.tickets[o.RaffleId].forEach((t) => { if (t.orderId === o.id) Object.assign(t, { status: 'available', reservedUntil: 0, orderId: null }); });
-      Object.assign(o, { status: 'rejected', mpStatusDetail: 'cc_rejected_insufficient_amount' });
+      o.mpStatusDetail = 'cc_rejected_insufficient_amount'; // queda pendiente: puede reintentar
     }
     return o;
   }],
@@ -185,66 +207,56 @@ const routes = [
   }],
   ['GET', /^\/admin\/raffles$/, () => [...db.raffles].sort((a, b) => b.createdAt.localeCompare(a.createdAt))],
   ['POST', /^\/admin\/raffles$/, (_, b) => {
-    if (!Number.isInteger(b.totalNumbers) || b.totalNumbers < 1 || b.totalNumbers > 100000) throw new Err(400, { error: 'totalNumbers debe ser entre 1 y 100000' });
-    let promos;
-    try { promos = validatePromos(b.promos); } catch (e) { throw new Err(400, { error: e.message }); }
-    const r = { ...b, promos, id: nextRaffleId++, pricePerNumber: Number(b.pricePerNumber).toFixed(2), status: b.status || 'draft', winnerNumber: null, createdAt: new Date().toISOString() };
+    if (!String(b.title || '').trim() || !String(b.prize || '').trim()) throw new Err(400, { error: 'El título y el premio son obligatorios' });
+    const r = { ...b, id: nextRaffleId++, chancesGoal: b.chancesGoal || null, nextNumber: 100000, status: 'draft', winnerNumber: null, createdAt: iso() };
     db.raffles.push(r);
-    initTickets(r);
+    packConfig(r.id);
     return r;
   }],
   ['PATCH', /^\/admin\/raffles\/(\d+)$/, ([id], b) => {
-    if ('promos' in b) { try { b.promos = validatePromos(b.promos); } catch (e) { throw new Err(400, { error: e.message }); } }
+    if (b.status && !['draft', 'active', 'closed'].includes(b.status)) throw new Err(400, { error: 'Estado inválido' });
     return Object.assign(raffleOr404(id), b);
   }],
+  ['GET', /^\/admin\/raffles\/(\d+)\/packs$/, ([id]) => adminPacks(packConfig(raffleOr404(id).id))],
+  ['PUT', /^\/admin\/raffles\/(\d+)\/packs$/, ([id], b) => savePacks(raffleOr404(id).id, b)],
   ['POST', /^\/admin\/raffles\/(\d+)\/winner$/, ([id], b) => {
     const r = raffleOr404(id);
-    const t = db.tickets[r.id][Number(b.number) - 1];
-    if (!t) throw new Err(400, { error: 'Número fuera de rango' });
+    const c = db.chances.find((x) => x.raffleId === r.id && x.number === Number(b.number));
+    if (!c) throw new Err(400, { error: 'Ese número no fue asignado en este sorteo' });
+    if (c.status === 'void') throw new Err(409, { error: 'Ese número está anulado (compra reintegrada): sorteá de nuevo' });
     Object.assign(r, { winnerNumber: Number(b.number), status: 'drawn' });
-    const o = t.status === 'sold' && db.orders.find((x) => x.id === t.orderId);
-    return { number: Number(b.number), sold: t.status === 'sold', winner: o ? { name: o.buyerName, phone: o.buyerPhone, email: o.buyerEmail, dni: o.buyerDni } : null };
+    const o = orderOr404(c.orderId);
+    return { number: Number(b.number), winner: { name: o.buyerName, phone: o.buyerPhone, email: o.buyerEmail, dni: o.buyerDni, orderId: o.id } };
   }],
   ['GET', /^\/admin\/raffles\/(\d+)\/stats$/, ([id]) => {
     const r = raffleOr404(id);
-    const byStatus = { available: 0, reserved: 0, sold: 0 };
-    db.tickets[r.id].forEach((t) => { byStatus[t.status === 'reserved' && t.reservedUntil < now() ? 'available' : t.status]++; });
-    const revenue = db.orders.filter((o) => o.RaffleId === r.id && ['approved', 'manual'].includes(o.status)).reduce((a, o) => a + Number(o.amount), 0);
-    return { byStatus, revenue };
+    const os = db.orders.filter((o) => o.RaffleId === r.id);
+    const sold = os.filter((o) => ['approved', 'manual'].includes(o.status));
+    return {
+      chancesSold: chancesSold(r.id), purchases: sold.length, pending: os.filter((o) => o.status === 'pending').length,
+      review: os.filter((o) => o.status === 'needs_review').length, revenue: sold.reduce((a, o) => a + Number(o.amount), 0),
+    };
   }],
   ['GET', /^\/admin\/orders$/, (_, __, q) => db.orders
     .filter((o) => (!q.get('raffleId') || String(o.RaffleId) === q.get('raffleId')) && (!q.get('status') || o.status === q.get('status')))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))],
   ['POST', /^\/admin\/orders\/manual$/, (_, b) => {
     const r = raffleOr404(b.raffleId);
-    const nums = [...new Set(b.numbers.map(Number))];
-    const tk = db.tickets[r.id];
-    if (nums.some((n) => !tk[n - 1] || !isFree(tk[n - 1]))) throw new Err(409, { error: 'Algunos números no están disponibles' });
+    if (r.status === 'drawn') throw new Err(409, { error: 'El sorteo ya se realizó' });
+    if (!Number.isInteger(b.chances) || b.chances < 1) throw new Err(400, { error: 'Cantidad de chances inválida' });
+    const course = db.courses.find((c) => c.id === Number(b.courseId));
+    if (!course) throw new Err(400, { error: 'Elegí el curso' });
+    const dni = String(b.buyer?.dni || '').replace(/\D/g, '');
+    if (String(b.buyer?.name || '').trim().length < 3) throw new Err(400, { error: 'Falta el nombre del comprador' });
+    if (dni.length < 7 || dni.length > 8) throw new Err(400, { error: 'El DNI no es válido' });
     const o = {
-      id: crypto.randomUUID(), RaffleId: r.id, buyerName: b.buyer.name, buyerEmail: '-', buyerPhone: b.buyer.phone || '-', buyerDni: b.buyer.dni || '-',
-      numbers: nums.sort((a, c) => a - c), amount: computeTotal(r.pricePerNumber, r.promos, nums.length).total.toFixed(2), status: 'manual', createdAt: new Date().toISOString(),
+      id: crypto.randomUUID(), RaffleId: r.id, buyerName: b.buyer.name.trim(), buyerEmail: b.buyer.email || '-', buyerPhone: b.buyer.phone || '-', buyerDni: dni,
+      chances: b.chances, double: false, amount: Number(b.amount || 0).toFixed(2), CourseId: course.id, courseTitle: course.title, status: 'manual', createdAt: iso(),
     };
-    nums.forEach((n) => { tk[n - 1] = { status: 'sold', reservedUntil: 0, orderId: o.id }; });
+    assignNumbers(o);
     db.orders.unshift(o);
     return o;
   }],
-  ['GET', /^\/raffles\/(\d+)\/packs$/, ([id]) => {
-    const r = raffleOr404(id);
-    if (r.status === 'draft') throw new Err(404, { error: 'Sorteo no encontrado' });
-    const c = packConfig(r.id);
-    return { offer: c.offer, packs: packPreview(c) };
-  }],
-  ['POST', /^\/raffles\/(\d+)\/quote$/, ([id], b) => {
-    const r = raffleOr404(id);
-    if (r.status !== 'active') throw new Err(409, { error: 'El sorteo no está a la venta' });
-    const c = packConfig(r.id);
-    const p = c.packs.find((x) => x.id === Number(b.packId));
-    if (!p) throw new Err(400, { error: 'Pack inválido' });
-    if (b.double === true && !(c.offer.enabled && p.doubleEligible)) throw new Err(400, { error: 'La oferta "Duplicá" no está disponible para este pack' });
-    return packQuote(p, c.offer, b.double === true);
-  }],
-  ['GET', /^\/admin\/raffles\/(\d+)\/packs$/, ([id]) => adminPacks(packConfig(raffleOr404(id).id))],
-  ['PUT', /^\/admin\/raffles\/(\d+)\/packs$/, ([id], b) => savePacks(raffleOr404(id).id, b)],
   ['GET', /^\/courses$/, () => db.courses.filter((c) => c.active).sort((a, b) => a.position - b.position)
     .map(({ id, title, description, coverUrl, position }) => ({ id, title, description, coverUrl, position }))],
   ['GET', /^\/admin\/courses$/, () => [...db.courses].sort((a, b) => a.position - b.position)],
@@ -273,10 +285,10 @@ const routes = [
     throw new Err(400, { error: 'En la demo no hay archivos reales para descargar' });
   }],
   ['GET', /^\/admin\/raffles\/(\d+)\/export\.csv$/, ([id]) => {
-    const rows = db.orders.filter((o) => String(o.RaffleId) === id && ['approved', 'manual'].includes(o.status));
+    const rows = db.orders.filter((o) => String(o.RaffleId) === id && ['approved', 'manual', 'needs_review'].includes(o.status));
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    return { __csv: ['Fecha;Nombre;DNI;Teléfono;Email;Números;Monto;Estado;Pago MP',
-      ...rows.map((o) => [o.createdAt, o.buyerName, o.buyerDni, o.buyerPhone, o.buyerEmail, o.numbers.join(' '), o.amount, o.status, o.mpPaymentId].map(esc).join(';'))].join('\n') };
+    return { __csv: ['Fecha;Nombre;DNI;Teléfono;Email;Curso;Chances;Desde;Hasta;Monto;Estado;Pago MP',
+      ...rows.map((o) => [o.createdAt, o.buyerName, o.buyerDni, o.buyerPhone, o.buyerEmail, o.courseTitle, o.chances, o.firstNumber, o.lastNumber, o.amount, o.status, o.mpPaymentId].map(esc).join(';'))].join('\n') };
   }],
 ];
 
@@ -289,7 +301,6 @@ export function installMockApi() {
     const path = url.pathname.slice(idx + 4);
     const method = (init.method || 'GET').toUpperCase();
     const body = init.body instanceof FormData ? Object.fromEntries(init.body.entries()) : init.body ? JSON.parse(init.body) : {};
-    expire();
     await new Promise((r) => setTimeout(r, 150)); // latencia simulada
     for (const [m, re, fn] of routes) {
       const match = method === m && path.match(re);
