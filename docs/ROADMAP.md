@@ -35,4 +35,4 @@ Sprints de 1 semana. Cada ítem es un issue en GitHub, agrupado en un milestone.
 - [x] #15 Alerta de conexión con Mercado Pago en el panel
 - [ ] #16 Pruebas end-to-end con credenciales de prueba de Mercado Pago
 - [x] #22 Envío de emails en lotes para alto volumen
-- [ ] #34 Exportación a Excel en streaming para sorteos grandes
+- [x] #34 Exportación a Excel en streaming para sorteos grandes

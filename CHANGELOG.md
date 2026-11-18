@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ## [Unreleased]
 
 ### Added
+- Exportación del listado completo en streaming (#34): se lee la base por tandas (`EXPORT_BATCH_SIZE`, 2.000 por defecto) con paginación por cursor y cada tanda se escribe a medida que está lista, así la memoria del servidor no crece con el tamaño del sorteo. Sigue siendo un solo archivo con compras, anuladas y participaciones gratuitas, con las fórmulas neutralizadas. Si el cliente corta la descarga se deja de leer; si falla a mitad, se corta la conexión en vez de entregar un archivo truncado que parezca completo.
 - Envío de emails para alto volumen (#22): el worker toma los pendientes por lotes, con envíos en paralelo, conexiones SMTP reutilizadas y un límite de mails por segundo configurable (`EMAIL_RATE_PER_SEC`). Puede correr como servicio aparte (`npm run worker`) para que un pico de compras no afecte al sitio; con cola larga, el envío inmediato se deja para el worker. Ningún mail se envía dos veces.
 - Botón "Reenviar todos los fallidos" en el panel, con el aviso de cuántos emails fallaron y cuántos están en cola.
 - Guía `docs/EMAIL.md`: cómo funciona el envío, autenticación del dominio (SPF, DKIM, DMARC), calentamiento del dominio y qué vigilar.
