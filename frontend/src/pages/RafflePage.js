@@ -123,6 +123,7 @@ export default function RafflePage() {
 
             {pack?.double && (
               <label className={`double ${double ? 'on' : ''}`}>
+                <span className="double-tag">Oferta</span>
                 <input type="checkbox" checked={double} onChange={(e) => setDouble(e.target.checked)} />
                 <span>
                   <strong>¡Duplicá tus chances!</strong> Sumá {pack.chances} chances más por {money(pack.double.doubleExtra)}
