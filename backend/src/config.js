@@ -46,6 +46,8 @@ module.exports = {
   pendingGraceHours: Number(process.env.PENDING_GRACE_HOURS || 24),
   // Captcha Cloudflare Turnstile. Sin TURNSTILE_SECRET queda desactivado (desarrollo y tests).
   captcha: { secret: process.env.TURNSTILE_SECRET },
+  // Exportación del listado completo: filas que se leen de la base por tanda (la memoria no crece con el sorteo)
+  export: { batchSize: Number(process.env.EXPORT_BATCH_SIZE || 2000) },
   // Envío de emails (outbox). El proveedor limita cuántos mails por segundo acepta: ajustar a su plan.
   email: {
     batchSize: Number(process.env.EMAIL_BATCH_SIZE || 50), // pendientes que se toman por vuelta
