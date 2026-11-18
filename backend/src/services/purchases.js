@@ -1,0 +1,90 @@
+const { sequelize, Raffle, Order, Course } = require('../db');
+const { mp } = require('./mercadopago');
+const { HttpError } = require('./errors');
+const packs = require('./packs');
+const numbers = require('./numbers');
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+function cleanBuyer(buyer) {
+  const b = buyer || {};
+  const out = {
+    name: String(b.name || '').trim().replace(/\s+/g, ' '),
+    email: String(b.email || '').trim().toLowerCase(),
+    phone: String(b.phone || '').replace(/[^\d+]/g, ''),
+    dni: String(b.dni || '').replace(/\D/g, ''),
+  };
+  if (out.name.length < 3) throw new HttpError(400, 'Ingresá tu nombre y apellido');
+  if (!EMAIL.test(out.email)) throw new HttpError(400, 'El email no es válido');
+  if (out.phone.replace(/\D/g, '').length < 8) throw new HttpError(400, 'El teléfono no es válido');
+  if (out.dni.length < 7 || out.dni.length > 8) throw new HttpError(400, 'El DNI no es válido');
+  return out;
+}
+
+/**
+ * Crea una compra pendiente (curso + pack) y la preferencia de pago.
+ * No asigna números: eso pasa recién cuando Mercado Pago confirma el pago.
+ * Por eso no hay reserva ni vencimiento: si el comprador no paga, la orden
+ * queda pendiente y no le saca nada a nadie.
+ */
+async function createPurchase({ raffleId, packId, double, courseId, buyer }) {
+  const b = cleanBuyer(buyer);
+  const course = await Course.findOne({ where: { id: Number(courseId) || 0, active: true } });
+  if (!course) throw new HttpError(400, 'Elegí un curso');
+  const quote = await packs.quoteForRaffle(raffleId, { packId, double }); // valida sorteo activo y pack
+  const raffle = await Raffle.findByPk(raffleId);
+
+  const order = await Order.create({
+    RaffleId: raffle.id,
+    buyerName: b.name,
+    buyerEmail: b.email,
+    buyerPhone: b.phone,
+    buyerDni: b.dni,
+    PackId: quote.packId,
+    double: quote.double,
+    chances: quote.chances,
+    amount: quote.total.toFixed(2),
+    CourseId: course.id,
+    courseTitle: course.title,
+  });
+
+  try {
+    const pref = await mp.createPreference({
+      order,
+      raffle,
+      title: `Curso "${course.title}" + ${quote.chances} chances - ${raffle.title}`,
+    });
+    await order.update({ mpPreferenceId: pref.id });
+    return { orderId: order.id, checkoutUrl: pref.initPoint, total: quote.total, chances: quote.chances };
+  } catch (err) {
+    await order.update({ status: 'rejected', mpStatusDetail: 'error_preferencia' });
+    throw new HttpError(502, 'No se pudo iniciar el pago con Mercado Pago', { detail: err.message });
+  }
+}
+
+/**
+ * Confirma una compra por pack a partir del pago informado por Mercado Pago.
+ * Se ejecuta con la orden bloqueada (FOR UPDATE) dentro de la transacción del
+ * webhook, así que es idempotente: si el aviso se repite, la orden ya está
+ * aprobada y no se asignan números de nuevo.
+ */
+async function confirmPackOrder(order, payment, transaction) {
+  if (order.status !== 'pending') return { order, alreadyProcessed: true };
+
+  if (payment.status === 'approved') {
+    if (Math.abs(payment.amount - Number(order.amount)) > 0.01) {
+      await order.update({ status: 'needs_review', mpPaymentId: payment.id, mpStatusDetail: 'monto_distinto' }, { transaction });
+      return { order };
+    }
+    const range = await numbers.assignNumbers(order, transaction);
+    await order.update({ status: 'approved', mpPaymentId: payment.id, mpStatusDetail: payment.statusDetail }, { transaction });
+    return { order, ...range };
+  }
+
+  // Rechazado / cancelado: se registra, pero la orden queda pendiente para que
+  // el comprador pueda reintentar con otro medio desde el mismo checkout.
+  await order.update({ mpPaymentId: payment.id, mpStatusDetail: payment.statusDetail }, { transaction });
+  return { order };
+}
+
+module.exports = { createPurchase, confirmPackOrder, cleanBuyer };

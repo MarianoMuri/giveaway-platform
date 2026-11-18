@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import brand from '../brand';
 import { useApi } from '../hooks';
-import { money } from '../api';
+import { money, numbersLabel } from '../api';
 
 const states = {
   pending: { icon: '⏳', title: 'Estamos esperando la confirmación del pago', text: 'Puede tardar unos segundos. Esta página se actualiza sola.' },
@@ -30,9 +30,13 @@ export default function OrderStatus() {
           <div className="small muted">Comprador</div>
           <div>{order.buyerName}</div>
           <div className="small muted mt-sm">Tus números</div>
-          <div className="chips center-chips">
-            {order.numbers.map((n) => <span key={n} className="chip">{n}</span>)}
-          </div>
+          {order.chances ? (
+            <div>{numbersLabel(order)} <span className="small muted">({order.chances} chances)</span></div>
+          ) : (
+            <div className="chips center-chips">
+              {order.numbers.map((n) => <span key={n} className="chip">{n}</span>)}
+            </div>
+          )}
           <div className="small muted mt-sm">Total</div>
           <div>{money(order.amount)}</div>
           <div className="small muted mt-sm">Código de compra</div>

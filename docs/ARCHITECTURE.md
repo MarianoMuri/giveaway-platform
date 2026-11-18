@@ -49,6 +49,11 @@ sequenceDiagram
 | Estado `needs_review` | Pagos con monto distinto o acreditados después de que el número se vendió quedan para revisión manual y reintegro. |
 | Medios en efectivo excluidos | Se acreditan días después, cuando la reserva ya venció. |
 | Precio con promos calculado en el backend | El total que se cobra nunca depende del navegador. La misma función corre en el frontend solo para mostrarlo. |
+| Números consecutivos asignados al confirmarse el pago | El comprador elige un pack, no números. Sin reserva previa no hay números "tomados" por compras que nunca se pagan. |
+| Contador por sorteo con un `UPDATE … RETURNING` atómico | La base serializa los UPDATE sobre la misma fila: pagos simultáneos reciben bloques distintos. Se evita "leer y después escribir", donde aparecen los duplicados. |
+| Índice único `(RaffleId, number)` | Red de seguridad: la base rechaza un número repetido aunque haya un bug en la lógica. |
+| El contador nunca retrocede | Un número anulado (reintegro, contracargo) no se vuelve a asignar: cada número identifica una sola compra para siempre. |
+| Tests de concurrencia contra PostgreSQL en el CI | SQLite no admite transacciones en paralelo; la garantía se prueba en la misma base que producción. |
 | Marca como configuración (`brand.js`) | El mismo código sirve para varios clientes; los datos de cada cliente quedan fuera del repo. |
 | Modo demo con API simulada | Permite mostrar el producto completo sin servidor ni cobros reales. |
 

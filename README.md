@@ -91,6 +91,7 @@ Para probar pagos se usan las **credenciales y usuarios de prueba** de Mercado P
 | POST | `/api/orders` | Reserva números y devuelve la URL de pago |
 | GET | `/api/orders/:id` | Estado de una compra |
 | GET | `/api/raffles/:id/packs` | Packs a la venta con el total de "Duplicá" ya calculado |
+| POST | `/api/raffles/:id/purchases` | Compra de curso + pack (`courseId`, `packId`, `double`, `buyer`): devuelve el link de pago |
 | POST | `/api/raffles/:id/quote` | Cotización de una compra (`packId`, `double`): el total lo calcula siempre el backend |
 | GET | `/api/courses` | Cursos activos |
 | GET | `/api/courses/download?token=` | Descarga del PDF con link firmado y con vencimiento |

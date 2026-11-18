@@ -25,6 +25,8 @@ const Raffle = sequelize.define('Raffle', {
   // Oferta "Duplicá tus chances": se suma este precio por cada chance extra
   doubleEnabled: { type: DataTypes.BOOLEAN, defaultValue: false },
   doublePricePerChance: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  // Contador de números del sorteo: solo avanza (los anulados no se reutilizan)
+  nextNumber: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 100000 },
 });
 
 const Pack = sequelize.define('Pack', {
@@ -52,7 +54,14 @@ const Order = sequelize.define('Order', {
   buyerEmail: { type: DataTypes.STRING, allowNull: false },
   buyerPhone: { type: DataTypes.STRING, allowNull: false },
   buyerDni: { type: DataTypes.STRING, allowNull: false },
-  numbers: { type: DataTypes.JSON, allowNull: false }, // copia para historial
+  numbers: { type: DataTypes.JSON, allowNull: false, defaultValue: [] }, // grilla (Sprint 0): copia para historial
+  // Compra por pack: los números se asignan al confirmarse el pago, en un bloque consecutivo
+  PackId: DataTypes.INTEGER, // referencia informativa (el pack se puede editar o borrar después)
+  double: { type: DataTypes.BOOLEAN, defaultValue: false },
+  chances: DataTypes.INTEGER,
+  firstNumber: DataTypes.INTEGER,
+  lastNumber: DataTypes.INTEGER,
+  courseTitle: DataTypes.STRING, // copia: el curso puede cambiar de nombre
   amount: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
   status: {
     // needs_review: pagó pero sus números ya no estaban disponibles -> revisar/reintegrar
@@ -82,7 +91,25 @@ Order.belongsTo(Raffle);
 Order.hasMany(Ticket);
 Ticket.belongsTo(Order);
 
+// Un número asignado. La restricción única es la red de seguridad: aunque hubiera
+// un bug en la asignación, la base nunca acepta el mismo número dos veces en un sorteo.
+const Chance = sequelize.define(
+  'Chance',
+  {
+    number: { type: DataTypes.INTEGER, allowNull: false },
+    status: { type: DataTypes.ENUM('valid', 'void'), defaultValue: 'valid' },
+  },
+  { indexes: [{ unique: true, fields: ['RaffleId', 'number'] }, { fields: ['OrderId'] }] }
+);
+
+Raffle.hasMany(Chance);
+Chance.belongsTo(Raffle);
+Order.hasMany(Chance);
+Chance.belongsTo(Order);
+Course.hasMany(Order);
+Order.belongsTo(Course);
+
 Raffle.hasMany(Pack, { onDelete: 'CASCADE' });
 Pack.belongsTo(Raffle);
 
-module.exports = { sequelize, Raffle, Order, Ticket, Course, Pack };
+module.exports = { sequelize, Raffle, Order, Ticket, Course, Pack, Chance };

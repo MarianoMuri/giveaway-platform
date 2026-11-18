@@ -113,7 +113,7 @@ router.get('/raffles/:id/export.csv', wrap(async (req, res) => {
   const lines = [['Fecha', 'Nombre', 'DNI', 'Teléfono', 'Email', 'Números', 'Monto', 'Estado', 'Pago MP'].join(';')];
   for (const o of orders) {
     lines.push([o.createdAt.toISOString(), o.buyerName, o.buyerDni, o.buyerPhone, o.buyerEmail,
-      o.numbers.join(' '), o.amount, o.status, o.mpPaymentId].map(esc).join(';'));
+      o.chances ? (o.firstNumber ? `${o.firstNumber}-${o.lastNumber}` : '') : o.numbers.join(' '), o.amount, o.status, o.mpPaymentId].map(esc).join(';'));
   }
   res.set('Content-Type', 'text/csv; charset=utf-8');
   res.set('Content-Disposition', `attachment; filename="sorteo-${req.params.id}.csv"`);
