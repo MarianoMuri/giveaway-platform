@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const storage = require('./storage');
-const { Course } = require('../db');
+const { Course, Order } = require('../db');
 const { HttpError } = require('./errors');
 
 const PURPOSE = 'course-download';
@@ -57,6 +57,9 @@ async function updateCourse(id, body, file) {
 async function deleteCourse(id) {
   const course = await Course.findByPk(id);
   if (!course) throw new HttpError(404, 'Curso no encontrado');
+  // Quien lo compró tiene que poder seguir descargándolo
+  const sold = await Order.count({ where: { CourseId: course.id, status: ['pending', 'approved', 'needs_review'] } });
+  if (sold) throw new HttpError(409, 'Este curso ya tiene compras: desactivalo en lugar de eliminarlo');
   await course.destroy();
   await storage.remove(course.pdfKey);
 }
