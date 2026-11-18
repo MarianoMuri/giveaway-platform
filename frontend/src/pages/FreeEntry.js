@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useApi } from '../hooks';
 import { api, DEMO } from '../api';
 import Turnstile from '../components/Turnstile';
+import ProvinceSelect from '../components/ProvinceSelect';
 
 // Identificador anónimo del navegador: ayuda a limitar abusos (no reemplaza al DNI ni al captcha)
 function deviceId() {
@@ -22,7 +23,7 @@ function deviceId() {
 export default function FreeEntry() {
   const { id } = useParams();
   const { data: raffle, error } = useApi(`/raffles/${id}`);
-  const [form, setForm] = useState({ name: '', dni: '', email: '' });
+  const [form, setForm] = useState({ name: '', dni: '', email: '', province: '' });
   const [accept, setAccept] = useState(false);
   const [captchaToken, setCaptchaToken] = useState(null);
   const [state, setState] = useState(null); // null | 'sending' | 'sent'
@@ -78,6 +79,7 @@ export default function FreeEntry() {
           <label>Nombre y apellido<input required autoComplete="name" value={form.name} onChange={set('name')} /></label>
           <label>DNI<input required inputMode="numeric" autoComplete="off" placeholder="Solo números" value={form.dni} onChange={set('dni')} /></label>
           <label>Email<input required type="email" autoComplete="email" inputMode="email" value={form.email} onChange={set('email')} /></label>
+          <ProvinceSelect value={form.province} onChange={(province) => setForm({ ...form, province })} excluded={raffle.excludedProvinces} />
           <Turnstile onToken={onToken} />
           <label className="check mt-sm">
             <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} />

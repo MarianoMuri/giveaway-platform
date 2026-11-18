@@ -236,3 +236,8 @@ th { color: var(--muted); font-weight: 500; font-size: .78rem; text-transform: u
 .mp-status .muted { color: inherit; opacity: .75; font-weight: 400; }
 .mp-status .btn { flex: none; }
 @media (max-width: 600px) { .mp-status { flex-direction: column; align-items: stretch; } }
+
+/* Requisitos legales y provincias (panel) */
+.legal summary { cursor: pointer; }
+.province-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: .4rem .8rem; margin-top: .5rem; }
+.province-select { width: 100%; }

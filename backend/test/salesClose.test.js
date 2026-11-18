@@ -37,7 +37,7 @@ function webhook(paymentId) {
     .set('x-signature', `ts=${ts},v1=${v1}`).set('x-request-id', reqId).send({ type: 'payment', data: { id: paymentId } });
 }
 
-const buyer = { name: 'Juan Pérez', email: 'juan@test.com', phone: '2915555555', dni: '30111222' };
+const buyer = { name: 'Juan Pérez', email: 'juan@test.com', phone: '2915555555', dni: '30111222', province: 'B' };
 const past = () => new Date(Date.now() - 60000).toISOString();
 const future = () => new Date(Date.now() + 3600000).toISOString();
 let auth, raffleId, courseId, packId;
@@ -52,7 +52,7 @@ test.before(async () => {
   auth = { Authorization: `Bearer ${login.body.token}` };
   const r = await request(app).post('/api/admin/raffles').set(auth).send({ title: 'Sorteo Onix', prize: 'Onix 0km' });
   raffleId = r.body.id;
-  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active' });
+  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active', permitNumber: 'TEST-1', terms: 'x'.repeat(120) });
   const c = await request(app).post('/api/admin/courses').set(auth)
     .field('title', 'Cocina básica').attach('pdf', Buffer.from('%PDF-1.4\n%%EOF'), 'cocina.pdf');
   courseId = c.body.id;
@@ -78,7 +78,7 @@ test('pasada la fecha de cierre no se puede comprar ni sumar participación grat
   const quote = await request(app).post(`/api/raffles/${raffleId}/quote`).send({ packId });
   assert.equal(quote.status, 409);
   const free = await request(app).post(`/api/raffles/${raffleId}/free-entries`)
-    .send({ name: 'Marta Ruiz', dni: '27111222', email: 'marta@test.com', deviceId: 'a'.repeat(32) });
+    .send({ name: 'Marta Ruiz', dni: '27111222', email: 'marta@test.com', province: 'B', deviceId: 'a'.repeat(32) });
   assert.equal(free.status, 409);
 });
 
@@ -188,22 +188,22 @@ test('el administrador puede deshabilitar y volver a habilitar la venta a mano',
   assert.equal(off.status, 200);
   await assert.rejects(purchase(), /no está a la venta/);
   assert.equal((await request(app).get(`/api/raffles/${raffleId}`)).body.salesOpen, false);
-  const on = await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active' });
+  const on = await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active', permitNumber: 'TEST-1', terms: 'x'.repeat(120) });
   assert.equal(on.status, 200);
   await assert.doesNotReject(purchase());
 });
 
 test('si la fecha de cierre ya pasó, habilitar la venta exige quitar o mover la fecha', async () => {
   await setRaffle({ salesCloseAt: past() });
-  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active' });
+  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active', permitNumber: 'TEST-1', terms: 'x'.repeat(120) });
   assert.equal((await request(app).get(`/api/raffles/${raffleId}`)).body.salesOpen, false); // sigue cerrada por la fecha
-  const on = await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active', salesCloseAt: null });
+  const on = await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active', permitNumber: 'TEST-1', terms: 'x'.repeat(120), salesCloseAt: null });
   assert.equal(on.body.salesCloseAt, null);
   assert.equal((await request(app).get(`/api/raffles/${raffleId}`)).body.salesOpen, true);
 });
 
 test('un sorteo ya sorteado no se puede reabrir', async () => {
   await setRaffle({ status: 'drawn' });
-  const res = await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active' });
+  const res = await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active', permitNumber: 'TEST-1', terms: 'x'.repeat(120) });
   assert.equal(res.status, 409);
 });

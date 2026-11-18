@@ -130,7 +130,7 @@ test('un sorteo en borrador no muestra sus packs ni cotiza', async () => {
 });
 
 test('la vista pública trae cada pack con "Duplicá" ya calculada', async () => {
-  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active' });
+  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active', permitNumber: 'TEST-1', terms: 'x'.repeat(120) });
   const res = await request(app).get(`/api/raffles/${raffleId}/packs`);
   assert.equal(res.status, 200);
   const [p5, p10, p15] = res.body.packs;

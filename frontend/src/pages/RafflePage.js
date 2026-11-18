@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useApi } from '../hooks';
 import { api, money, dateTime, goTo } from '../api';
 import SalesProgress from '../components/SalesProgress';
+import ProvinceSelect from '../components/ProvinceSelect';
 
 // Página de compra: curso + pack de chances (+ "Duplicá").
 // Los totales que se muestran vienen calculados por el backend: acá no se suman precios.
@@ -15,7 +16,7 @@ export default function RafflePage() {
   const [courseId, setCourseId] = useState(null);
   const [packId, setPackId] = useState(null);
   const [double, setDouble] = useState(false);
-  const [buyer, setBuyer] = useState({ name: '', dni: '', phone: '', email: '' });
+  const [buyer, setBuyer] = useState({ name: '', dni: '', phone: '', email: '', province: '' });
   const [accept, setAccept] = useState(false);
   const [sending, setSending] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -143,6 +144,7 @@ export default function RafflePage() {
             <h2><span className="step-n">3</span> Tus datos</h2>
             <label>Nombre y apellido<input required autoComplete="name" value={buyer.name} onChange={(e) => setBuyer({ ...buyer, name: e.target.value })} /></label>
             <label>DNI<input required inputMode="numeric" value={buyer.dni} onChange={(e) => setBuyer({ ...buyer, dni: e.target.value.replace(/\D/g, '') })} /></label>
+            <ProvinceSelect value={buyer.province} onChange={(province) => setBuyer({ ...buyer, province })} excluded={raffle.excludedProvinces} />
             <label>Celular (WhatsApp)<input required inputMode="tel" autoComplete="tel" value={buyer.phone} onChange={(e) => setBuyer({ ...buyer, phone: e.target.value })} /></label>
             <label>Email (te llega el curso)<input required type="email" autoComplete="email" value={buyer.email} onChange={(e) => setBuyer({ ...buyer, email: e.target.value })} /></label>
 

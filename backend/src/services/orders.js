@@ -7,6 +7,7 @@ const numbers = require('./numbers');
 const { confirmPackOrder } = require('./purchases');
 const emails = require('./emails');
 const sales = require('./sales');
+const { cleanExcluded } = require('./provinces');
 
 function cleanGoal(v) {
   if (v === undefined) return undefined;
@@ -32,6 +33,7 @@ async function createRaffle(data) {
         youtubeUrl: data.youtubeUrl,
         permitNumber: data.permitNumber,
         terms: data.terms,
+        ...(data.excludedProvinces !== undefined && { excludedProvinces: cleanExcluded(data.excludedProvinces) }),
         chancesGoal: cleanGoal(data.chancesGoal) ?? null,
         status: 'draft',
       },

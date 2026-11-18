@@ -36,3 +36,4 @@ Sprints de 1 semana. Cada ítem es un issue en GitHub, agrupado en un milestone.
 - [ ] #16 Pruebas end-to-end con credenciales de prueba de Mercado Pago
 - [x] #22 Envío de emails en lotes para alto volumen
 - [x] #34 Exportación a Excel en streaming para sorteos grandes
+- [ ] #42 Provincias excluidas y requisitos legales antes de abrir la venta

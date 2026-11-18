@@ -46,7 +46,7 @@ function signedWebhook(paymentId) {
 // Los tests de concurrencia corren contra PostgreSQL (job "Backend · PostgreSQL" del CI).
 const onlyPostgres = sequelize.getDialect() === 'postgres' ? false : 'requiere PostgreSQL (SQLite no admite transacciones concurrentes)';
 
-const buyer = { name: 'Juan Pérez', email: 'Juan@Test.com ', phone: '291 555-5555', dni: '30.111.222' };
+const buyer = { name: 'Juan Pérez', email: 'Juan@Test.com ', phone: '291 555-5555', dni: '30.111.222', province: 'B' };
 let auth, raffleId, courseId, packs;
 
 test.before(async () => {
@@ -56,7 +56,7 @@ test.before(async () => {
   const r = await request(app).post('/api/admin/raffles').set(auth)
     .send({ title: 'Sorteo Onix', prize: 'Onix 0km' });
   raffleId = r.body.id;
-  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active' });
+  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active', permitNumber: 'TEST-1', terms: 'x'.repeat(120) });
   const c = await request(app).post('/api/admin/courses').set(auth)
     .field('title', 'Cocina básica').attach('pdf', Buffer.from('%PDF-1.4\n%%EOF'), 'cocina.pdf');
   courseId = c.body.id;
@@ -215,7 +215,7 @@ test('la base rechaza un número duplicado aunque falle la lógica', async () =>
 test('cada sorteo numera por separado desde 100000', async () => {
   const r = await request(app).post('/api/admin/raffles').set(auth)
     .send({ title: 'Otro', prize: 'Moto' });
-  await request(app).patch(`/api/admin/raffles/${r.body.id}`).set(auth).send({ status: 'active' });
+  await request(app).patch(`/api/admin/raffles/${r.body.id}`).set(auth).send({ status: 'active', permitNumber: 'TEST-1', terms: 'x'.repeat(120) });
   const p5 = (await request(app).get(`/api/raffles/${r.body.id}/packs`)).body.packs[0];
   const { orderId } = await createPurchase({ raffleId: r.body.id, packId: p5.id, courseId, buyer });
   await handlePayment(pay(await Order.findByPk(orderId)));

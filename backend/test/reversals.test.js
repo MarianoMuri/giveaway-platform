@@ -40,7 +40,7 @@ function webhook(paymentId) {
     .send({ type: 'payment', data: { id: paymentId } });
 }
 
-const buyer = { name: 'Juan Pérez', email: 'juan@test.com', phone: '2915555555', dni: '30111222' };
+const buyer = { name: 'Juan Pérez', email: 'juan@test.com', phone: '2915555555', dni: '30111222', province: 'B' };
 let auth, raffleId, courseId, packs;
 
 test.before(async () => {
@@ -49,7 +49,7 @@ test.before(async () => {
   auth = { Authorization: `Bearer ${login.body.token}` };
   const r = await request(app).post('/api/admin/raffles').set(auth).send({ title: 'Sorteo Onix', prize: 'Onix 0km' });
   raffleId = r.body.id;
-  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active' });
+  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active', permitNumber: 'TEST-1', terms: 'x'.repeat(120) });
   const c = await request(app).post('/api/admin/courses').set(auth)
     .field('title', 'Cocina básica').attach('pdf', Buffer.from('%PDF-1.4\n%%EOF'), 'cocina.pdf');
   courseId = c.body.id;

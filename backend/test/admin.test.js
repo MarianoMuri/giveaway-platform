@@ -48,7 +48,7 @@ test('crear sorteo: arranca en borrador y valida los datos', async () => {
 });
 
 test('publicar: la vista pública trae chances vendidas y precio desde', async () => {
-  const pub = await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active' });
+  const pub = await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active', permitNumber: 'TEST-1', terms: 'x'.repeat(120) });
   assert.equal(pub.status, 200);
   const res = await request(app).get(`/api/raffles/${raffleId}`);
   assert.equal(res.status, 200);

@@ -47,6 +47,38 @@ const db = {
 };
 
 class Err { constructor(status, body) { this.status = status; this.body = body; } }
+
+// ---- Provincias (demo): mismo comportamiento que backend/src/services/provinces.js ----
+const PROVINCES = [
+  ['A', 'Salta'], ['B', 'Buenos Aires'], ['C', 'Ciudad Autónoma de Buenos Aires'], ['D', 'San Luis'], ['E', 'Entre Ríos'], ['F', 'La Rioja'],
+  ['G', 'Santiago del Estero'], ['H', 'Chaco'], ['J', 'San Juan'], ['K', 'Catamarca'], ['L', 'La Pampa'], ['M', 'Mendoza'], ['N', 'Misiones'],
+  ['P', 'Formosa'], ['Q', 'Neuquén'], ['R', 'Río Negro'], ['S', 'Santa Fe'], ['T', 'Tucumán'], ['U', 'Chubut'], ['V', 'Tierra del Fuego'],
+  ['W', 'Corrientes'], ['X', 'Córdoba'], ['Y', 'Jujuy'], ['Z', 'Santa Cruz'],
+].map(([code, name]) => ({ code, name })).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+const DEFAULT_EXCLUDED = ['M', 'P', 'Y', 'Q', 'A', 'R', 'V'];
+const provinceName = (code) => PROVINCES.find((p) => p.code === code)?.name;
+const cleanProvince = (v) => {
+  const code = String(v || '').trim().toUpperCase();
+  if (!code) throw new Err(400, { error: 'Elegí tu provincia' });
+  if (!provinceName(code)) throw new Err(400, { error: 'La provincia no es válida' });
+  return code;
+};
+const assertProvince = (r, code) => {
+  if ((r.excludedProvinces || []).includes(code)) throw new Err(409, { error: `Por el momento este sorteo no está disponible en ${provinceName(code)}`, code: 'province_excluded' });
+};
+const cleanExcluded = (v) => {
+  const codes = [...new Set((Array.isArray(v) ? v : String(v || '').split(',')).map((c) => String(c).trim().toUpperCase()).filter(Boolean))];
+  const bad = codes.filter((c) => !provinceName(c));
+  if (bad.length) throw new Err(400, { error: `Provincia desconocida: ${bad.join(', ')}` });
+  return codes;
+};
+db.raffles.forEach((r) => { r.excludedProvinces = [...DEFAULT_EXCLUDED]; });
+
+// Antes de abrir la venta: autorización y bases cargadas (mismas reglas que backend/src/services/sales.js)
+const missingBeforeOpening = (r) => [
+  ...(String(r.permitNumber || '').trim() ? [] : ['el N° de autorización']),
+  ...(String(r.terms || '').trim().length >= 100 ? [] : ['las bases y condiciones']),
+];
 const raffleOr404 = (id) => { const r = db.raffles.find((x) => String(x.id) === String(id)); if (!r) throw new Err(404, { error: 'Sorteo no encontrado' }); return r; };
 const orderOr404 = (id) => { const o = db.orders.find((x) => x.id === id); if (!o) throw new Err(404, { error: 'Compra no encontrada' }); return o; };
 
@@ -209,6 +241,7 @@ function finishDraw(r, c, { method, reason, validCount = null, position = null }
 }
 
 const routes = [
+  ['GET', /^\/provinces$/, () => PROVINCES],
   ['GET', /^\/raffles$/, () => db.raffles.filter((r) => r.status !== 'draft').sort((a, b) => b.drawDate.localeCompare(a.drawDate)).map(pub)],
   ['GET', /^\/raffles\/(\d+)$/, ([id]) => { const r = raffleOr404(id); if (r.status === 'draft') throw new Err(404, { error: 'Sorteo no encontrado' }); return pub(r); }],
   ['GET', /^\/raffles\/(\d+)\/packs$/, ([id]) => {
@@ -225,11 +258,13 @@ const routes = [
     if (String(buyer.phone || '').replace(/\D/g, '').length < 8) throw new Err(400, { error: 'El teléfono no es válido' });
     const dni = String(buyer.dni || '').replace(/\D/g, '');
     if (dni.length < 7 || dni.length > 8) throw new Err(400, { error: 'El DNI no es válido' });
+    const province = cleanProvince(buyer.province);
     const course = db.courses.find((c) => c.id === Number(b.courseId) && c.active);
     if (!course) throw new Err(400, { error: 'Elegí un curso' });
     const q = quoteFor(id, b);
+    assertProvince(raffleOr404(id), province);
     const o = {
-      id: crypto.randomUUID(), RaffleId: Number(id), buyerName: buyer.name.trim(), buyerEmail: buyer.email.trim().toLowerCase(), buyerPhone: buyer.phone, buyerDni: dni,
+      id: crypto.randomUUID(), RaffleId: Number(id), buyerName: buyer.name.trim(), buyerEmail: buyer.email.trim().toLowerCase(), buyerPhone: buyer.phone, buyerDni: dni, buyerProvince: province,
       PackId: q.packId, double: q.double, chances: q.chances, amount: q.total.toFixed(2), CourseId: course.id, courseTitle: course.title,
       status: 'pending', firstNumber: null, lastNumber: null, emailStatus: 'none', createdAt: iso(),
     };
@@ -277,10 +312,12 @@ const routes = [
     if (String(b.name || '').trim().length < 3) throw new Err(400, { error: 'Ingresá tu nombre completo' });
     if (dni.length < 7 || dni.length > 8) throw new Err(400, { error: 'El DNI no es válido' });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(b.email || '').trim())) throw new Err(400, { error: 'Ingresá un email válido' });
+    const province = cleanProvince(b.province);
+    assertProvince(r, province);
     const existing = db.freeEntries.find((f) => f.RaffleId === r.id && f.dni === dni);
     if (existing && existing.status !== 'unconfirmed') throw new Err(409, { error: 'Ese DNI ya está participando en este sorteo' });
     const token = `demo-${Math.random().toString(36).slice(2)}`;
-    const fields = { name: String(b.name).trim(), dni, email: String(b.email).trim().toLowerCase(), token, status: 'unconfirmed' };
+    const fields = { name: String(b.name).trim(), dni, province, email: String(b.email).trim().toLowerCase(), token, status: 'unconfirmed' };
     if (existing) Object.assign(existing, fields);
     else db.freeEntries.unshift({ id: `fe-${db.freeEntries.length + 1}`, RaffleId: r.id, number: null, createdAt: iso(), ...fields });
     return { ok: true, demoToken: token };
@@ -371,7 +408,7 @@ const routes = [
   ['GET', /^\/admin\/raffles$/, () => [...db.raffles].sort((a, b) => b.createdAt.localeCompare(a.createdAt))],
   ['POST', /^\/admin\/raffles$/, (_, b) => {
     if (!String(b.title || '').trim() || !String(b.prize || '').trim()) throw new Err(400, { error: 'El título y el premio son obligatorios' });
-    const r = { ...b, id: nextRaffleId++, chancesGoal: b.chancesGoal || null, nextNumber: 100000, status: 'draft', winnerNumber: null, createdAt: iso() };
+    const r = { ...b, id: nextRaffleId++, chancesGoal: b.chancesGoal || null, nextNumber: 100000, status: 'draft', winnerNumber: null, createdAt: iso(), excludedProvinces: 'excludedProvinces' in b ? cleanExcluded(b.excludedProvinces) : [...DEFAULT_EXCLUDED] };
     db.raffles.push(r);
     packConfig(r.id);
     return r;
@@ -380,7 +417,12 @@ const routes = [
     if (b.status && !['draft', 'active', 'closed'].includes(b.status)) throw new Err(400, { error: 'Estado inválido' });
     if (b.status && raffleOr404(id).status === 'drawn') throw new Err(409, { error: 'El sorteo ya se realizó: no se puede cambiar el estado de la venta' });
     if (b.salesCloseAt && Number.isNaN(Date.parse(b.salesCloseAt))) throw new Err(400, { error: 'La fecha de cierre no es válida' });
-    const changed = Object.keys(b).filter((k) => ['status', 'salesCloseAt', 'freeEntryEnabled', 'drawDate', 'chancesGoal'].includes(k)).map((k) => `${k}=${b[k]}`).join(', ');
+    if ('excludedProvinces' in b) b = { ...b, excludedProvinces: cleanExcluded(b.excludedProvinces) };
+    if (b.status === 'active') {
+      const missing = missingBeforeOpening({ ...raffleOr404(id), ...b });
+      if (missing.length) throw new Err(409, { error: `Para abrir la venta falta cargar ${missing.join(' y ')}`, code: 'legal_missing', missing });
+    }
+    const changed = Object.keys(b).filter((k) => ['status', 'salesCloseAt', 'freeEntryEnabled', 'drawDate', 'chancesGoal', 'permitNumber', 'excludedProvinces'].includes(k)).map((k) => `${k}=${b[k]}`).join(', ');
     logAudit('raffle.update', Number(id), changed || Object.keys(b).join(', '));
     return Object.assign(raffleOr404(id), b, 'salesCloseAt' in b ? { salesCloseAt: b.salesCloseAt || null } : {});
   }],

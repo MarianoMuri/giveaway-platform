@@ -9,10 +9,11 @@ const courses = require('../services/courses');
 const myPurchases = require('../services/myPurchases');
 const freeEntries = require('../services/freeEntries');
 const sales = require('../services/sales');
+const { PROVINCES } = require('../services/provinces');
 
 const publicFields = [
   'id', 'title', 'description', 'prize', 'imageUrl', 'chancesGoal',
-  'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'winnerNumber', 'freeEntryEnabled', 'salesCloseAt',
+  'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'winnerNumber', 'freeEntryEnabled', 'salesCloseAt', 'excludedProvinces',
 ];
 
 // Agrega a cada sorteo las chances vendidas (barra de progreso) y el precio del pack más barato
@@ -27,6 +28,9 @@ async function withSales(raffles) {
   const priceBy = new Map(prices.map((r) => [r.RaffleId, Number(r.min)]));
   return raffles.map((r) => ({ ...r.toJSON(), salesOpen: sales.isOpen(r), chancesSold: soldBy.get(r.id) || 0, fromPrice: priceBy.get(r.id) ?? null }));
 }
+
+// Las 24 jurisdicciones, para el selector de provincia
+router.get('/provinces', (req, res) => res.json(PROVINCES));
 
 const wrap = (handler) => (req, res, next) => handler(req, res).catch(next);
 
@@ -110,8 +114,8 @@ router.get('/my-purchases', wrap(async (req, res) => {
 const freeLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: config.freeEntries.requestsPer15Min, standardHeaders: true, legacyHeaders: false });
 const confirmLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: config.freeEntries.requestsPer15Min, standardHeaders: true, legacyHeaders: false });
 router.post('/raffles/:id/free-entries', freeLimiter, wrap(async (req, res) => {
-  const { name, dni, email, captchaToken, deviceId } = req.body || {};
-  res.status(202).json(await freeEntries.request({ raffleId: req.params.id, name, dni, email, captchaToken, deviceId, ip: req.ip }));
+  const { name, dni, email, province, captchaToken, deviceId } = req.body || {};
+  res.status(202).json(await freeEntries.request({ raffleId: req.params.id, name, dni, email, province, captchaToken, deviceId, ip: req.ip }));
 }));
 
 router.post('/free-entries/confirm', confirmLimiter, wrap(async (req, res) => {
