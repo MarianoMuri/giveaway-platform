@@ -57,10 +57,10 @@ export async function api(path, { method = 'GET', body, auth = false, raw = fals
   return data;
 }
 
-// Números de una compra: rango consecutivo (compra por pack) o lista (grilla del Sprint 0)
+// Números de una compra: bloque consecutivo asignado al confirmarse el pago
 export function numbersLabel(o) {
-  if (o.chances) return o.firstNumber ? `${o.firstNumber} al ${o.lastNumber}` : 'Se asignan al acreditarse el pago';
-  return (o.numbers || []).join(', ');
+  if (!o.firstNumber) return 'Se asignan al acreditarse el pago';
+  return o.firstNumber === o.lastNumber ? String(o.firstNumber) : `${o.firstNumber} al ${o.lastNumber}`;
 }
 
 export const money = (n) =>
