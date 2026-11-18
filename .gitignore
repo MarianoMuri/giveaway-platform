@@ -1,0 +1,21 @@
+# Dependencias y builds
+node_modules
+build/
+dist/
+coverage/
+
+# Variables de entorno (nunca se suben)
+.env
+.env.*
+!.env.example
+
+# Bases locales
+*.sqlite
+
+# Sistema / editores
+.DS_Store
+.vscode/
+.idea/
+
+# Configuración de clientes (marca, logos, datos privados)
+clients/

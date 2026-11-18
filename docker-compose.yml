@@ -1,0 +1,18 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: sorteos
+      POSTGRES_PASSWORD: sorteos
+      POSTGRES_DB: sorteos
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  api:
+    build: ./backend
+    env_file: ./backend/.env
+    ports:
+      - "4000:4000"
+    depends_on:
+      - db
+volumes:
+  pgdata:
