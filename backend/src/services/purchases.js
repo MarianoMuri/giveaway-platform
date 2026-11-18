@@ -3,6 +3,7 @@ const { mp } = require('./mercadopago');
 const { HttpError } = require('./errors');
 const packs = require('./packs');
 const numbers = require('./numbers');
+const emails = require('./emails');
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -78,7 +79,8 @@ async function confirmPackOrder(order, payment, transaction) {
     }
     const range = await numbers.assignNumbers(order, transaction);
     await order.update({ status: 'approved', mpPaymentId: payment.id, mpStatusDetail: payment.statusDetail }, { transaction });
-    return { order, ...range };
+    await emails.enqueue(order, transaction); // outbox: el mail queda pendiente en la misma transacción
+    return { order, ...range, approved: true };
   }
 
   // Rechazado / cancelado: se registra, pero la orden queda pendiente para que

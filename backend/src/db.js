@@ -67,6 +67,13 @@ const Order = sequelize.define('Order', {
     type: DataTypes.ENUM('pending', 'approved', 'rejected', 'needs_review', 'manual'),
     defaultValue: 'pending',
   },
+  // Email de confirmación (outbox): se marca "pending" en la misma transacción que aprueba
+  // la compra, y un proceso aparte lo envía y reintenta con espera creciente.
+  emailStatus: { type: DataTypes.ENUM('none', 'pending', 'sent', 'failed'), defaultValue: 'none' },
+  emailAttempts: { type: DataTypes.INTEGER, defaultValue: 0 },
+  emailNextAttemptAt: DataTypes.DATE,
+  emailSentAt: DataTypes.DATE,
+  emailLastError: DataTypes.STRING(500),
   mpPreferenceId: DataTypes.STRING,
   mpPaymentId: DataTypes.STRING,
   mpStatusDetail: DataTypes.STRING,
