@@ -4,6 +4,7 @@ const { Op, fn, col } = require('sequelize');
 const { Raffle, Order, Pack, Chance } = require('../db');
 const packs = require('../services/packs');
 const { createPurchase } = require('../services/purchases');
+const courses = require('../services/courses');
 
 const publicFields = [
   'id', 'title', 'description', 'prize', 'imageUrl', 'chancesGoal',
@@ -73,6 +74,16 @@ router.get('/orders/:id', wrap(async (req, res) => {
   });
   if (!order) return res.status(404).json({ error: 'Compra no encontrada' });
   res.json(order);
+}));
+
+// Link de descarga nuevo para una compra pagada (el del email vence)
+const downloadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30 });
+router.post('/orders/:id/download-link', downloadLimiter, wrap(async (req, res) => {
+  const order = await Order.findByPk(req.params.id, { attributes: ['id', 'status', 'CourseId'] });
+  if (!order) return res.status(404).json({ error: 'Compra no encontrada' });
+  if (!['approved', 'manual'].includes(order.status)) return res.status(409).json({ error: 'La compra todavía no está acreditada' });
+  if (!order.CourseId) return res.status(404).json({ error: 'El curso ya no está disponible' });
+  res.json({ url: courses.downloadUrl(order.CourseId, 1) });
 }));
 
 module.exports = router;

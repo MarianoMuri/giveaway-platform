@@ -7,7 +7,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "node --test --test-concurrency=1 test/admin.test.js test/courses.test.js test/packs.test.js test/purchases.test.js",
+    "test": "node --test --test-concurrency=1 test/admin.test.js test/courses.test.js test/packs.test.js test/purchases.test.js test/emails.test.js",
     "start": "node src/server.js",
     "dev": "node --watch src/server.js"
   },
@@ -24,6 +24,7 @@
     "jsonwebtoken": "^9.0.3",
     "mercadopago": "^3.6.2",
     "multer": "^2.5.0",
+    "nodemailer": "^10.6.0",
     "pg": "^8.23.1",
     "pg-hstore": "^2.3.4",
     "sequelize": "^6.37.8"

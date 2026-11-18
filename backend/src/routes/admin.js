@@ -7,6 +7,7 @@ const requireAdmin = require('../middleware/auth');
 const { Raffle, Order } = require('../db');
 const { createRaffle, manualSale, drawWinner, raffleStats, cleanGoal, HttpError } = require('../services/orders');
 const packs = require('../services/packs');
+const emails = require('../services/emails');
 
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10 });
 
@@ -73,7 +74,20 @@ router.get('/orders', wrap(async (req, res) => {
 }));
 
 router.post('/orders/manual', wrap(async (req, res) => {
-  res.status(201).json(await manualSale(req.body || {}));
+  const order = await manualSale(req.body || {});
+  res.status(201).json(order);
+}));
+
+// Reenviar el email de confirmación (opcional: a un email corregido)
+router.post('/orders/:id/resend-email', wrap(async (req, res) => {
+  const order = await Order.findByPk(req.params.id);
+  if (!order) throw new HttpError(404, 'Compra no encontrada');
+  if (!['approved', 'manual'].includes(order.status)) throw new HttpError(409, 'Solo se reenvía el email de compras acreditadas');
+  const email = req.body?.email;
+  if (email !== undefined && !emails.hasEmail({ buyerEmail: email })) throw new HttpError(400, 'El email no es válido');
+  const result = await emails.resend(order, email);
+  await order.reload();
+  res.json({ result, emailStatus: order.emailStatus, emailLastError: order.emailLastError, buyerEmail: order.buyerEmail });
 }));
 
 // Exportación CSV de compradores (se abre en Excel)

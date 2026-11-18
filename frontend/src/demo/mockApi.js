@@ -132,10 +132,10 @@ let seed = 7;
 const rnd = (n) => { seed = (seed * 9301 + 49297) % 233280; return seed % n; };
 function seedOrder(raffleId, i, { status = 'approved', minutesAgo = 60 } = {}) {
   const c = packConfig(raffleId);
-  const p = c.packs[rnd(c.packs.length)];
-  const double = c.offer.enabled && rnd(3) === 0;
+  const p = c.packs[[0, 1, 2, 2, 1, 3, 2, 0, 4, 2, 1, 5][i % 12]]; // más ventas en los packs chicos y el destacado
+  const double = c.offer.enabled && i % 4 === 1;
   const q = packQuote(p, c.offer, double);
-  const course = db.courses[rnd(4)];
+  const course = db.courses[(i * 3 + 1) % 4];
   const o = {
     id: crypto.randomUUID(), RaffleId: raffleId, buyerName: names[i % names.length], buyerEmail: `cliente${i}@ejemplo.com`,
     buyerPhone: `2914${String(100000 + i * 7919).slice(0, 6)}`, buyerDni: String(25000000 + i * 123457),
@@ -145,7 +145,11 @@ function seedOrder(raffleId, i, { status = 'approved', minutesAgo = 60 } = {}) {
     createdAt: iso(minutesAgo * 60000),
   };
   db.orders.push(o);
-  if (status === 'approved' || status === 'manual') assignNumbers(o);
+  if (status === 'approved' || status === 'manual') {
+    assignNumbers(o);
+    o.emailStatus = i % 23 === 5 ? 'failed' : 'sent';
+    if (o.emailStatus === 'failed') o.emailLastError = 'Mailbox unavailable (550)';
+  } else o.emailStatus = 'none';
   return o;
 }
 for (let i = 0; i < 70; i++) seedOrder(1, i, { status: i % 11 === 0 ? 'manual' : 'approved', minutesAgo: 60 * 24 * 5 - i * 90 });
@@ -179,7 +183,7 @@ const routes = [
     const o = {
       id: crypto.randomUUID(), RaffleId: Number(id), buyerName: buyer.name.trim(), buyerEmail: buyer.email.trim().toLowerCase(), buyerPhone: buyer.phone, buyerDni: dni,
       PackId: q.packId, double: q.double, chances: q.chances, amount: q.total.toFixed(2), CourseId: course.id, courseTitle: course.title,
-      status: 'pending', firstNumber: null, lastNumber: null, createdAt: iso(),
+      status: 'pending', firstNumber: null, lastNumber: null, emailStatus: 'none', createdAt: iso(),
     };
     db.orders.unshift(o);
     return { orderId: o.id, checkoutUrl: `/demo-pago/${o.id}`, total: q.total, chances: q.chances };
@@ -189,13 +193,25 @@ const routes = [
     const r = raffleOr404(o.RaffleId);
     return { ...o, Raffle: { id: r.id, title: r.title, prize: r.prize, drawDate: r.drawDate, youtubeUrl: r.youtubeUrl } };
   }],
+  ['POST', /^\/orders\/([\w-]+)\/download-link$/, ([id]) => {
+    const o = orderOr404(id);
+    if (!['approved', 'manual'].includes(o.status)) throw new Err(409, { error: 'La compra todavía no está acreditada' });
+    throw new Err(400, { error: 'En la demo no hay archivos reales para descargar. En la versión real se descarga el PDF.' });
+  }],
+  ['POST', /^\/admin\/orders\/([\w-]+)\/resend-email$/, ([id], b) => {
+    const o = orderOr404(id);
+    if (!['approved', 'manual'].includes(o.status)) throw new Err(409, { error: 'Solo se reenvía el email de compras acreditadas' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(b.email || ''))) throw new Err(400, { error: 'El email no es válido' });
+    Object.assign(o, { buyerEmail: b.email.trim().toLowerCase(), emailStatus: 'sent', emailLastError: null });
+    return { result: 'sent', emailStatus: 'sent', buyerEmail: o.buyerEmail };
+  }],
   // Simula el aviso de Mercado Pago (en la app real llega por webhook)
   ['POST', /^\/demo\/pay\/([\w-]+)$/, ([id], body) => {
     const o = orderOr404(id);
     if (o.status !== 'pending') return o;
     if (body.result === 'approved') {
       assignNumbers(o);
-      Object.assign(o, { status: 'approved', mpPaymentId: 'DEMO-' + Math.floor(Math.random() * 1e9), mpStatusDetail: 'accredited' });
+      Object.assign(o, { status: 'approved', mpPaymentId: 'DEMO-' + Math.floor(Math.random() * 1e9), mpStatusDetail: 'accredited', emailStatus: 'sent' });
     } else {
       o.mpStatusDetail = 'cc_rejected_insufficient_amount'; // queda pendiente: puede reintentar
     }
@@ -252,6 +268,7 @@ const routes = [
     const o = {
       id: crypto.randomUUID(), RaffleId: r.id, buyerName: b.buyer.name.trim(), buyerEmail: b.buyer.email || '-', buyerPhone: b.buyer.phone || '-', buyerDni: dni,
       chances: b.chances, double: false, amount: Number(b.amount || 0).toFixed(2), CourseId: course.id, courseTitle: course.title, status: 'manual', createdAt: iso(),
+      emailStatus: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(b.buyer.email || '') ? 'sent' : 'none',
     };
     assignNumbers(o);
     db.orders.unshift(o);

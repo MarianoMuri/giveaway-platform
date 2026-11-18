@@ -4,6 +4,7 @@ const { HttpError } = require('./errors');
 const packs = require('./packs');
 const numbers = require('./numbers');
 const { confirmPackOrder } = require('./purchases');
+const emails = require('./emails');
 
 function cleanGoal(v) {
   if (v === undefined) return undefined;
@@ -43,12 +44,16 @@ async function handlePayment(paymentId) {
   const payment = await mp.getPayment(paymentId);
   if (!payment.externalReference) return { ignored: true };
 
-  return sequelize.transaction(async (t) => {
+  const result = await sequelize.transaction(async (t) => {
     // FOR UPDATE: si llegan dos avisos del mismo pago a la vez, el segundo espera
     const order = await Order.findByPk(payment.externalReference, { lock: t.LOCK.UPDATE, transaction: t });
     if (!order || !order.chances) return { ignored: true };
     return confirmPackOrder(order, payment, t);
   });
+  // Recién después del commit: el mail sale enseguida, sin demorar la respuesta a Mercado Pago.
+  // Si falla, el proceso periódico lo reintenta.
+  if (result.approved) result.email = emails.deliverSoon(result.order.id);
+  return result;
 }
 
 // Venta manual (efectivo/transferencia) cargada desde el panel: los números se asignan en el acto.
@@ -63,7 +68,7 @@ async function manualSale({ raffleId, chances, courseId, amount, buyer }) {
   if (name.length < 3) throw new HttpError(400, 'Falta el nombre del comprador');
   if (dni.length < 7 || dni.length > 8) throw new HttpError(400, 'El DNI no es válido');
 
-  return sequelize.transaction(async (transaction) => {
+  const order = await sequelize.transaction(async (transaction) => {
     const raffle = await Raffle.findByPk(raffleId, { transaction });
     if (!raffle) throw new HttpError(404, 'Sorteo inexistente');
     if (raffle.status === 'drawn') throw new HttpError(409, 'El sorteo ya se realizó');
@@ -85,8 +90,11 @@ async function manualSale({ raffleId, chances, courseId, amount, buyer }) {
       { transaction }
     );
     await numbers.assignNumbers(order, transaction);
+    await emails.enqueue(order, transaction); // solo si cargaron un email válido
     return order;
   });
+  if (order.emailStatus === 'pending') order.emailDelivery = emails.deliverSoon(order.id);
+  return order;
 }
 
 // Busca al dueño del número que salió en el vivo

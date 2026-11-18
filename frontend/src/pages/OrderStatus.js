@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import brand from '../brand';
 import { useApi } from '../hooks';
-import { money, dateTime } from '../api';
+import { api, money, dateTime, goTo } from '../api';
 
 const states = {
   pending: { icon: '⏳', title: 'Estamos esperando la confirmación del pago', text: 'Puede tardar unos segundos (o más si pagaste en efectivo). Esta página se actualiza sola.' },
@@ -14,6 +15,19 @@ const states = {
 export default function OrderStatus() {
   const { id } = useParams();
   const { data: order, error } = useApi(`/orders/${id}`, { interval: 5000 });
+  const [dl, setDl] = useState(null);
+
+  // Pide un link de descarga nuevo (el del email vence)
+  async function download() {
+    setDl('loading');
+    try {
+      const { url } = await api(`/orders/${id}/download-link`, { method: 'POST' });
+      setDl(null);
+      goTo(url);
+    } catch (e) {
+      setDl(e.message);
+    }
+  }
 
   if (error) return <div className="container"><p className="alert">No encontramos esa compra.</p></div>;
   if (!order) return <div className="container"><p className="muted">Cargando…</p></div>;
@@ -59,6 +73,14 @@ export default function OrderStatus() {
           <code className="small">{order.id}</code>
         </div>
 
+        {done && (
+          <>
+            <button type="button" className="btn btn-lg btn-block mt" onClick={download} disabled={dl === 'loading'}>
+              {dl === 'loading' ? 'Preparando la descarga…' : `Descargar el curso "${order.courseTitle}"`}
+            </button>
+            {dl && dl !== 'loading' && <p className="alert small mt-sm">{dl}</p>}
+          </>
+        )}
         {order.status === 'rejected' && <Link to={`/sorteo/${order.RaffleId}`} className="btn mt">Volver a intentar</Link>}
         {done && raffle.youtubeUrl && <a href={raffle.youtubeUrl} className="btn mt" target="_blank" rel="noreferrer">Ver el sorteo en vivo ▶</a>}
         {done && brand.social.whatsappChannel && (
