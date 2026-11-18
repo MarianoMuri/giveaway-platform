@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useApi } from '../hooks';
 import { api, money, dateTime, goTo } from '../api';
 import SalesProgress from '../components/SalesProgress';
+import brand from '../brand';
 import ProvinceSelect from '../components/ProvinceSelect';
 
 // Página de compra: curso + pack de chances (+ "Duplicá").
@@ -154,6 +155,12 @@ export default function RafflePage() {
               <div className="row between"><span className="muted">Precio por chance</span><span>{selection ? money(selection.perChance) : '-'}</span></div>
               <div className="row between total"><span>Total</span><strong>{selection ? money(selection.total) : '-'}</strong></div>
             </div>
+
+            {brand.location && (
+              <p className="small">
+                Esta compra se realiza en <strong>{brand.location}</strong>, lugar habilitado para este sorteo{raffle.permitNumber ? <> (autorización N° {raffle.permitNumber})</> : null}.
+              </p>
+            )}
 
             <label className="check">
               <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} />

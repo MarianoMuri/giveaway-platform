@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { useApi } from '../hooks';
 import { money, dateTime } from '../api';
+import brand from '../brand';
 
 export default function Terms() {
   const { id } = useParams();
@@ -35,6 +36,7 @@ export default function Terms() {
             Por el momento el sorteo no está disponible para residentes de: {provinces.filter((p) => r.excludedProvinces.includes(p.code)).map((p) => p.name).join(', ')}.
           </li>
         )}
+        {brand.location && <li>Las compras se realizan en {brand.location}, lugar habilitado para este sorteo.</li>}
         <li>Fecha del sorteo: {dateTime(r.drawDate)}</li>
         {r.permitNumber && <li>Autorización N° {r.permitNumber}</li>}
       </ul>
