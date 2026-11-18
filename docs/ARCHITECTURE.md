@@ -87,6 +87,7 @@ sequenceDiagram
 | Tests de concurrencia contra PostgreSQL en el CI | SQLite no admite transacciones en paralelo; la garantía se prueba en la misma base que producción. |
 | Marca como configuración (`brand.js`) | El mismo código sirve para varios clientes; los datos de cada cliente quedan fuera del repo. |
 | Modo demo con API simulada | Permite mostrar el producto completo sin servidor ni cobros reales. |
+| Migraciones versionadas en vez de `sync()` | `sync()` solo crea tablas que faltan: no agrega columnas a una base con datos, así que una actualización dejaría la producción rota. Las migraciones son archivos ordenados que cambian el esquema paso a paso, conservan los datos y se pueden deshacer. La API no toca el esquema y no arranca si faltan, para no correr con una base a medias. Un test las compara con los modelos. |
 
 ## Estructura
 
@@ -115,3 +116,8 @@ frontend/
     components/          editor de packs, barra de progreso, redes
     demo/                API simulada para la demo
 ```
+| La API se niega a arrancar con configuración incompleta en producción | Un error claro al desplegar es mejor que descubrir en plena venta que no salen los mails, que el captcha está apagado o que el webhook no se valida. Lista todo lo que falta de una vez. |
+| PDF en un volumen persistente, no en el repo ni en la base | El disco de Railway se borra en cada deploy; el volumen sobrevive. La interfaz de `storage.js` permite pasar a almacenamiento de objetos (R2/S3) más adelante sin tocar el resto. |
+| Monitor de Mercado Pago con dos fallos seguidos para alertar, y estado en memoria | Un tropiezo de red no debe alarmar al cliente, pero una caída real (token vencido, Mercado Pago sin servicio) hay que enterarse antes de que se pierdan ventas. Avisa una vez, recuerda cada 6 horas y avisa al recuperarse. Guardar el estado en la base no aporta: si el servidor se reinicia, vuelve a verificar y, como máximo, repite un aviso. |
+| Envío por lotes con límite de velocidad y worker aparte | Un pico de miles de compras no puede demorar al sitio ni superar el límite por segundo del proveedor (que frena o bloquea al que lo pasa). La compra solo encola el mail; un worker lo envía de a poco. Si hay cola larga, la API ni lo intenta. La garantía de no duplicar sigue siendo el UPDATE condicional por envío, así que se puede escalar a más de un worker sin riesgo. |
+| Exportación en streaming con paginación por cursor | Armar el Excel entero en memoria no escala: con cientos de miles de compras agota la memoria y hace esperar hasta el final. Se lee por tandas y se escribe a medida que sale, así la memoria es constante. Se pagina por cursor (fecha + id), no por OFFSET: el costo no crece y no se pierden ni repiten filas aunque entren compras durante la exportación. Respeta la contrapresión y, si falla a mitad, corta la conexión para no entregar un archivo truncado que parezca completo. |

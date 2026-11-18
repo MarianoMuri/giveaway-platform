@@ -155,7 +155,7 @@ async function drawWinner(raffleId, value, { redraw = false, expect = null } = {
 
 async function raffleStats(raffleId) {
   const sold = ['approved', 'manual'];
-  const [chancesSold, purchases, pending, review, revenue, freeEntries, reversed, raffle] = await Promise.all([
+  const [chancesSold, purchases, pending, review, revenue, freeEntries, reversed, raffle, emailsPending, emailsFailed] = await Promise.all([
     // "Vendidas" no incluye las gratuitas: la barra de progreso y la meta miden ventas
     Chance.count({ where: { RaffleId: raffleId, status: 'valid', OrderId: { [Op.ne]: null } } }),
     Order.count({ where: { RaffleId: raffleId, status: sold } }),
@@ -165,6 +165,8 @@ async function raffleStats(raffleId) {
     FreeEntry.count({ where: { RaffleId: raffleId, status: 'confirmed' } }),
     Order.count({ where: { RaffleId: raffleId, status: ['refunded', 'charged_back'] } }),
     Raffle.findByPk(raffleId),
+    Order.count({ where: { RaffleId: raffleId, emailStatus: 'pending' } }),
+    Order.count({ where: { RaffleId: raffleId, emailStatus: 'failed' } }),
   ]);
   // Si el número ganador ya sorteado quedó anulado (reintegro/contracargo posterior), el panel lo avisa
   let winnerVoided = false;
@@ -172,7 +174,7 @@ async function raffleStats(raffleId) {
     const w = await Chance.findOne({ where: { RaffleId: raffleId, number: raffle.winnerNumber } });
     winnerVoided = !!w && w.status === 'void';
   }
-  return { chancesSold, purchases, pending, review, revenue: Number(revenue || 0), freeEntries, reversed, winnerVoided };
+  return { chancesSold, purchases, pending, review, revenue: Number(revenue || 0), freeEntries, reversed, winnerVoided, emailsPending, emailsFailed };
 }
 
 module.exports = { HttpError, createRaffle, handlePayment, manualSale, drawWinner, assertClosedForDraw, raffleStats, cleanGoal };

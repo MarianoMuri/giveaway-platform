@@ -92,7 +92,23 @@ npm start                   # http://localhost:3000
 REACT_APP_DEMO=true npm start
 ```
 
-Con Docker: `docker compose up --build` levanta la API y PostgreSQL.
+Con Docker: `docker compose up --build` levanta la API y PostgreSQL (aplica las migraciones antes de arrancar).
+
+### Base de datos: migraciones
+
+Con `DATABASE_URL` (PostgreSQL) el esquema lo cambian **solo las migraciones**; la API no crea ni modifica tablas y se niega a arrancar si faltan migraciones. Sin `DATABASE_URL` (SQLite, desarrollo) crea el esquema sola.
+
+```bash
+cd backend
+npm run migrate            # aplica las migraciones pendientes (también en cada deploy)
+npm run migrate:status     # qué está aplicado y qué falta
+npm run migrate:undo       # deshace la última
+npm run seed               # datos de desarrollo: un sorteo activo con sus packs (nunca en producción)
+```
+
+Cada cambio de modelo lleva su migración en `backend/migrations/` (un archivo nuevo, nunca editar uno ya aplicado). Un test compara el esquema de las migraciones con el de los modelos y falla si falta alguna.
+
+El paso a paso para publicarlo (Railway, Netlify, dominio y Mercado Pago) está en [docs/DEPLOY.md](docs/DEPLOY.md).
 
 Para probar pagos se usan las **credenciales y usuarios de prueba** de Mercado Pago, y el webhook se expone en local con `ngrok http 4000`.
 

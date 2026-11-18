@@ -12,6 +12,8 @@ const readiness = require('../services/readiness');
 const freeEntries = require('../services/freeEntries');
 const { search } = require('../services/search');
 const audit = require('../services/audit');
+const { streamRaffleCsv } = require('../services/export');
+const mpHealth = require('../services/mpHealth');
 const draw = require('../services/draw');
 const { AuditLog } = require('../db');
 
@@ -89,8 +91,21 @@ router.get('/raffles/:id/draws', wrap(async (req, res) => {
   res.json(await draw.listDraws(req.params.id));
 }));
 
+// Vuelve a poner en cola todos los emails fallidos del sorteo (se envían de a poco, al ritmo del proveedor)
+router.post('/raffles/:id/emails/retry-failed', wrap(async (req, res) => {
+  const requeued = await emails.retryFailed(Number(req.params.id));
+  await audit.record({ ...audit.who(req), action: 'emails.retry_failed', raffleId: Number(req.params.id), detail: `${requeued} emails` });
+  res.locals.audited = true;
+  res.json({ requeued });
+}));
+
+// Estado de la conexión con Mercado Pago (lo mantiene el monitor). POST fuerza un chequeo ahora.
+router.get('/mp-status', (req, res) => res.json(mpHealth.getStatus()));
+router.post('/mp-status/check', wrap(async (req, res) => res.json(await mpHealth.check())));
+
 // Registro de auditoría (solo lectura): lo más reciente primero
 router.get('/audit', wrap(async (req, res) => {
+  await audit.flush(); // incluye las acciones recién hechas, cuya escritura puede estar terminando
   const where = {};
   if (req.query.raffleId) where.RaffleId = Number(req.query.raffleId) || -1;
   const limit = Math.min(Number(req.query.limit) || 50, 200);
@@ -157,29 +172,7 @@ router.post('/orders/:id/resend-email', wrap(async (req, res) => {
 // Exportación CSV de compradores (se abre en Excel)
 // Listado completo del sorteo: compras (incluidas las anuladas, con su estado) y participaciones gratuitas
 router.get('/raffles/:id/export.csv', wrap(async (req, res) => {
-  const [orders, frees] = await Promise.all([
-    Order.findAll({
-      where: { RaffleId: req.params.id, status: ['approved', 'manual', 'needs_review', 'refunded', 'charged_back'] },
-      order: [['createdAt', 'ASC']],
-    }),
-    FreeEntry.findAll({ where: { RaffleId: req.params.id, status: ['confirmed', 'void'] }, order: [['createdAt', 'ASC']] }),
-  ]);
-  // Los nombres y emails los escribe el público: una celda que empiece con = + @ se abriría como fórmula en Excel
-  const safe = (v) => (/^[=+@\t\r]|^-./.test(String(v ?? '')) ? `'${v}` : v);
-  const esc = (v) => `"${String(safe(v) ?? '').replace(/"/g, '""')}"`;
-  const iso = (d) => (d ? d.toISOString() : '');
-  const lines = [['Fecha', 'Nombre', 'DNI', 'Teléfono', 'Email', 'Curso', 'Chances', 'Desde', 'Hasta', 'Monto', 'Estado', 'Pago MP', 'Anulada el', 'Motivo'].join(';')];
-  for (const o of orders) {
-    lines.push([iso(o.createdAt), o.buyerName, o.buyerDni, o.buyerPhone, o.buyerEmail, o.courseTitle,
-      o.chances, o.firstNumber, o.lastNumber, Number(o.amount).toFixed(2), o.status, o.mpPaymentId, iso(o.voidedAt), o.voidReason].map(esc).join(';'));
-  }
-  for (const f of frees) {
-    lines.push([iso(f.createdAt), f.name, f.dni, '', f.email, 'Participación gratuita', 1, f.number, f.number, '0.00',
-      f.status === 'void' ? 'gratuita_anulada' : 'gratuita', '', '', ''].map(esc).join(';'));
-  }
-  res.set('Content-Type', 'text/csv; charset=utf-8');
-  res.set('Content-Disposition', `attachment; filename="sorteo-${req.params.id}.csv"`);
-  res.send('﻿' + lines.join('\n'));
+  await streamRaffleCsv(Number(req.params.id), res);
 }));
 
 module.exports = router;

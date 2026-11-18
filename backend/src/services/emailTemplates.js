@@ -206,4 +206,32 @@ function freeEntryNumber({ brand, entry, raffle }) {
   return { subject, html: shell({ brand, color, subject, inner }), text };
 }
 
-module.exports = { purchaseConfirmation, accessLink, freeEntryConfirm, freeEntryNumber, esc };
+/**
+ * Aviso interno al administrador: la conexión con Mercado Pago se cayó, sigue caída o se recuperó.
+ * @returns {{ subject: string, html: string, text: string }}
+ */
+function mpAlert({ brand, kind, reason, since, panelUrl }) {
+  const color = safeColor(brand.color);
+  const down = kind !== 'recovered';
+  const subject =
+    kind === 'recovered' ? 'Mercado Pago: la conexión se recuperó'
+      : kind === 'reminder' ? 'Mercado Pago sigue caído: se siguen sin poder cobrar compras'
+        : 'Alerta: se cayó la conexión con Mercado Pago';
+  const lines = down
+    ? [
+        'Mientras la conexión esté caída no se pueden cobrar compras nuevas.',
+        'Los pagos que ya se hicieron no se pierden: cuando se recupere, el botón "Consultar" del sorteo carga los que falten.',
+      ]
+    : ['Ya se pueden cobrar compras de nuevo. Si hubo compras durante la caída, conviene usar "Consultar" en el sorteo para verificar que estén todas cargadas.'];
+  const inner = `<h1 style="margin:0 0 8px;font-size:22px;color:${down ? '#b91c1c' : '#15803d'}">${esc(subject)}</h1>
+    ${down ? `<p style="margin:0 0 6px;color:#52525b;font-size:15px"><strong>Motivo:</strong> ${esc(reason)}</p>` : ''}
+    ${since ? `<p style="margin:0 0 12px;color:#71717a;font-size:13px">Desde: ${esc(dateTime(since))}</p>` : ''}
+    ${lines.map((l) => `<p style="margin:0 0 10px;color:#52525b;font-size:15px">${esc(l)}</p>`).join('')}
+    ${panelUrl ? button(panelUrl, 'Abrir el panel', color) : ''}`;
+  const text = [subject, '', down ? `Motivo: ${reason}` : null, since ? `Desde: ${dateTime(since)}` : null, '', ...lines, panelUrl ? `\nPanel: ${panelUrl}` : null]
+    .filter((l) => l !== null)
+    .join('\n');
+  return { subject, html: shell({ brand, color, subject, inner }), text };
+}
+
+module.exports = { purchaseConfirmation, accessLink, freeEntryConfirm, freeEntryNumber, mpAlert, esc };

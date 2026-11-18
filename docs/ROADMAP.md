@@ -28,9 +28,11 @@ Sprints de 1 semana. Cada ítem es un issue en GitHub, agrupado en un milestone.
 - [x] #11 Buscador de números y participantes en el panel
 - [x] #12 Sorteo en vivo con registro de auditoría
 
-## Sprint 3 · Producción — `v1.0.0`
+## Sprint 3 · Producción — `v0.4.0` (código) y `v1.0.0` (en producción)
 
-- [ ] #13 Migraciones de base de datos con `sequelize-cli`
+- [x] #13 Migraciones de base de datos con `sequelize-cli`
 - [ ] #14 Deploy en Railway y Netlify con dominio propio
-- [ ] #15 Alerta de conexión con Mercado Pago en el panel
+- [x] #15 Alerta de conexión con Mercado Pago en el panel
 - [ ] #16 Pruebas end-to-end con credenciales de prueba de Mercado Pago
+- [x] #22 Envío de emails en lotes para alto volumen
+- [x] #34 Exportación a Excel en streaming para sorteos grandes
