@@ -66,6 +66,10 @@ export default function Home() {
             <Link to="/links" className="btn">Ver nuestras redes</Link>
           </div>
         )}
+
+        {active.length > 0 && (
+          <p className="center"><Link to="/links" className="btn btn-ghost">Ver nuestras redes</Link></p>
+        )}
         </div>
         </div>
 
