@@ -145,3 +145,14 @@ test('el almacenamiento rechaza keys con path traversal', () => {
   const storage = require('../src/services/storage');
   assert.throws(() => storage.stream('../../etc/passwd'), /inválida/);
 });
+
+test('el nombre del PDF conserva las tildes y repara los que quedaron rotos', async () => {
+  const { fixFilename } = require('../src/services/filename');
+  assert.equal(fixFilename('CÃ³mo empezar a vender.pdf'), 'Cómo empezar a vender.pdf');
+  assert.equal(fixFilename('Año nuevo.pdf'), 'Año nuevo.pdf');
+  assert.equal(fixFilename('curso.pdf'), 'curso.pdf');
+  const res = await createCourse({ title: 'Con tildes' }, PDF, 'Pastelería casera.pdf');
+  assert.equal(res.status, 201);
+  const course = await Course.findOne({ where: { title: 'Con tildes' } });
+  assert.equal(course.pdfName, 'Pastelería casera.pdf');
+});

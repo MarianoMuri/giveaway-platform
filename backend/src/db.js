@@ -1,6 +1,7 @@
 const { Sequelize, DataTypes } = require('sequelize');
 const config = require('./config');
 const { DEFAULT_EXCLUDED, parseCodes } = require('./services/provinces');
+const { fixFilename } = require('./services/filename');
 
 const sequelize = config.databaseUrl
   ? new Sequelize(config.databaseUrl, { logging: false })
@@ -55,7 +56,11 @@ const Course = sequelize.define('Course', {
   description: DataTypes.TEXT,
   coverUrl: DataTypes.STRING,
   pdfKey: { type: DataTypes.STRING, allowNull: false }, // key en el almacenamiento, nunca una ruta
-  pdfName: { type: DataTypes.STRING, allowNull: false }, // nombre original para la descarga
+  pdfName: { // nombre original para la descarga; al leerlo se repara si quedó guardado con las tildes rotas
+    type: DataTypes.STRING,
+    allowNull: false,
+    get() { return fixFilename(this.getDataValue('pdfName')); },
+  },
   pdfSize: { type: DataTypes.INTEGER, allowNull: false },
   active: { type: DataTypes.BOOLEAN, defaultValue: true },
   position: { type: DataTypes.INTEGER, defaultValue: 0 },
