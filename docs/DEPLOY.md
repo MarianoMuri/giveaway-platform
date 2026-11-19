@@ -39,7 +39,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ## 1. Railway: base de datos y API
 
 1. Crear un proyecto nuevo y agregar **PostgreSQL**.
-2. Agregar un servicio desde el repositorio de GitHub. En *Settings → Source* poner **Root Directory** = `backend`. Railway toma `backend/railway.json`, que ya define el build con Docker, el chequeo de salud (`/api/health`) y el comando de migración.
+2. Agregar un servicio desde el repositorio de GitHub. En *Settings → Source* poner **Root Directory** = `backend`. El build usa el `Dockerfile` de `backend`. Railway no aplica `backend/railway.json` en los servicios nuevos (la configuración por archivo quedó en desuso), así que el comando de migración y el chequeo de salud se cargan a mano en el paso 5.
 3. Crear un **volumen** y montarlo en `/data` (los PDF de los cursos viven ahí; sin volumen se pierden en cada deploy).
 4. Cargar las variables del servicio (*Variables*):
 
@@ -62,7 +62,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 | `BRAND_NAME`, `BRAND_COLOR`, `BRAND_LOGO_URL`, `BRAND_WHATSAPP_URL` | marca del cliente en los emails |
 | `ALLOW_MP_TEST` | `true` **solo** en el entorno de pruebas con credenciales `TEST-` |
 
-5. Desplegar. En cada deploy Railway corre `npm run migrate` antes de iniciar la API; si la migración falla, el deploy no se activa y la versión anterior sigue funcionando.
+5. En *Settings → Deploy* cargar **Pre-deploy Command** = `npm run migrate` y, opcionalmente, **Healthcheck Path** = `/api/health`. Sin el Pre-deploy Command la API no arranca: se niega a iniciar si hay migraciones pendientes. Después desplegar. En cada deploy Railway corre `npm run migrate` antes de iniciar la API; si la migración falla, el deploy no se activa y la versión anterior sigue funcionando.
 6. En *Settings → Networking* generar el dominio público (o agregar `api.cliente.com.ar`, ver paso 3).
 
 La API **no arranca** si falta alguna variable importante o si hay valores de ejemplo: el log del deploy lista exactamente qué falta.
