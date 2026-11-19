@@ -10,15 +10,21 @@ export default function LegalPanel({ raffle, run }) {
   const [permit, setPermit] = useState(raffle.permitNumber || '');
   const [terms, setTerms] = useState(raffle.terms || '');
   const [excluded, setExcluded] = useState(raffle.excludedProvinces || []);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null); // aviso junto al botón: el general sale arriba de la página, fuera de la vista
   const missing = missingBeforeOpening({ permitNumber: permit, terms });
 
   const toggle = (code) => setExcluded((list) => (list.includes(code) ? list.filter((c) => c !== code) : [...list, code]));
-  const save = (e) => {
+  const save = async (e) => {
     e.preventDefault();
-    return run(
+    setBusy(true);
+    setResult(null);
+    const ok = await run(
       () => api(`/admin/raffles/${raffle.id}`, { method: 'PATCH', auth: true, body: { permitNumber: permit.trim(), terms, excludedProvinces: excluded } }),
       'Requisitos legales guardados'
     );
+    setResult(ok ? { type: 'ok', text: '✓ Guardado' } : { type: 'alert', text: 'No se pudo guardar. Mirá el aviso al principio de la página.' });
+    setBusy(false);
   };
 
   return (
@@ -48,7 +54,10 @@ export default function LegalPanel({ raffle, run }) {
             </label>
           ))}
         </div>
-        <button className="btn mt">Guardar</button>
+        <div className="row mt" style={{ gap: '1rem', alignItems: 'center' }}>
+          <button className="btn" disabled={busy}>{busy ? 'Guardando…' : 'Guardar'}</button>
+          {result && <span className={result.type} role="status">{result.text}</span>}
+        </div>
       </form>
     </details>
   );
