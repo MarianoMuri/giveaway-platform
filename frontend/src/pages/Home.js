@@ -20,7 +20,6 @@ export default function Home() {
             <span className="accent">{brand.name.split(' ').slice(-1)}</span>
           </h1>
           {brand.heroUrl && <img src={brand.heroUrl} alt={brand.name} className="hero-img" />}
-          <Social size="lg" />
           <p className="lead">{brand.description}</p>
         </div>
       </section>
@@ -63,6 +62,8 @@ export default function Home() {
             <Link to="/links" className="btn">Ver nuestras redes</Link>
           </div>
         )}
+
+        <Social size="lg" />
 
         {past.length > 0 && (
           <section className="mt-lg">
