@@ -12,6 +12,15 @@ const money = (n) => Number(n).toFixed(2);
 // Los ids de la API de Orders empiezan con "ORD"; los de la API de pagos son numéricos.
 const isOrderId = (id) => /^ORD/i.test(String(id));
 
+// Las credenciales de prueba también empiezan con APP_USR-, pero las órdenes que crean tienen un
+// id con prefijo ORDTST. Si pasara en producción, el comprador iría a pagar a un checkout de mentira.
+const isTestOrderId = (id) => /^ORDTST/i.test(String(id));
+function assertLiveOrder(id) {
+  if (isTestOrderId(id) && !config.mp.allowTest) {
+    throw new Error('Mercado Pago está con credenciales de prueba. Cargá las de producción o definí ALLOW_MP_TEST=true en un entorno de pruebas');
+  }
+}
+
 // Estado de una orden de Mercado Pago -> el estado que ya entiende el resto del sistema
 // (el de un pago). Así la lógica de números, mails y anulaciones no cambia.
 const ORDER_STATUS = {
@@ -64,6 +73,7 @@ const mp = {
       // La misma compra siempre usa la misma clave: un reintento no crea una orden duplicada
       requestOptions: { idempotencyKey: order.id },
     });
+    assertLiveOrder(created.id);
     return { id: created.id, initPoint: created.checkout_url };
   },
 
@@ -163,4 +173,4 @@ function verifySignature({ signatureHeader, requestId, dataId }) {
   });
 }
 
-module.exports = { mp, verifySignature, fromOrder, orderBody, isOrderId };
+module.exports = { mp, verifySignature, fromOrder, orderBody, isOrderId, isTestOrderId, assertLiveOrder };
