@@ -162,7 +162,7 @@ const chancesSold = (raffleId) => db.chances.filter((c) => c.raffleId === raffle
 const pub = (r) => {
   const { createdAt, nextNumber, ...rest } = r;
   const prices = packConfig(r.id).packs.map((p) => p.price);
-  return { ...rest, salesOpen: salesOpen(r), chancesSold: chancesSold(r.id), fromPrice: prices.length ? Math.min(...prices) : null };
+  return { ...rest, salesOpen: salesOpen(r), fromPrice: prices.length ? Math.min(...prices) : null };
 };
 
 // ---- Datos de ejemplo ----

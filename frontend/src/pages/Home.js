@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import brand from '../brand';
 import { useApi } from '../hooks';
 import { money, dateShort } from '../api';
-import SalesProgress from '../components/SalesProgress';
 
 export default function Home() {
   const { data: raffles, loading, error } = useApi('/raffles');
@@ -46,9 +45,7 @@ export default function Home() {
               <dl className="facts">
                 <div><dt>Desde</dt><dd>{r.fromPrice ? money(r.fromPrice) : '-'}</dd></div>
                 <div><dt>Sorteo</dt><dd>{dateShort(r.drawDate)}</dd></div>
-                <div><dt>Vendidas</dt><dd>{(r.chancesSold || 0).toLocaleString('es-AR')}</dd></div>
               </dl>
-              <SalesProgress raffle={r} compact />
               <p className="small muted">Comprás un curso digital y te regalamos chances para el sorteo.</p>
               <Link to={`/sorteo/${r.id}`} className="btn btn-lg">Quiero participar</Link>
               {r.freeEntryEnabled && (

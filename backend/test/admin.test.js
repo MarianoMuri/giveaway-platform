@@ -47,12 +47,12 @@ test('crear sorteo: arranca en borrador y valida los datos', async () => {
   courseId = course.body.id;
 });
 
-test('publicar: la vista pública trae chances vendidas y precio desde', async () => {
+test('publicar: la vista pública trae el precio desde y no las chances vendidas', async () => {
   const pub = await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active', permitNumber: 'TEST-1', terms: 'x'.repeat(120) });
   assert.equal(pub.status, 200);
   const res = await request(app).get(`/api/raffles/${raffleId}`);
   assert.equal(res.status, 200);
-  assert.deepEqual([res.body.chancesGoal, res.body.chancesSold, res.body.fromPrice], [5000, 0, 15000]);
+  assert.deepEqual([res.body.chancesGoal, res.body.chancesSold, res.body.fromPrice], [5000, undefined, 15000]);
   const list = await request(app).get('/api/raffles');
   assert.equal(list.body.length, 1);
 });
@@ -82,7 +82,7 @@ test('estadísticas del sorteo', async () => {
   const res = await request(app).get(`/api/admin/raffles/${raffleId}/stats`).set(auth);
   assert.deepEqual(res.body, { chancesSold: 15, purchases: 2, pending: 0, review: 0, revenue: 40000, freeEntries: 0, reversed: 0, winnerVoided: false, emailsPending: 0, emailsFailed: 0 });
   const pub = await request(app).get(`/api/raffles/${raffleId}`);
-  assert.equal(pub.body.chancesSold, 15);
+  assert.equal(pub.body.chancesSold, undefined); // el público no ve las vendidas
 });
 
 test('exportación CSV con curso y rango de números', async () => {

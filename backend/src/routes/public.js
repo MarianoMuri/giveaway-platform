@@ -16,17 +16,13 @@ const publicFields = [
   'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'winnerNumber', 'freeEntryEnabled', 'salesCloseAt', 'excludedProvinces',
 ];
 
-// Agrega a cada sorteo las chances vendidas (barra de progreso) y el precio del pack más barato
-async function withSales(raffles) {
+// Agrega a cada sorteo el precio del pack más barato. Las chances vendidas NO se publican: solo las ve el administrador.
+async function withPrices(raffles) {
   const ids = raffles.map((r) => r.id);
   if (!ids.length) return [];
-  const [sold, prices] = await Promise.all([
-    Chance.findAll({ where: { RaffleId: ids, status: 'valid', OrderId: { [Op.ne]: null } }, attributes: ['RaffleId', [fn('COUNT', col('id')), 'n']], group: ['RaffleId'], raw: true }),
-    Pack.findAll({ where: { RaffleId: ids }, attributes: ['RaffleId', [fn('MIN', col('price')), 'min']], group: ['RaffleId'], raw: true }),
-  ]);
-  const soldBy = new Map(sold.map((r) => [r.RaffleId, Number(r.n)]));
+  const prices = await Pack.findAll({ where: { RaffleId: ids }, attributes: ['RaffleId', [fn('MIN', col('price')), 'min']], group: ['RaffleId'], raw: true });
   const priceBy = new Map(prices.map((r) => [r.RaffleId, Number(r.min)]));
-  return raffles.map((r) => ({ ...r.toJSON(), salesOpen: sales.isOpen(r), chancesSold: soldBy.get(r.id) || 0, fromPrice: priceBy.get(r.id) ?? null }));
+  return raffles.map((r) => ({ ...r.toJSON(), salesOpen: sales.isOpen(r), fromPrice: priceBy.get(r.id) ?? null }));
 }
 
 // Las 24 jurisdicciones, para el selector de provincia
@@ -40,7 +36,7 @@ router.get('/raffles', wrap(async (req, res) => {
     attributes: publicFields,
     order: [['drawDate', 'DESC']],
   });
-  res.json(await withSales(raffles));
+  res.json(await withPrices(raffles));
 }));
 
 router.get('/raffles/:id', wrap(async (req, res) => {
@@ -49,7 +45,7 @@ router.get('/raffles/:id', wrap(async (req, res) => {
     attributes: publicFields,
   });
   if (!raffle) return res.status(404).json({ error: 'Sorteo no encontrado' });
-  res.json((await withSales([raffle]))[0]);
+  res.json((await withPrices([raffle]))[0]);
 }));
 const buyLimiter = rateLimit({ windowMs: 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false });
 const quoteLimiter = rateLimit({ windowMs: 60 * 1000, limit: 60 });

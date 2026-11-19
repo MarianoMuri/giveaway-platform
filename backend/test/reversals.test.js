@@ -164,7 +164,7 @@ test('las compras anuladas no cuentan en ventas ni recaudación, y el panel las 
   assert.equal(after.revenue, before.revenue);
   assert.equal(after.reversed, before.reversed + 1);
   const pub = await request(app).get(`/api/raffles/${raffleId}`);
-  assert.equal(pub.body.chancesSold, before.chancesSold);
+  assert.equal(pub.body.chancesSold, undefined); // el público no ve las vendidas
 });
 
 test('la exportación CSV incluye las compras anuladas con su estado', async () => {
