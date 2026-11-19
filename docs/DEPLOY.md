@@ -73,8 +73,7 @@ Para que un pico de compras no afecte al sitio, el envío de emails corre en un 
 (detalles y variables en [EMAIL.md](EMAIL.md)).
 
 1. En la API, agregar `EMAIL_WORKER=off` y `EMAIL_IMMEDIATE=off`.
-2. Crear otro servicio desde el mismo repositorio, con **Root Directory** = `backend`, y en sus *Settings* indicar como
-   archivo de configuración `backend/railway.worker.json` (inicia `node src/worker.js`, sin chequeo de salud web ni migraciones).
+2. Crear otro servicio desde el mismo repositorio, con **Root Directory** = `backend`. Railway **no aplica** los archivos de configuración del repositorio (`railway.worker.json`) en servicios nuevos, así que en *Settings → Deploy* cargar a mano el **Custom Start Command** = `node src/worker.js`, dejar vacío el Pre-deploy Command y sin Healthcheck Path (el worker no es un servicio web).
 3. Darle **las mismas variables** que a la API (referencias entre servicios, o *Shared Variables*): usa la misma base, el mismo
    `JWT_SECRET` (firma los links de descarga) y el proveedor de email. No necesita volumen ni dominio.
 4. Ajustar `EMAIL_RATE_PER_SEC` al límite del plan del proveedor de emails.
@@ -128,14 +127,25 @@ Las variables `REACT_APP_*` se incorporan al compilar: si se cambian, hay que vo
 
 Los datos que importan son la **base de datos** (compras, números, pagos) y los **PDF** del volumen.
 
-- Revisar en Railway qué respaldos automáticos incluye el plan contratado, y activarlos.
-- Copia manual de la base (conviene antes de cada sorteo):
+**Automáticos.** En Railway, abrir el servicio de Postgres → pestaña **Backups** y programar copias diarias (y semanales). Revisar qué incluye el plan contratado. Ojo: estas copias viven dentro de Railway, así que no reemplazan a una copia propia.
+
+**Copia propia (recomendado antes de cada sorteo y una vez por semana).** Desde tu computadora, con `pg_dump` instalado y la variable `DATABASE_PUBLIC_URL` del servicio Postgres:
 
 ```bash
-pg_dump "$DATABASE_URL" --format=custom --file=respaldo-$(date +%F).dump
+DATABASE_PUBLIC_URL="postgresql://..." ./scripts/respaldo.sh
 ```
 
-Guardar la copia fuera del repositorio y fuera de GitHub: contiene datos personales de los compradores.
+Guarda un archivo `respaldo-AAAA-MM-DD-HHMM.dump` en `~/respaldos-sorteos`. Esa copia tiene datos personales de los compradores: guardarla fuera del repositorio y de GitHub (por ejemplo, en un disco o una nube privada).
+
+**Restaurar (en una base vacía o de pruebas, nunca encima de la de producción sin un respaldo nuevo):**
+
+```bash
+pg_restore --no-owner --clean --if-exists --dbname="$DATABASE_PUBLIC_URL" respaldo-AAAA-MM-DD-HHMM.dump
+```
+
+**Probar que el respaldo sirve.** Una copia que nunca se restauró no es una garantía: antes de abrir las ventas, restaurarla en una base de prueba y entrar al panel para ver que las compras estén.
+
+**PDF.** Viven en el volumen del servicio de la API (`STORAGE_DIR`). Conservar también los archivos originales de cada curso fuera de Railway.
 
 ## Actualizar y volver atrás
 
