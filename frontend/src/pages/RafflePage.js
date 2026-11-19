@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useApi } from '../hooks';
 import { api, money, dateTime, goTo } from '../api';
-import SalesProgress from '../components/SalesProgress';
 import brand from '../brand';
 import ProvinceSelect from '../components/ProvinceSelect';
 import CoursePicker from '../components/CoursePicker';
@@ -75,7 +74,6 @@ export default function RafflePage() {
         <h1 className="mt-sm">{raffle.title}</h1>
         <p className="prize">🚗 {raffle.prize}</p>
         <p className="muted small">Sorteo en vivo · {dateTime(raffle.drawDate)}</p>
-        <SalesProgress raffle={raffle} />
       </header>
 
       {raffle.salesOpen === false || raffle.status !== 'active' ? (

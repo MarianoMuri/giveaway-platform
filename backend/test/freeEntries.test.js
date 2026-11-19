@@ -207,7 +207,7 @@ test('las gratuitas no cuentan como chances vendidas ni como recaudación', asyn
   assert.equal(after.revenue, before.revenue);
   assert.equal(after.freeEntries, before.freeEntries + 1);
   const pub = await request(app).get(`/api/raffles/${raffleId}`);
-  assert.equal(pub.body.chancesSold, before.chancesSold);
+  assert.equal(pub.body.chancesSold, undefined); // el público no ve las vendidas
   assert.equal(pub.body.freeEntryEnabled, true);
 });
 
