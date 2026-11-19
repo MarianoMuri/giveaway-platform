@@ -25,7 +25,7 @@ function productionProblems(env = process.env) {
     problems.push('MP_ACCESS_TOKEN: es una credencial de prueba (TEST-). Para un entorno de pruebas, definir ALLOW_MP_TEST=true');
   }
   need('MP_WEBHOOK_SECRET', 'sin la clave secreta no se puede validar que los avisos vengan de Mercado Pago');
-  need('SMTP_URL', 'sin SMTP no llegan los emails con los cursos y los números');
+  if (!env.RESEND_API_KEY && !env.SMTP_URL) problems.push('RESEND_API_KEY o SMTP_URL: falta (sin proveedor de email no llegan los cursos ni los números)');
   need('TURNSTILE_SECRET', 'sin captcha, la participación gratuita queda abierta a bots');
   need('STORAGE_DIR', 'carpeta del volumen persistente donde viven los PDF (si no, se pierden en cada deploy)');
   return problems;

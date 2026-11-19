@@ -20,7 +20,7 @@ Las cuentas conviene dejarlas a nombre del cliente (o del titular del proyecto),
 
 - [ ] Credenciales de **Mercado Pago**: Access Token y "Clave secreta" del webhook (de prueba primero, de producción al final)
 - [ ] **Dominio** del cliente y acceso a su DNS (por ejemplo `sorteos.cliente.com.ar` para el sitio y `api.cliente.com.ar` para la API)
-- [ ] Cuenta de **Resend o Brevo** con el dominio verificado (SPF y DKIM) y la URL SMTP
+- [ ] Cuenta de **Resend** con el dominio verificado (SPF y DKIM) y la clave de API (`RESEND_API_KEY`). Plan **Pro** para el lanzamiento (el gratis corta en 100 mails por día)
 - [ ] **Cloudflare Turnstile**: clave pública (sitekey) y clave secreta, con el dominio del sitio
 - [ ] Email y contraseña del **administrador**
 
@@ -53,7 +53,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 | `PUBLIC_API_URL` | URL pública de la API, con `https://` |
 | `MP_ACCESS_TOKEN` | credencial de Mercado Pago |
 | `MP_WEBHOOK_SECRET` | clave secreta del webhook |
-| `SMTP_URL` / `MAIL_FROM` / `MAIL_REPLY_TO` | datos del proveedor de emails |
+| `RESEND_API_KEY` (o `SMTP_URL`) / `MAIL_FROM` / `MAIL_REPLY_TO` | datos del proveedor de emails. Se prefiere la API de Resend porque Railway bloquea el SMTP fuera del plan Pro |
 | `EMAIL_RATE_PER_SEC` / `EMAIL_BATCH_SIZE` / `EMAIL_CONCURRENCY` | (opcionales) velocidad del envío de emails, ver [EMAIL.md](EMAIL.md) |
 | `ALERT_EMAILS` | (opcional) a quién avisar si se cae la conexión con Mercado Pago, separados por coma; por defecto, `ADMIN_EMAIL` |
 | `TURNSTILE_SECRET` | clave secreta de Turnstile |
@@ -75,7 +75,7 @@ Para que un pico de compras no afecte al sitio, el envío de emails corre en un 
 2. Crear otro servicio desde el mismo repositorio, con **Root Directory** = `backend`, y en sus *Settings* indicar como
    archivo de configuración `backend/railway.worker.json` (inicia `node src/worker.js`, sin chequeo de salud web ni migraciones).
 3. Darle **las mismas variables** que a la API (referencias entre servicios, o *Shared Variables*): usa la misma base, el mismo
-   `JWT_SECRET` (firma los links de descarga) y el SMTP. No necesita volumen ni dominio.
+   `JWT_SECRET` (firma los links de descarga) y el proveedor de email. No necesita volumen ni dominio.
 4. Ajustar `EMAIL_RATE_PER_SEC` al límite del plan del proveedor de emails.
 
 El worker no corre migraciones: se aplican en el deploy de la API (si faltan, el worker no arranca y lo dice en el log).
