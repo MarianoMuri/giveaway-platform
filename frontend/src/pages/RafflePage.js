@@ -5,6 +5,7 @@ import { api, money, dateTime, goTo } from '../api';
 import SalesProgress from '../components/SalesProgress';
 import brand from '../brand';
 import ProvinceSelect from '../components/ProvinceSelect';
+import CoursePicker from '../components/CoursePicker';
 
 // Página de compra: curso + pack de chances (+ "Duplicá").
 // Los totales que se muestran vienen calculados por el backend: acá no se suman precios.
@@ -94,16 +95,7 @@ export default function RafflePage() {
 
           <section className="step" ref={coursesRef}>
             <h2><span className="step-n">1</span> Elegí tu curso</h2>
-            <div className="course-grid">
-              {courses.map((c) => (
-                <button key={c.id} type="button" className={`course ${c.id === courseId ? 'selected' : ''}`} onClick={() => pickCourse(c)} aria-pressed={c.id === courseId}>
-                  {c.coverUrl ? <img src={c.coverUrl} alt="" /> : <span className="course-icon" aria-hidden>📘</span>}
-                  <span className="course-title">{c.title}</span>
-                  {c.description && <span className="small muted">{c.description}</span>}
-                </button>
-              ))}
-              {courses.length === 0 && <p className="muted small">Pronto vas a poder elegir tu curso.</p>}
-            </div>
+            <CoursePicker courses={courses} value={courseId} onPick={pickCourse} />
           </section>
 
           <section className="step" ref={packsRef}>
