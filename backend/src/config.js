@@ -72,5 +72,6 @@ module.exports = {
     webhookSecret: process.env.MP_WEBHOOK_SECRET, // "Clave secreta" del panel de Webhooks de MP
     // API con la que se crea el checkout: 'orders' (la vigente) o 'preferences' (heredada, para volver atrás)
     api: process.env.MP_API === 'preferences' ? 'preferences' : 'orders',
+    allowTest: process.env.ALLOW_MP_TEST === 'true', // solo en el entorno de pruebas (credenciales de prueba)
   },
 };

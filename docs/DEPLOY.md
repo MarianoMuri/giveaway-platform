@@ -60,7 +60,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 | `TURNSTILE_SECRET` | clave secreta de Turnstile |
 | `STORAGE_DIR` | `/data/storage` |
 | `BRAND_NAME`, `BRAND_COLOR`, `BRAND_LOGO_URL`, `BRAND_WHATSAPP_URL` | marca del cliente en los emails |
-| `ALLOW_MP_TEST` | `true` **solo** en el entorno de pruebas con credenciales `TEST-` |
+| `ALLOW_MP_TEST` | `true` **solo** en el entorno de pruebas con credenciales de prueba |
 
 5. En *Settings → Deploy* cargar **Pre-deploy Command** = `npm run migrate` y, opcionalmente, **Healthcheck Path** = `/api/health`. Sin el Pre-deploy Command la API no arranca: se niega a iniciar si hay migraciones pendientes. Después desplegar. En cada deploy Railway corre `npm run migrate` antes de iniciar la API; si la migración falla, el deploy no se activa y la versión anterior sigue funcionando.
 6. En *Settings → Networking* generar el dominio público (o agregar `api.cliente.com.ar`, ver paso 3).

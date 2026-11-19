@@ -168,3 +168,20 @@ test('un reintegro de la orden anula los números', async () => {
   assert.equal(order.status, 'refunded');
   assert.equal(await Chance.count({ where: { OrderId: order.id, status: 'valid' } }), 0);
 });
+
+test('rechaza órdenes de prueba (ORDTST) salvo que ALLOW_MP_TEST esté activo', () => {
+  const config = require('../src/config');
+  const { assertLiveOrder, isTestOrderId } = require('../src/services/mercadopago');
+  assert.equal(isTestOrderId('ORDTST01ABC'), true);
+  assert.equal(isTestOrderId('ORD01ABC'), false);
+  const before = config.mp.allowTest;
+  try {
+    config.mp.allowTest = false;
+    assert.throws(() => assertLiveOrder('ORDTST01ABC'), /credenciales de prueba/);
+    assert.doesNotThrow(() => assertLiveOrder('ORD01ABC'));
+    config.mp.allowTest = true;
+    assert.doesNotThrow(() => assertLiveOrder('ORDTST01ABC'));
+  } finally {
+    config.mp.allowTest = before;
+  }
+});
