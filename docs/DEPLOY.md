@@ -53,6 +53,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 | `PUBLIC_API_URL` | URL pública de la API, con `https://` |
 | `MP_ACCESS_TOKEN` | credencial de Mercado Pago |
 | `MP_WEBHOOK_SECRET` | clave secreta del webhook |
+| `MP_API` | opcional. `orders` (por defecto) o `preferences` para volver a la API anterior |
 | `RESEND_API_KEY` (o `SMTP_URL`) / `MAIL_FROM` / `MAIL_REPLY_TO` | datos del proveedor de emails. Se prefiere la API de Resend porque Railway bloquea el SMTP fuera del plan Pro |
 | `EMAIL_RATE_PER_SEC` / `EMAIL_BATCH_SIZE` / `EMAIL_CONCURRENCY` | (opcionales) velocidad del envío de emails, ver [EMAIL.md](EMAIL.md) |
 | `ALERT_EMAILS` | (opcional) a quién avisar si se cae la conexión con Mercado Pago, separados por coma; por defecto, `ADMIN_EMAIL` |
@@ -100,7 +101,7 @@ Las variables `REACT_APP_*` se incorporan al compilar: si se cambian, hay que vo
 
 ## 4. Mercado Pago
 
-1. En *Tus integraciones → Webhooks* cargar la URL `https://api.cliente.com.ar/api/webhooks/mercadopago` y activar los eventos de **Pagos**.
+1. En *Tus integraciones → Webhooks* cargar la URL `https://api.cliente.com.ar/api/webhooks/mercadopago` y activar el evento **Order (Mercado Pago)** (el checkout usa la API de Orders; si se vuelve a `MP_API=preferences`, activar **Pagos**). Esa es la dirección a la que Mercado Pago avisa cada pago.
 2. Copiar la **clave secreta** a `MP_WEBHOOK_SECRET`.
 3. En pruebas, usar las credenciales y usuarios de prueba; para producción, reemplazar `MP_ACCESS_TOKEN` por la de producción y quitar `ALLOW_MP_TEST`.
 

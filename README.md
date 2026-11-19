@@ -66,7 +66,7 @@ Más detalle en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 | Capa | Tecnologías |
 |---|---|
 | Backend | Node.js 22, Express 5, Sequelize, PostgreSQL, JWT, bcrypt, Helmet, rate limiting |
-| Pagos | Mercado Pago Checkout Pro + Webhooks |
+| Pagos | Mercado Pago Checkout Pro (API de Orders) + Webhooks |
 | Email | API HTTPS de Resend (o SMTP con Nodemailer: Brevo, etc.) |
 | Frontend | React 18 (Create React App), React Router |
 | Tests | `node:test` + Supertest, con SQLite en memoria y PostgreSQL 16 en el CI |

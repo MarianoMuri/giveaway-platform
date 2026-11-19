@@ -19,7 +19,7 @@ const { createPurchase } = require('../src/services/purchases');
 // ---- Mercado Pago simulado: un pago puede cambiar de estado después (reintegro, contracargo) ----
 const payments = {};
 let seq = 0;
-mp.createPreference = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/checkout/${order.id}` });
+mp.createCheckout = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/checkout/${order.id}` });
 mp.getPayment = async (id) => payments[id];
 
 function pay(order, { status = 'approved', amount = Number(order.amount) } = {}) {

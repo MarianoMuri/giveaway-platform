@@ -26,7 +26,7 @@ const { drawWinner, raffleStats } = require('../src/services/orders');
 const { HttpError } = require('../src/services/errors');
 const { freeEntryConfirm, freeEntryNumber } = require('../src/services/emailTemplates');
 
-mp.createPreference = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/${order.id}` });
+mp.createCheckout = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/${order.id}` });
 let sent = [];
 mailer.send = async (msg) => { sent.push(msg); return { id: `m-${sent.length}` }; };
 

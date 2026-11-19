@@ -21,7 +21,7 @@ const { voidNumbers } = require('../src/services/numbers');
 // ---- Mercado Pago simulado ----
 const payments = {};
 let paymentSeq = 0;
-mp.createPreference = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/checkout/${order.id}` });
+mp.createCheckout = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/checkout/${order.id}` });
 mp.getPayment = async (id) => payments[id];
 
 // Simula que el comprador pagó: registra el pago en "MP" y devuelve su id

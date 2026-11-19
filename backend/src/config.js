@@ -70,5 +70,7 @@ module.exports = {
   mp: {
     accessToken: required('MP_ACCESS_TOKEN'),
     webhookSecret: process.env.MP_WEBHOOK_SECRET, // "Clave secreta" del panel de Webhooks de MP
+    // API con la que se crea el checkout: 'orders' (la vigente) o 'preferences' (heredada, para volver atrás)
+    api: process.env.MP_API === 'preferences' ? 'preferences' : 'orders',
   },
 };

@@ -50,6 +50,7 @@ sequenceDiagram
 | Índice único `(RaffleId, number)` | Red de seguridad: la base rechaza un número repetido aunque haya un bug en la lógica. |
 | El contador nunca retrocede | Un número anulado (reintegro, contracargo) no se vuelve a asignar: cada número identifica una sola compra para siempre. |
 | Consultar el pago a Mercado Pago en el webhook | El cuerpo del aviso no es confiable; se valida firma, estado y monto contra la API. |
+| Checkout con la API de Orders; el estado de la orden se traduce al de un pago | Mercado Pago marca Preferences como heredada. Traducir `processed`/`refunded`/`charged_back` a `approved`/`refunded`/`charged_back` en un solo lugar (`mercadopago.js`) evita tocar números, mails y anulaciones. Los ids `ORD…` y los numéricos conviven, y `MP_API=preferences` permite volver atrás. |
 | Webhook idempotente con la orden bloqueada | Mercado Pago reintenta avisos; procesar dos veces el mismo pago no asigna números de nuevo. |
 | Estado `needs_review` | Pagos con un monto distinto al de la orden quedan para revisión manual y reintegro. |
 | Email con patrón outbox | El mail se marca pendiente en la transacción que aprueba el pago: si el servidor se cae, no se pierde. El envío ocurre después del commit, así el webhook responde rápido y un SMTP caído no rompe la compra. |
@@ -109,7 +110,7 @@ backend/
       emailTemplates.js  plantilla HTML responsive
       mailer.js          transporte SMTP (o consola en desarrollo)
       storage.js         almacenamiento de archivos (disco hoy, S3/R2 después)
-      mercadopago.js     preferencia, consulta de pago, firma del webhook
+      mercadopago.js     checkout (API de Orders), consulta de pago, firma del webhook
   test/                  tests de integración (node:test + supertest)
 frontend/
   src/

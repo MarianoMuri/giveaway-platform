@@ -4,6 +4,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Unreleased]
 
+### Changed
+- **Checkout con la API de Orders de Mercado Pago** (`POST /v1/orders`): reemplaza a la API de Preferences, que Mercado Pago marca como heredada y a la que ya no suma funciones. El aviso de pago es ahora el evento **Order** del panel de Webhooks; el servidor traduce el estado de la orden (acreditada, reintegrada, contracargo, rechazada) al que ya usaba, así que números, mails y anulaciones se comportan igual. Las compras anteriores (id de pago numérico) y los avisos de pagos se siguen entendiendo, y `MP_API=preferences` vuelve a la API anterior sin cambiar código. Requiere validar una compra de prueba en el sandbox (#16) (#48).
+
 ### Added
 - **Email por API de Resend** (`RESEND_API_KEY`): los mails salen por HTTPS y funcionan en cualquier plan de hosting (Railway bloquea el SMTP fuera del plan Pro). El SMTP queda como alternativa; un 429 o 5xx del proveedor hace que la cola reintente (#46).
 - **Mis compras con DNI**: el comprador ve sus números ingresando solo el DNI, sin contraseña ni mail (compras acreditadas y participación gratuita confirmada). Muestra el nombre abreviado; descargar el curso pide además el email de la compra. Límite por IP y por DNI, captcha y respuestas iguales exista o no el DNI (#44).

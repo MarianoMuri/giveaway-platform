@@ -19,7 +19,7 @@ const { mp } = require('../src/services/mercadopago');
 const { mailer } = require('../src/services/mailer');
 const { PROVINCES, DEFAULT_EXCLUDED } = require('../src/services/provinces');
 
-mp.createPreference = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/${order.id}` });
+mp.createCheckout = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/${order.id}` });
 mailer.send = async () => ({ id: 'm' });
 
 const PDF = Buffer.from('%PDF-1.4\ncurso\n%%EOF');

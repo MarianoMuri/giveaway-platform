@@ -33,6 +33,7 @@ Sprints de 1 semana. Cada ítem es un issue en GitHub, agrupado en un milestone.
 - [x] #13 Migraciones de base de datos con `sequelize-cli`
 - [ ] #14 Deploy en Railway y Netlify con dominio propio
 - [x] #15 Alerta de conexión con Mercado Pago en el panel
+- [x] #48 Checkout con la API de Orders de Mercado Pago (reemplaza a Preferences)
 - [ ] #16 Pruebas end-to-end con credenciales de prueba de Mercado Pago
 - [x] #22 Envío de emails en lotes para alto volumen
 - [x] #34 Exportación a Excel en streaming para sorteos grandes

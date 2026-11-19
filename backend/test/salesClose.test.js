@@ -19,7 +19,7 @@ const { createPurchase } = require('../src/services/purchases');
 const payments = {}; // id -> pago
 const byOrder = {}; // orderId -> [pagos] (lo que devuelve la búsqueda de MP)
 let seq = 0;
-mp.createPreference = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/checkout/${order.id}` });
+mp.createCheckout = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/checkout/${order.id}` });
 mp.getPayment = async (id) => payments[id];
 mp.searchPayments = async (orderId) => (byOrder[orderId] || []).map((p) => ({ id: p.id, status: p.status }));
 
