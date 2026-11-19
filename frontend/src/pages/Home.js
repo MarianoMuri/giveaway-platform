@@ -19,6 +19,7 @@ export default function Home() {
             {brand.name.split(' ').slice(0, -1).join(' ')}{' '}
             <span className="accent">{brand.name.split(' ').slice(-1)}</span>
           </h1>
+          {brand.heroUrl && <img src={brand.heroUrl} alt={brand.name} className="hero-img" />}
           <Social size="lg" />
           <p className="lead">{brand.description}</p>
         </div>

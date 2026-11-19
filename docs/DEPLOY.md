@@ -87,7 +87,7 @@ Mientras no exista el servicio aparte, la API manda los emails ella misma (es lo
 2. Variables del sitio:
    - `REACT_APP_API_URL` = URL pública de la API (con `https://`, sin barra final)
    - `REACT_APP_TURNSTILE_SITEKEY` = clave pública de Turnstile
-   - Marca del cliente (todas opcionales; sin ellas queda la marca genérica "AUTO SORTEOS"): `REACT_APP_BRAND_NAME`, `REACT_APP_BRAND_TAGLINE`, `REACT_APP_BRAND_DESCRIPTION`, `REACT_APP_BRAND_PRIMARY` (color, ej. `#e3262f`), `REACT_APP_BRAND_LOGO_URL` (link público al logo), `REACT_APP_BRAND_INSTAGRAM`, `REACT_APP_BRAND_YOUTUBE`, `REACT_APP_BRAND_FACEBOOK`, `REACT_APP_BRAND_TIKTOK`, `REACT_APP_BRAND_WHATSAPP_CHANNEL`, `REACT_APP_BRAND_WHATSAPP_CONTACT`. Así los datos del cliente quedan en Netlify y no en el repositorio.
+   - Marca del cliente (todas opcionales; sin ellas queda la marca genérica "AUTO SORTEOS"): `REACT_APP_BRAND_NAME`, `REACT_APP_BRAND_TAGLINE`, `REACT_APP_BRAND_DESCRIPTION`, `REACT_APP_BRAND_PRIMARY` (color, ej. `#e3262f`), `REACT_APP_BRAND_LOGO_URL` (link público al logo), `REACT_APP_BRAND_HERO_URL` (imagen opcional debajo del título de la portada), `REACT_APP_BRAND_INSTAGRAM`, `REACT_APP_BRAND_YOUTUBE`, `REACT_APP_BRAND_FACEBOOK`, `REACT_APP_BRAND_TIKTOK`, `REACT_APP_BRAND_WHATSAPP_CHANNEL`, `REACT_APP_BRAND_WHATSAPP_CONTACT`. Así los datos del cliente quedan en Netlify y no en el repositorio.
 3. Rama de producción: `main`. Cada merge a `main` publica solo.
 
 Las variables `REACT_APP_*` se incorporan al compilar: si se cambian, hay que volver a desplegar el sitio.
