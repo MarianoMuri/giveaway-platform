@@ -85,12 +85,6 @@ export default function RafflePage() {
             Comprás un <strong>curso digital</strong> y te regalamos <strong>chances</strong> para el sorteo.
             Tus números se asignan solos, en orden, apenas se acredita el pago.
           </p>
-          {raffle.freeEntryEnabled && (
-            <p className="free-note">
-              <strong>Participar no requiere compra.</strong> Si preferís no comprar, <Link to={`/sorteo/${raffle.id}/participar-gratis`}>participá gratis</Link> con 1 número por DNI.
-            </p>
-          )}
-
           <div className="buy-grid">
           <section className="step buy-courses" ref={coursesRef}>
             <h2><span className="step-n">1</span> Elegí tu curso</h2>
@@ -165,6 +159,11 @@ export default function RafflePage() {
             <p className="small muted center">Pagás en Mercado Pago. Al acreditarse, te mostramos tus números y te llega el curso por email.</p>
           </form>
           </div>
+          {raffle.freeEntryEnabled && (
+            <p className="free-note">
+              <strong>Participar no requiere compra.</strong> Si preferís no comprar, <Link to={`/sorteo/${raffle.id}/participar-gratis`}>participá gratis</Link> con 1 número por DNI.
+            </p>
+          )}
         </>
       )}
     </div>

@@ -222,7 +222,7 @@ th { color: var(--muted); font-weight: 500; font-size: .78rem; text-transform: u
 .purchase-numbers { font-family: 'Archivo', sans-serif; font-weight: 900; font-size: 1.5rem; color: var(--primary); margin: .15rem 0; }
 
 /* Participación gratuita */
-.free-note { background: var(--surface); border: 1px dashed #ffffff30; border-radius: 10px; padding: .4rem .8rem; font-size: .8rem; margin: 0 0 .75rem; }
+.free-note { font-size: .72rem; color: var(--muted); text-align: center; margin: 1.5rem 0 0; }
 .status.free-confirmed { background: #22c55e22; color: #4ade80; }
 .status.free-void { background: #ef444422; color: #fca5a5; }
 .status.free-unconfirmed { background: #f5b30122; color: #f5b301; }
