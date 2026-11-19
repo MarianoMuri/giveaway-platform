@@ -9,7 +9,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - **Imagen destacada en la portada**: variable opcional `REACT_APP_BRAND_HERO_URL` que muestra una imagen (logo o foto) debajo del título. Sin la variable, la portada queda igual (#62).
 
 ### Changed
-- Página de compra: los packs de chances van en una columna al costado del formulario en pantallas anchas (sin scroll propio, crece sola si se agregan más packs) y el aviso de "participar gratis" se achicó (#78, #80).
+- Página de compra: los packs de chances van en una columna al costado del formulario en pantallas anchas (sin scroll propio, crece sola si se agregan más packs) y el aviso de "participar gratis" pasa al final de la página, más chico (#78, #80, #82).
 - **Elección de curso en lista desplegable**: la página de compra ya no muestra todos los cursos como tarjetas; ahora se elige de una lista que se despliega hacia abajo (con scroll), así queda prolija con muchos cursos (#52).
 - **Checkout con la API de Orders de Mercado Pago** (`POST /v1/orders`): reemplaza a la API de Preferences, que Mercado Pago marca como heredada y a la que ya no suma funciones. El aviso de pago es ahora el evento **Order** del panel de Webhooks; el servidor traduce el estado de la orden (acreditada, reintegrada, contracargo, rechazada) al que ya usaba, así que números, mails y anulaciones se comportan igual. Las compras anteriores (id de pago numérico) y los avisos de pagos se siguen entendiendo, y `MP_API=preferences` vuelve a la API anterior sin cambiar código. Requiere validar una compra de prueba en el sandbox (#16) (#48).
 
