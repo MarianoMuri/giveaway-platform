@@ -2,14 +2,20 @@
 // Los links vacíos ('') no se muestran.
 import logo from './assets/logo.jpg';
 
+// Cada dato se puede sobrescribir con una variable de Netlify (REACT_APP_BRAND_*), sin tocar el código:
+// así la marca del cliente queda fuera del repositorio. Sin variable, vale el valor de acá.
+const env = (name, fallback) => (process.env[`REACT_APP_BRAND_${name}`] || '').trim() || fallback;
+
 const brand = {
-  name: 'AUTO SORTEOS',
-  tagline: 'Sorteos en vivo por YouTube · Autos 0km',
-  description:
-    'Comprá un curso digital y llevate chances para ganar un 0km. Pagás con Mercado Pago y seguís el sorteo en vivo.',
-  logoUrl: logo, // reemplazá src/assets/logo.jpg por el logo del cliente
+  name: env('NAME', 'AUTO SORTEOS'),
+  tagline: env('TAGLINE', 'Sorteos en vivo por YouTube · Autos 0km'),
+  description: env(
+    'DESCRIPTION',
+    'Comprá un curso digital y llevate chances para ganar un 0km. Pagás con Mercado Pago y seguís el sorteo en vivo.'
+  ),
+  logoUrl: env('LOGO_URL', logo), // link al logo del cliente (o reemplazá src/assets/logo.jpg)
   colors: {
-    primary: '#e3262f', // color principal de la marca
+    primary: env('PRIMARY', '#e3262f'), // color principal de la marca
     primaryText: '#ffffff',
     bg: '#0d0d0f',
     surface: '#18181c',
@@ -20,12 +26,12 @@ const brand = {
   },
   // Reemplazá estos links por los perfiles reales. Si dejás uno vacío (''), no se muestra.
   social: {
-    instagram: 'https://www.instagram.com/',
-    youtube: 'https://www.youtube.com/',
-    facebook: 'https://www.facebook.com/',
-    whatsappChannel: '',
-    tiktok: '',
-    whatsappContact: '', // ej: https://wa.me/5492910000000 (botón "Escribinos")
+    instagram: env('INSTAGRAM', 'https://www.instagram.com/'),
+    youtube: env('YOUTUBE', 'https://www.youtube.com/'),
+    facebook: env('FACEBOOK', 'https://www.facebook.com/'),
+    whatsappChannel: env('WHATSAPP_CHANNEL', ''),
+    tiktok: env('TIKTOK', ''),
+    whatsappContact: env('WHATSAPP_CONTACT', ''), // ej: https://wa.me/5492910000000 (botón "Escribinos")
   },
   // Botones extra de la página /links (además del sorteo activo y las redes)
   extraLinks: [
