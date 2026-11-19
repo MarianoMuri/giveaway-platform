@@ -26,7 +26,7 @@ const { purchaseConfirmation } = require('../src/services/emailTemplates');
 // ---- Mercado Pago y email simulados ----
 const payments = {};
 let paymentSeq = 0;
-mp.createPreference = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/${order.id}` });
+mp.createCheckout = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/${order.id}` });
 mp.getPayment = async (id) => payments[id];
 const pay = (order, status = 'approved') => {
   const id = String(++paymentSeq);

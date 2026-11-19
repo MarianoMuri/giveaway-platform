@@ -54,15 +54,15 @@ async function createPurchase({ raffleId, packId, double, courseId, buyer }) {
   });
 
   try {
-    const pref = await mp.createPreference({
+    const checkout = await mp.createCheckout({
       order,
       raffle,
       title: `Curso "${course.title}" + ${quote.chances} chances - ${raffle.title}`,
     });
-    await order.update({ mpPreferenceId: pref.id });
-    return { orderId: order.id, checkoutUrl: pref.initPoint, total: quote.total, chances: quote.chances };
+    await order.update({ mpPreferenceId: checkout.id });
+    return { orderId: order.id, checkoutUrl: checkout.initPoint, total: quote.total, chances: quote.chances };
   } catch (err) {
-    await order.update({ status: 'rejected', mpStatusDetail: 'error_preferencia' });
+    await order.update({ status: 'rejected', mpStatusDetail: 'error_checkout' });
     throw new HttpError(502, 'No se pudo iniciar el pago con Mercado Pago', { detail: err.message });
   }
 }

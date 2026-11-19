@@ -24,7 +24,7 @@ const { createPurchase } = require('../src/services/purchases');
 const { confirmPackOrder } = require('../src/services/purchases');
 const { captcha } = require('../src/services/captcha');
 
-mp.createPreference = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/${order.id}` });
+mp.createCheckout = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/${order.id}` });
 
 let sent = [];
 mailer.send = async (msg) => { sent.push(msg); return { id: `msg-${sent.length}` }; };

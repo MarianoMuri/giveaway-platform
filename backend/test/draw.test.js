@@ -19,7 +19,7 @@ const numbers = require('../src/services/numbers');
 
 const payments = {};
 let seq = 0;
-mp.createPreference = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/checkout/${order.id}` });
+mp.createCheckout = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/checkout/${order.id}` });
 mp.getPayment = async (id) => payments[id];
 function webhook(paymentId) {
   const ts = String(Date.now());
