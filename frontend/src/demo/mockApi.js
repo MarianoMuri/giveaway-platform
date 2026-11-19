@@ -287,6 +287,29 @@ const routes = [
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new Err(400, { error: 'Ingresá un email válido' });
     return { ok: true, demoToken: `demo:${email}` };
   }],
+  // "Mis compras" con DNI: solo números; descargar pide además el email (en la demo no hay PDF real)
+  ['POST', /^\/my-purchases\/by-dni$/, (_, b) => {
+    const dni = String(b.dni || '').replace(/\D/g, '');
+    if (dni.length < 7 || dni.length > 8) throw new Err(400, { error: 'El DNI no es válido' });
+    const info = (r) => r && { id: r.id, title: r.title, prize: r.prize, drawDate: r.drawDate, youtubeUrl: r.youtubeUrl };
+    const orders = db.orders.filter((o) => ['approved', 'manual'].includes(o.status) && o.buyerDni === dni);
+    const free = db.freeEntries.filter((f) => f.dni === dni && f.status === 'confirmed');
+    const first = orders[0]?.buyerName || free[0]?.name || '';
+    const parts = first.trim().split(/\s+/).filter(Boolean);
+    return {
+      name: parts.length > 1 ? `${parts[0]} ${parts[1][0].toUpperCase()}.` : parts[0] || '',
+      purchases: orders.map((o) => ({
+        id: o.id, createdAt: o.createdAt, courseTitle: o.courseTitle, hasCourse: true, chances: o.chances, double: o.double,
+        firstNumber: o.firstNumber, lastNumber: o.lastNumber, amount: o.amount, raffle: info(raffleOr404(o.RaffleId)),
+      })),
+      freeEntries: free.map((f) => ({ id: f.id, number: f.number, createdAt: f.createdAt, raffle: info(raffleOr404(f.RaffleId)) })),
+    };
+  }],
+  ['POST', /^\/my-purchases\/download$/, (_, b) => {
+    const o = db.orders.find((x) => x.id === b.orderId && x.buyerDni === String(b.dni || '').replace(/\D/g, '') && String(x.buyerEmail).toLowerCase() === String(b.email || '').trim().toLowerCase());
+    if (!o) throw new Err(404, { error: 'No encontramos una compra con esos datos. Revisá el email con el que compraste.' });
+    throw new Err(400, { error: 'En la demo no hay archivos reales para descargar. En la versión real se descarga el PDF.' });
+  }],
   ['GET', /^\/my-purchases$/, (_, __, ___, headers) => {
     const token = String(headers.Authorization || '').replace(/^Bearer /, '');
     if (!token.startsWith('demo:')) throw new Err(401, { error: 'El link venció o no es válido. Pedí uno nuevo.' });
