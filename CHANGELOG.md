@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ## [Unreleased]
 
 ### Added
+- **Mis compras con DNI**: el comprador ve sus números ingresando solo el DNI, sin contraseña ni mail (compras acreditadas y participación gratuita confirmada). Muestra el nombre abreviado; descargar el curso pide además el email de la compra. Límite por IP y por DNI, captcha y respuestas iguales exista o no el DNI (#44).
 - Provincias excluidas por sorteo (#42): al comprar y al participar gratis se pide la provincia (las 24 jurisdicciones) y quien está en una provincia excluida no puede hacerlo, con un mensaje claro y sin dejar rastro en la base. Por defecto quedan excluidas Mendoza, Formosa, Jujuy, Neuquén, Salta, Río Negro y Tierra del Fuego, que tienen reglas propias para sorteos promocionales, hasta que el abogado del cliente resuelva el trámite de cada una. Se edita desde el panel, y la página pública y las bases informan dónde no está disponible.
 - Requisitos legales antes de vender (#42): no se puede abrir (ni reabrir) la venta sin N° de autorización y sin bases y condiciones cargadas. El panel tiene una sección "Requisitos legales y provincias" para cargarlos, y el botón de publicar se deshabilita con el motivo.
 - Aviso en la compra y en las bases: "Esta compra se realiza en [lugar], lugar habilitado para este sorteo (autorización N° …)". Se muestra si el organizador completa `location` en `frontend/src/brand.js`; el texto lo tiene que confirmar el abogado del cliente.

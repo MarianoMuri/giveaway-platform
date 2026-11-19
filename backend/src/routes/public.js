@@ -105,6 +105,17 @@ router.post('/my-purchases/link', linkLimiter, wrap(async (req, res) => {
   res.status(202).json({ ok: true });
 }));
 
+// "Mis compras" con DNI: solo lectura de números. Límite por IP acá, por DNI y captcha en el servicio.
+const dniLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false });
+router.post('/my-purchases/by-dni', dniLimiter, wrap(async (req, res) => {
+  const { dni, captchaToken } = req.body || {};
+  res.json(await myPurchases.listByDni({ dni, captchaToken, ip: req.ip }));
+}));
+router.post('/my-purchases/download', dniLimiter, wrap(async (req, res) => {
+  const { dni, email, orderId } = req.body || {};
+  res.json(await myPurchases.downloadWithEmail({ dni, email, orderId, ip: req.ip }));
+}));
+
 router.get('/my-purchases', wrap(async (req, res) => {
   const token = (req.get('authorization') || '').replace(/^Bearer /, '');
   res.json(await myPurchases.listPurchases(token));
