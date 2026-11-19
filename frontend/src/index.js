@@ -11,6 +11,7 @@ const Router = DEMO ? MemoryRouter : BrowserRouter;
 
 const root = document.documentElement;
 Object.entries(brand.colors).forEach(([k, v]) => root.style.setProperty(`--${k}`, v));
+document.title = brand.name; // título de la pestaña con el nombre del cliente
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

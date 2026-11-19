@@ -14,6 +14,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - **Despliegue en Railway**: la guía decía que Railway toma `backend/railway.json`, pero no lo aplica en servicios nuevos. Ahora indica cargar el Pre-deploy Command `npm run migrate` en *Settings → Deploy* y se corrige el nombre del remitente de ejemplo a "Zona Norte Automotores" (#50).
 
 ### Added
+- **Marca del cliente por variables de Netlify**: nombre, textos, color principal, redes y logo se pueden cargar con variables `REACT_APP_BRAND_*`, sin tocar el código ni subir datos del cliente al repositorio (#60).
 - **Control contra credenciales de prueba en producción**: las credenciales de prueba de Mercado Pago empiezan con `APP_USR-` igual que las reales, y el control de arranque solo reconocía `TEST-`. Ahora, al crear el checkout, si Mercado Pago devuelve una orden de prueba y `ALLOW_MP_TEST` no está en `true`, la compra se rechaza antes de mandar al comprador a pagar (#56).
 - **Email por API de Resend** (`RESEND_API_KEY`): los mails salen por HTTPS y funcionan en cualquier plan de hosting (Railway bloquea el SMTP fuera del plan Pro). El SMTP queda como alternativa; un 429 o 5xx del proveedor hace que la cola reintente (#46).
 - **Mis compras con DNI**: el comprador ve sus números ingresando solo el DNI, sin contraseña ni mail (compras acreditadas y participación gratuita confirmada). Muestra el nombre abreviado; descargar el curso pide además el email de la compra. Límite por IP y por DNI, captcha y respuestas iguales exista o no el DNI (#44).
