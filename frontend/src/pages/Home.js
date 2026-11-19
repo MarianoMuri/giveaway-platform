@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import Social from '../components/Social';
 import brand from '../brand';
 import { useApi } from '../hooks';
 import { money, dateShort } from '../api';
@@ -62,8 +61,6 @@ export default function Home() {
             <Link to="/links" className="btn">Ver nuestras redes</Link>
           </div>
         )}
-
-        <Social size="lg" />
 
         {past.length > 0 && (
           <section className="mt-lg">
