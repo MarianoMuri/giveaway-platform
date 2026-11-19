@@ -1,6 +1,6 @@
 # Deploy a producción
 
-Guía para publicar el sistema con **Railway** (API + PostgreSQL), **Netlify** (sitio) y el dominio del cliente.
+Guía para publicar el sistema con **Railway** (API + PostgreSQL), **Cloudflare Pages o Netlify** (sitio) y el dominio del cliente.
 Se hace primero en un **entorno de pruebas** (credenciales de prueba de Mercado Pago) y recién después en producción.
 
 ## Piezas
@@ -81,7 +81,17 @@ Para que un pico de compras no afecte al sitio, el envío de emails corre en un 
 El worker no corre migraciones: se aplican en el deploy de la API (si faltan, el worker no arranca y lo dice en el log).
 Mientras no exista el servicio aparte, la API manda los emails ella misma (es lo que pasa en desarrollo y en el entorno de pruebas).
 
-## 2. Netlify: el sitio
+## 2. Cloudflare Pages (alternativa a Netlify)
+
+Es lo que usa hoy el sitio de pruebas (Netlify pausa las publicaciones si se acaban los créditos del plan gratuito). En *Workers & Pages → Create → Pages → Import an existing Git repository*:
+
+- Rama de producción: `develop` (para el sitio real, `main`).
+- Directorio raíz: `frontend`. Comando de build: `npm install && npm run build`. Carpeta de salida: `build`.
+- Variables: `NODE_VERSION=22` y las mismas `REACT_APP_*` que se listan en la sección de Netlify.
+- Las rutas de React funcionan solas (Pages sirve `index.html` si no existe el archivo) y las cabeceras de seguridad salen de `frontend/public/_headers`.
+- Después, en Railway, poner `FRONTEND_URL` con la dirección nueva (la API solo acepta esa) y volver a desplegar.
+
+## 2b. Netlify: el sitio
 
 1. *Add new site → Import from Git*, con el mismo repositorio. Netlify toma `frontend/netlify.toml` (build, carpeta de salida, redirección para las rutas de React y cabeceras de seguridad).
 2. Variables del sitio:
