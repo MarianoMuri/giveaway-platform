@@ -7,7 +7,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "node --test --test-concurrency=1 test/admin.test.js test/courses.test.js test/packs.test.js test/purchases.test.js test/emails.test.js test/myPurchases.test.js test/myPurchasesDni.test.js test/freeEntries.test.js test/reversals.test.js test/salesClose.test.js test/search.test.js test/draw.test.js test/migrations.test.js test/production.test.js test/mpHealth.test.js test/emailBatches.test.js test/export.test.js test/provinces.test.js",
+    "test": "node --test --test-concurrency=1 test/admin.test.js test/courses.test.js test/packs.test.js test/purchases.test.js test/emails.test.js test/myPurchases.test.js test/myPurchasesDni.test.js test/mailerResend.test.js test/freeEntries.test.js test/reversals.test.js test/salesClose.test.js test/search.test.js test/draw.test.js test/migrations.test.js test/production.test.js test/mpHealth.test.js test/emailBatches.test.js test/export.test.js test/provinces.test.js",
     "start": "node src/server.js",
     "worker": "node src/worker.js",
     "migrate": "sequelize-cli db:migrate",

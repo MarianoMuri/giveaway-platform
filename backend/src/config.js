@@ -22,9 +22,12 @@ module.exports = {
   storageDir: process.env.STORAGE_DIR || './storage',
   maxPdfMb: Number(process.env.MAX_PDF_MB || 20),
   downloadLinkHours: Number(process.env.DOWNLOAD_LINK_HOURS || 72),
-  // Email transaccional. Sin SMTP_URL los mails se muestran en la consola (desarrollo).
-  // Ej: smtps://resend:API_KEY@smtp.resend.com:465 · smtp://usuario:clave@smtp-relay.brevo.com:587
+  // Email transaccional, en este orden de preferencia:
+  //  1) RESEND_API_KEY: API HTTPS de Resend (funciona en cualquier plan de hosting; Railway bloquea el SMTP fuera del plan Pro)
+  //  2) SMTP_URL: ej. smtps://resend:API_KEY@smtp.resend.com:465 · smtp://usuario:clave@smtp-relay.brevo.com:587
+  //  Sin ninguno, los mails se muestran en la consola (desarrollo).
   mail: {
+    resendApiKey: process.env.RESEND_API_KEY,
     smtpUrl: process.env.SMTP_URL,
     from: process.env.MAIL_FROM || 'Sorteos <no-responder@localhost>',
     replyTo: process.env.MAIL_REPLY_TO,
