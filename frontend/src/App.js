@@ -42,6 +42,7 @@ function Footer() {
   if (pathname === '/links' || pathname.startsWith('/admin')) return null;
   return (
     <footer className="footer">
+      <p className="small">Transmitimos cada sorteo en directo y publicamos los ganadores en nuestras redes.</p>
       <Social />
       <div className="mt-sm"><strong>{brand.name}</strong>{brand.location && <> · {brand.location}</>}</div>
       <div className="muted small">Pagos procesados por Mercado Pago</div>

@@ -64,12 +64,6 @@ export default function Home() {
           </div>
         )}
 
-        <section className="card center follow">
-          <h3>Seguí los sorteos en vivo</h3>
-          <p className="muted small">Transmitimos cada sorteo en directo y publicamos los ganadores en nuestras redes.</p>
-          <Social size="lg" />
-        </section>
-
         {past.length > 0 && (
           <section className="mt-lg">
             <h3>Ganadores anteriores</h3>
