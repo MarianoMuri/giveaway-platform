@@ -91,12 +91,13 @@ export default function RafflePage() {
             </p>
           )}
 
-          <section className="step" ref={coursesRef}>
+          <div className="buy-grid">
+          <section className="step buy-courses" ref={coursesRef}>
             <h2><span className="step-n">1</span> Elegí tu curso</h2>
             <CoursePicker courses={courses} value={courseId} onPick={pickCourse} />
           </section>
 
-          <section className="step" ref={packsRef}>
+          <section className="step buy-packs" ref={packsRef}>
             <h2><span className="step-n">2</span> Elegí tus chances</h2>
             <div className="pack-list" role="radiogroup" aria-label="Packs de chances">
               {packs.map((p) => (
@@ -131,7 +132,7 @@ export default function RafflePage() {
             )}
           </section>
 
-          <form className="step card checkout" onSubmit={buy}>
+          <form className="step card checkout buy-form" onSubmit={buy}>
             <h2><span className="step-n">3</span> Tus datos</h2>
             <label>Nombre y apellido<input required autoComplete="name" value={buyer.name} onChange={(e) => setBuyer({ ...buyer, name: e.target.value })} /></label>
             <label>DNI<input required inputMode="numeric" value={buyer.dni} onChange={(e) => setBuyer({ ...buyer, dni: e.target.value.replace(/\D/g, '') })} /></label>
@@ -163,6 +164,7 @@ export default function RafflePage() {
             </button>
             <p className="small muted center">Pagás en Mercado Pago. Al acreditarse, te mostramos tus números y te llega el curso por email.</p>
           </form>
+          </div>
         </>
       )}
     </div>
