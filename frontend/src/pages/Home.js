@@ -18,12 +18,20 @@ export default function Home() {
             {brand.name.split(' ').slice(0, -1).join(' ')}{' '}
             <span className="accent">{brand.name.split(' ').slice(-1)}</span>
           </h1>
-          {brand.heroUrl && <img src={brand.heroUrl} alt={brand.name} className="hero-img" />}
-          <p className="lead">{brand.description}</p>
+          {!brand.heroUrl && <p className="lead">{brand.description}</p>}
         </div>
       </section>
 
       <div className="container">
+        {/* Con imagen destacada: logo a la izquierda y sorteo a la derecha (en el celular, una columna) */}
+        <div className={brand.heroUrl ? 'split' : undefined}>
+        {brand.heroUrl && (
+          <div className="split-side">
+            <img src={brand.heroUrl} alt={brand.name} className="hero-img" />
+            <p className="lead">{brand.description}</p>
+          </div>
+        )}
+        <div className="split-main">
         {loading && <p className="muted">Cargando sorteos…</p>}
         {error && <p className="alert">No pudimos cargar los sorteos. Probá de nuevo en un rato.</p>}
 
@@ -61,6 +69,8 @@ export default function Home() {
             <Link to="/links" className="btn">Ver nuestras redes</Link>
           </div>
         )}
+        </div>
+        </div>
 
         {past.length > 0 && (
           <section className="mt-lg">

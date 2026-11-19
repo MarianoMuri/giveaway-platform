@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ## [Unreleased]
 
 ### Added
+- **Portada en dos columnas con imagen destacada**: si hay imagen (`REACT_APP_BRAND_HERO_URL`), en pantallas anchas el logo queda a la izquierda y el sorteo activo (o "Se viene un nuevo sorteo") a la derecha, así se ve sin bajar. En el celular sigue en una columna (#72).
 - **Imagen destacada en la portada**: variable opcional `REACT_APP_BRAND_HERO_URL` que muestra una imagen (logo o foto) debajo del título. Sin la variable, la portada queda igual (#62).
 
 ### Changed
