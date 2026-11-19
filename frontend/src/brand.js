@@ -31,7 +31,9 @@ const brand = {
   extraLinks: [
     // { label: 'Catálogo de usados', url: 'https://...' },
   ],
-  location: '', // ej: 'Bahía Blanca, Buenos Aires'
+  // Lugar habilitado del organizador. Si se completa, la compra y las bases dicen "Esta compra se realiza en ...".
+  // Completar solo con el dato que confirme el abogado del cliente.
+  location: process.env.REACT_APP_DEMO === 'true' ? 'Ciudad de ejemplo, Provincia (dato de la demo)' : '', // ej: 'Bahía Blanca, Buenos Aires'
 };
 
 export default brand;

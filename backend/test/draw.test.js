@@ -62,7 +62,7 @@ test.before(async () => {
   auth = { Authorization: `Bearer ${login.body.token}` };
   const r = await request(app).post('/api/admin/raffles').set(auth).send({ title: 'Sorteo', prize: 'Onix' });
   raffleId = r.body.id;
-  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active' });
+  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active', permitNumber: 'TEST-1', terms: 'x'.repeat(120) });
   const c = await request(app).post('/api/admin/courses').set(auth)
     .field('title', 'Cocina').attach('pdf', Buffer.from('%PDF-1.4\n%%EOF'), 'c.pdf');
   courseId = c.body.id;
@@ -156,7 +156,7 @@ test('la carga manual del ganador también exige motivo para repetir y queda reg
 
 test('si el número elegido resulta anulado al verificar el pago, se descarta y se vuelve a sortear', async () => {
   await fresh();
-  const buyer = (name, dni) => ({ name, email: `${dni}@test.com`, phone: '2915555555', dni });
+  const buyer = (name, dni) => ({ name, email: `${dni}@test.com`, phone: '2915555555', dni, province: 'B' });
   const paid = async (name, dni) => {
     const { orderId } = await createPurchase({ raffleId, packId, courseId, buyer: buyer(name, dni) });
     const order = await Order.findByPk(orderId);

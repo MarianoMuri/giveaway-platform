@@ -8,6 +8,7 @@ const { freeEntryConfirm, freeEntryNumber } = require('./emailTemplates');
 const numbers = require('./numbers');
 const { HttpError } = require('./errors');
 const sales = require('./sales');
+const provinces = require('./provinces');
 
 /**
  * Participación gratuita ("sin obligación de compra").
@@ -26,24 +27,25 @@ const DEVICE = /^[\w-]{16,64}$/;
 const sha = (v) => crypto.createHash('sha256').update(`${config.jwtSecret}:${v}`).digest('hex');
 const tokenHash = (t) => crypto.createHash('sha256').update(String(t)).digest('hex');
 
-function clean({ name, dni, email }) {
+function clean({ name, dni, email, province }) {
   const n = String(name || '').trim().replace(/\s+/g, ' ');
   const d = String(dni || '').replace(/\D/g, '');
   const e = String(email || '').trim().toLowerCase();
   if (n.length < 3 || n.length > 100) throw new HttpError(400, 'Ingresá tu nombre completo');
   if (d.length < 7 || d.length > 8) throw new HttpError(400, 'El DNI no es válido');
   if (!EMAIL.test(e)) throw new HttpError(400, 'Ingresá un email válido');
-  return { name: n, dni: d, email: e };
+  return { name: n, dni: d, email: e, province: provinces.cleanProvince(province) };
 }
 
 // Pide participar: valida, guarda la participación sin confirmar y manda el link por email
-async function request({ raffleId, name, dni, email, captchaToken, deviceId, ip }) {
+async function request({ raffleId, name, dni, email, province, captchaToken, deviceId, ip }) {
   const raffle = await Raffle.findByPk(raffleId);
   if (!raffle || raffle.status === 'draft') throw new HttpError(404, 'Sorteo no encontrado');
   if (!raffle.freeEntryEnabled) throw new HttpError(409, 'Este sorteo no tiene participación gratuita');
   sales.assertOpen(raffle, 'La participación en este sorteo está cerrada');
 
-  const data = clean({ name, dni, email });
+  const data = clean({ name, dni, email, province });
+  provinces.assertAvailable(raffle, data.province);
   if (!DEVICE.test(String(deviceId || ''))) throw new HttpError(400, 'No pudimos identificar tu dispositivo. Recargá la página.');
   await captcha.verify(captchaToken, ip);
 

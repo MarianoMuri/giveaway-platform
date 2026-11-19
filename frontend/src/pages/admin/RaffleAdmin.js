@@ -6,6 +6,8 @@ import PackEditor from '../../components/PackEditor';
 import SalesProgress from '../../components/SalesProgress';
 import SearchPanel from '../../components/SearchPanel';
 import ActivityLog from '../../components/ActivityLog';
+import LegalPanel from '../../components/LegalPanel';
+import { missingBeforeOpening } from '../../legal';
 
 const emailLabel = { none: 'Sin email', pending: 'Pendiente', sent: 'Enviado', failed: 'Falló' };
 
@@ -103,6 +105,9 @@ export default function RaffleAdmin() {
   const setStatus = (status) =>
     run(() => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { status } }), status === 'closed' ? 'Venta deshabilitada' : 'Estado actualizado');
 
+  // Sin autorización y bases cargadas no se puede abrir la venta (el backend lo valida igual)
+  const legalMissing = missingBeforeOpening(raffle);
+
   // La fecha de cierre ya pasó: para volver a vender hay que quitarla (o poner una nueva)
   const saleClosedByDate = raffle.status === 'active' && raffle.salesCloseAt && new Date(raffle.salesCloseAt) <= new Date();
   const enableSales = () => {
@@ -194,9 +199,9 @@ export default function RaffleAdmin() {
           <p className="muted">{raffle.prize}</p>
         </div>
         <div className="row">
-          {raffle.status === 'draft' && <button className="btn" onClick={() => setStatus('active')}>Publicar y abrir venta</button>}
+          {raffle.status === 'draft' && <button className="btn" disabled={legalMissing.length > 0} title={legalMissing.length ? `Falta cargar ${legalMissing.join(' y ')}` : undefined} onClick={() => setStatus('active')}>Publicar y abrir venta</button>}
           {raffle.status === 'active' && !saleClosedByDate && <button className="btn btn-ghost" onClick={() => setStatus('closed')}>Deshabilitar venta</button>}
-          {(raffle.status === 'closed' || saleClosedByDate) && <button className="btn btn-ghost" onClick={enableSales}>Habilitar venta</button>}
+          {(raffle.status === 'closed' || saleClosedByDate) && <button className="btn btn-ghost" disabled={legalMissing.length > 0} title={legalMissing.length ? `Falta cargar ${legalMissing.join(' y ')}` : undefined} onClick={enableSales}>Habilitar venta</button>}
           <button className="btn btn-ghost" onClick={toggleFree}>{raffle.freeEntryEnabled ? 'Desactivar participación gratuita' : 'Activar participación gratuita'}</button>
           {raffle.status !== 'draft' && <Link className="btn btn-ghost" to={`/sorteo/${id}`} target="_blank">Ver página</Link>}
           {raffle.status !== 'draft' && <Link className="btn" to={`/admin/sorteo/${id}/en-vivo`}>Sorteo en vivo</Link>}
@@ -211,6 +216,8 @@ export default function RaffleAdmin() {
       )}
 
       {msg && <p className={msg.type}>{msg.text}</p>}
+
+      {raffle.status !== 'drawn' && <LegalPanel raffle={raffle} run={run} />}
 
       <div className="stats">
         <div className="card stat"><span>Recaudado</span><strong>{money(stats?.revenue || 0)}</strong></div>

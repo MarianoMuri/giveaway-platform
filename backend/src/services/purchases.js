@@ -4,6 +4,7 @@ const { HttpError } = require('./errors');
 const packs = require('./packs');
 const numbers = require('./numbers');
 const emails = require('./emails');
+const provinces = require('./provinces');
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -14,6 +15,7 @@ function cleanBuyer(buyer) {
     email: String(b.email || '').trim().toLowerCase(),
     phone: String(b.phone || '').replace(/[^\d+]/g, ''),
     dni: String(b.dni || '').replace(/\D/g, ''),
+    province: provinces.cleanProvince(b.province),
   };
   if (out.name.length < 3) throw new HttpError(400, 'Ingresá tu nombre y apellido');
   if (!EMAIL.test(out.email)) throw new HttpError(400, 'El email no es válido');
@@ -34,6 +36,7 @@ async function createPurchase({ raffleId, packId, double, courseId, buyer }) {
   if (!course) throw new HttpError(400, 'Elegí un curso');
   const quote = await packs.quoteForRaffle(raffleId, { packId, double }); // valida sorteo activo y pack
   const raffle = await Raffle.findByPk(raffleId);
+  provinces.assertAvailable(raffle, b.province); // antes de crear nada: una provincia excluida no deja rastros
 
   const order = await Order.create({
     RaffleId: raffle.id,
@@ -41,6 +44,7 @@ async function createPurchase({ raffleId, packId, double, courseId, buyer }) {
     buyerEmail: b.email,
     buyerPhone: b.phone,
     buyerDni: b.dni,
+    buyerProvince: b.province,
     PackId: quote.packId,
     double: quote.double,
     chances: quote.chances,

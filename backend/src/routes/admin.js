@@ -15,6 +15,8 @@ const audit = require('../services/audit');
 const { streamRaffleCsv } = require('../services/export');
 const mpHealth = require('../services/mpHealth');
 const draw = require('../services/draw');
+const sales = require('../services/sales');
+const { cleanExcluded } = require('../services/provinces');
 const { AuditLog } = require('../db');
 
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10 });
@@ -61,17 +63,20 @@ router.put('/raffles/:id/packs', wrap(async (req, res) => {
 router.patch('/raffles/:id', wrap(async (req, res) => {
   const raffle = await Raffle.findByPk(req.params.id);
   if (!raffle) throw new HttpError(404, 'Sorteo inexistente');
-  const allowed = ['title', 'description', 'prize', 'imageUrl', 'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'chancesGoal', 'freeEntryEnabled', 'salesCloseAt'];
+  const allowed = ['title', 'description', 'prize', 'imageUrl', 'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'chancesGoal', 'freeEntryEnabled', 'salesCloseAt', 'excludedProvinces'];
   const changes = Object.fromEntries(Object.entries(req.body || {}).filter(([k]) => allowed.includes(k)));
   if ('chancesGoal' in changes) changes.chancesGoal = cleanGoal(changes.chancesGoal);
   if ('salesCloseAt' in changes) {
     if (changes.salesCloseAt === '' || changes.salesCloseAt === null) changes.salesCloseAt = null;
     else if (Number.isNaN(new Date(changes.salesCloseAt).getTime())) throw new HttpError(400, 'La fecha de cierre no es válida');
   }
+  if ('excludedProvinces' in changes) changes.excludedProvinces = cleanExcluded(changes.excludedProvinces);
   if (changes.status && !['draft', 'active', 'closed'].includes(changes.status)) {
     throw new HttpError(400, 'Estado inválido'); // "drawn" solo se pone al cargar el ganador
   }
   if (changes.status && raffle.status === 'drawn') throw new HttpError(409, 'El sorteo ya se realizó: no se puede cambiar el estado de la venta');
+  // Para abrir (o reabrir) la venta, el sorteo ya tiene que tener autorización y bases, con los cambios de este mismo pedido
+  if (changes.status === 'active') sales.assertCanOpen({ permitNumber: raffle.permitNumber, terms: raffle.terms, ...changes });
   res.json(await raffle.update(changes));
 }));
 

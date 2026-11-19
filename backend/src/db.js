@@ -1,5 +1,6 @@
 const { Sequelize, DataTypes } = require('sequelize');
 const config = require('./config');
+const { DEFAULT_EXCLUDED, parseCodes } = require('./services/provinces');
 
 const sequelize = config.databaseUrl
   ? new Sequelize(config.databaseUrl, { logging: false })
@@ -18,6 +19,15 @@ const Raffle = sequelize.define('Raffle', {
   youtubeUrl: DataTypes.STRING,
   permitNumber: DataTypes.STRING, // N° de autorización de la lotería provincial
   terms: DataTypes.TEXT, // bases y condiciones
+  // Provincias donde el sorteo no se ofrece (códigos ISO, ej. "M,Q"). Por defecto, las que tienen régimen
+  // propio para sorteos promocionales hasta que el trámite de cada una esté resuelto.
+  excludedProvinces: {
+    type: DataTypes.TEXT,
+    allowNull: false,
+    defaultValue: DEFAULT_EXCLUDED.join(','),
+    get() { return parseCodes(this.getDataValue('excludedProvinces')); },
+    set(v) { this.setDataValue('excludedProvinces', parseCodes(v).join(',')); },
+  },
   status: {
     type: DataTypes.ENUM('draft', 'active', 'closed', 'drawn'),
     defaultValue: 'draft',
@@ -57,6 +67,7 @@ const Order = sequelize.define('Order', {
   buyerEmail: { type: DataTypes.STRING, allowNull: false },
   buyerPhone: { type: DataTypes.STRING, allowNull: false },
   buyerDni: { type: DataTypes.STRING, allowNull: false },
+  buyerProvince: DataTypes.STRING(2), // código de provincia (las compras anteriores no lo tienen)
   // Los números se asignan al confirmarse el pago, en un bloque consecutivo
   PackId: DataTypes.INTEGER, // referencia informativa (el pack se puede editar o borrar después)
   double: { type: DataTypes.BOOLEAN, defaultValue: false },
@@ -106,6 +117,7 @@ const FreeEntry = sequelize.define(
     name: { type: DataTypes.STRING, allowNull: false },
     dni: { type: DataTypes.STRING, allowNull: false },
     email: { type: DataTypes.STRING, allowNull: false },
+    province: DataTypes.STRING(2), // código de provincia
     status: { type: DataTypes.ENUM('unconfirmed', 'confirmed', 'void'), defaultValue: 'unconfirmed' },
     tokenHash: DataTypes.STRING, // hash del link de confirmación (el link en sí solo viaja por email)
     tokenExpiresAt: DataTypes.DATE,

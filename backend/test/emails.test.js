@@ -61,7 +61,7 @@ async function waitFor(fn, ms = 2000) {
 }
 
 const PDF = Buffer.from('%PDF-1.4\ncurso\n%%EOF');
-const buyer = { name: 'Ana Gómez', email: 'ana@test.com', phone: '2914555555', dni: '30111222' };
+const buyer = { name: 'Ana Gómez', email: 'ana@test.com', phone: '2914555555', dni: '30111222', province: 'B' };
 let auth, raffleId, courseId, packId;
 
 test.before(async () => {
@@ -71,7 +71,7 @@ test.before(async () => {
   const r = await request(app).post('/api/admin/raffles').set(auth)
     .send({ title: 'Gran Sorteo', prize: 'Onix 0km', drawDate: '2026-12-08T00:00:00.000Z', youtubeUrl: 'https://youtube.com/live/x', permitNumber: 'LOT-9' });
   raffleId = r.body.id;
-  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active' });
+  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active', terms: 'x'.repeat(120) });
   courseId = (await request(app).post('/api/admin/courses').set(auth).field('title', 'Cocina básica').attach('pdf', PDF, 'cocina.pdf')).body.id;
   packId = (await request(app).get(`/api/raffles/${raffleId}/packs`)).body.packs.find((p) => p.chances === 20).id;
 });
