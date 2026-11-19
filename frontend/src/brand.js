@@ -14,6 +14,7 @@ const brand = {
     'Comprá un curso digital y llevate chances para ganar un 0km. Pagás con Mercado Pago y seguís el sorteo en vivo.'
   ),
   logoUrl: env('LOGO_URL', logo), // link al logo del cliente (o reemplazá src/assets/logo.jpg)
+  heroUrl: env('HERO_URL', ''), // imagen opcional debajo del título de la portada (link público); vacía = no se muestra
   colors: {
     primary: env('PRIMARY', '#e3262f'), // color principal de la marca
     primaryText: '#ffffff',
