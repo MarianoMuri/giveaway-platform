@@ -3,6 +3,7 @@ const config = require('../config');
 const storage = require('./storage');
 const { Course, Order } = require('../db');
 const { HttpError } = require('./errors');
+const { fixFilename } = require('./filename');
 
 const PURPOSE = 'course-download';
 
@@ -31,7 +32,7 @@ async function createCourse(body, file) {
   assertPdf(file);
   const pdfKey = await storage.save(file.buffer, 'pdf');
   try {
-    return await Course.create({ ...data, pdfKey, pdfName: file.originalname, pdfSize: file.size });
+    return await Course.create({ ...data, pdfKey, pdfName: fixFilename(file.originalname), pdfSize: file.size });
   } catch (err) {
     await storage.remove(pdfKey); // no dejar archivos huérfanos si falla la DB
     throw err;
@@ -47,7 +48,7 @@ async function updateCourse(id, body, file) {
   if (file) {
     assertPdf(file);
     oldKey = course.pdfKey;
-    Object.assign(data, { pdfKey: await storage.save(file.buffer, 'pdf'), pdfName: file.originalname, pdfSize: file.size });
+    Object.assign(data, { pdfKey: await storage.save(file.buffer, 'pdf'), pdfName: fixFilename(file.originalname), pdfSize: file.size });
   }
   await course.update(data);
   if (oldKey) await storage.remove(oldKey); // se borra el viejo recién cuando el nuevo quedó guardado

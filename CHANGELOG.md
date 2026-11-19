@@ -9,6 +9,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - **Checkout con la API de Orders de Mercado Pago** (`POST /v1/orders`): reemplaza a la API de Preferences, que Mercado Pago marca como heredada y a la que ya no suma funciones. El aviso de pago es ahora el evento **Order** del panel de Webhooks; el servidor traduce el estado de la orden (acreditada, reintegrada, contracargo, rechazada) al que ya usaba, así que números, mails y anulaciones se comportan igual. Las compras anteriores (id de pago numérico) y los avisos de pagos se siguen entendiendo, y `MP_API=preferences` vuelve a la API anterior sin cambiar código. Requiere validar una compra de prueba en el sandbox (#16) (#48).
 
 ### Fixed
+- **Nombres de PDF con tildes**: al subir un curso con un archivo como "Cómo empezar.pdf" el nombre se guardaba roto ("CÃ³mo") y se veía así en el panel y en la descarga. Ahora se guarda bien y los cursos ya cargados se leen corregidos (#54).
 - **Despliegue en Railway**: la guía decía que Railway toma `backend/railway.json`, pero no lo aplica en servicios nuevos. Ahora indica cargar el Pre-deploy Command `npm run migrate` en *Settings → Deploy* y se corrige el nombre del remitente de ejemplo a "Zona Norte Automotores" (#50).
 
 ### Added
