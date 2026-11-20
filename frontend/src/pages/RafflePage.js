@@ -146,7 +146,7 @@ export default function RafflePage() {
               <div className="promo-banner" role="note">
                 {offer.promos.map((pr) => (
                   <p key={pr.name}>
-                    <strong>🎉 {pr.name}:</strong> {pr.kind === 'percent' ? `${pr.value}% de descuento` : `${pr.value} ${pr.value === 1 ? 'chance' : 'chances'} de regalo`}
+                    <strong>🎉 {pr.name}:</strong> {[pr.percent > 0 && `${pr.percent}% de descuento`, pr.bonus > 0 && `${pr.bonus} ${pr.bonus === 1 ? 'chance' : 'chances'} de regalo`].filter(Boolean).join(' + ')}
                     {pr.minChances ? ` en compras de ${pr.minChances} chances o más` : ' en tu compra'}.
                   </p>
                 ))}

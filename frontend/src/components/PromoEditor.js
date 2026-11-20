@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, dateTime } from '../api';
 
-// Promos y cupones de un sorteo: descuento en % o chances de regalo, con código o automáticas.
+// Promos y cupones de un sorteo: descuento en %, chances de regalo o las dos a la vez; con código o automáticas.
 // El interruptor "Activa" las prende y apaga al instante. Los precios los calcula el backend.
 
 const STATE = {
@@ -12,7 +12,7 @@ const STATE = {
   soldout: { label: 'Agotada', cls: 'free-void' },
 };
 
-const EMPTY = { name: '', kind: 'percent', value: '', minChances: '', code: '', startsAt: '', endsAt: '', maxUses: '', enabled: true };
+const EMPTY = { name: '', useDiscount: true, percent: '', useBonus: false, bonus: '', useCode: false, minChances: '', code: '', startsAt: '', endsAt: '', maxUses: '', enabled: true };
 
 // datetime-local trabaja con la hora del que mira, sin zona: se convierte al guardar y al leer
 const toLocalInput = (iso) => {
@@ -23,10 +23,14 @@ const toLocalInput = (iso) => {
 };
 const fromLocalInput = (v) => (v ? new Date(v).toISOString() : null);
 
-const describe = (p) => (p.kind === 'percent' ? `${p.value}% de descuento` : `${p.value} ${p.value === 1 ? 'chance' : 'chances'} de regalo`);
+const describe = (p) => [
+  p.percent > 0 && `${p.percent}% de descuento`,
+  p.bonus > 0 && `${p.bonus} ${p.bonus === 1 ? 'chance' : 'chances'} de regalo`,
+].filter(Boolean).join(' + ');
 
 const toForm = (p) => ({
-  name: p.name, kind: p.kind, value: p.value, minChances: p.minChances || '', code: p.code || '',
+  name: p.name, useDiscount: p.percent > 0, percent: p.percent || '', useBonus: p.bonus > 0, bonus: p.bonus || '',
+  useCode: !!p.code, minChances: p.minChances || '', code: p.code || '',
   startsAt: toLocalInput(p.startsAt), endsAt: toLocalInput(p.endsAt), maxUses: p.maxUses || '', enabled: p.enabled,
 });
 
@@ -45,8 +49,8 @@ export default function PromoEditor({ raffleId }) {
   if (!list) return msg ? <p className="alert">{msg.text}</p> : null;
 
   const body = (f) => ({
-    name: f.name, kind: f.kind, value: Number(f.value), minChances: f.minChances === '' ? 0 : Number(f.minChances),
-    code: f.code, startsAt: fromLocalInput(f.startsAt), endsAt: fromLocalInput(f.endsAt),
+    name: f.name, percent: f.useDiscount ? Number(f.percent) : 0, bonus: f.useBonus ? Number(f.bonus) : 0, minChances: f.minChances === '' ? 0 : Number(f.minChances),
+    code: f.useCode ? f.code : '', startsAt: fromLocalInput(f.startsAt), endsAt: fromLocalInput(f.endsAt),
     maxUses: f.maxUses === '' ? null : Number(f.maxUses), enabled: f.enabled,
   });
   const upsert = (saved) => setList((cur) => (cur.some((p) => p.id === saved.id) ? cur.map((p) => (p.id === saved.id ? saved : p)) : [...cur, saved]));
@@ -152,20 +156,33 @@ export default function PromoEditor({ raffleId }) {
             <label>Nombre (lo ve el comprador)
               <input required maxLength={80} placeholder="Ej: Black Friday" value={form.name} onChange={(e) => set('name', e.target.value)} />
             </label>
-            <label>Tipo
-              <select value={form.kind} onChange={(e) => set('kind', e.target.value)}>
-                <option value="percent">Descuento (% menos en el total)</option>
-                <option value="bonus">Chances de regalo (más chances, mismo precio)</option>
-              </select>
-            </label>
-            <label>{form.kind === 'percent' ? 'Descuento (%)' : 'Chances de regalo'}
-              <input required type="number" min="1" max={form.kind === 'percent' ? 90 : 1000} style={{ width: '7rem' }} value={form.value} onChange={(e) => set('value', e.target.value)} />
-            </label>
+          </div>
+          <p className="small muted">Elegí qué da la promo. Podés prender una, dos o las tres cosas a la vez.</p>
+          <div className="row">
+            <label className="check"><input type="checkbox" checked={form.useDiscount} onChange={(e) => set('useDiscount', e.target.checked)} /> Descuento (% menos en el total)</label>
+            {form.useDiscount && (
+              <label>Descuento (%)
+                <input required type="number" min="1" max="90" style={{ width: '7rem' }} value={form.percent} onChange={(e) => set('percent', e.target.value)} />
+              </label>
+            )}
           </div>
           <div className="row">
-            <label>Código (si lo dejás vacío, se aplica sola a todos)
-              <input maxLength={30} placeholder="Ej: ZONA10" value={form.code} onChange={(e) => set('code', e.target.value.toUpperCase())} />
-            </label>
+            <label className="check"><input type="checkbox" checked={form.useBonus} onChange={(e) => set('useBonus', e.target.checked)} /> Chances de regalo (más chances, mismo precio)</label>
+            {form.useBonus && (
+              <label>Chances de regalo
+                <input required type="number" min="1" max="1000" style={{ width: '7rem' }} value={form.bonus} onChange={(e) => set('bonus', e.target.value)} />
+              </label>
+            )}
+          </div>
+          <div className="row">
+            <label className="check"><input type="checkbox" checked={form.useCode} onChange={(e) => set('useCode', e.target.checked)} /> Con código (si lo apagás, se aplica sola a todos)</label>
+            {form.useCode && (
+              <label>Código
+                <input required maxLength={30} placeholder="Ej: ZONA10" value={form.code} onChange={(e) => set('code', e.target.value.toUpperCase())} />
+              </label>
+            )}
+          </div>
+          <div className="row">
             <label>Mínimo de chances en la compra (opcional)
               <input type="number" min="0" style={{ width: '8rem' }} value={form.minChances} onChange={(e) => set('minChances', e.target.value)} />
             </label>
@@ -183,8 +200,8 @@ export default function PromoEditor({ raffleId }) {
             <label className="check"><input type="checkbox" checked={form.enabled} onChange={(e) => set('enabled', e.target.checked)} /> Activa</label>
           </div>
           <p className="small muted">
-            {form.kind === 'percent' ? `Ejemplo: ${form.value || 20}% de descuento sobre el total de la compra.` : `Ejemplo: "comprá ${form.minChances || 5} y llevate ${form.value || 1} más".`}
-            {' '}El tope de usos cuenta solo las compras ya pagadas.
+            {form.useDiscount && form.useBonus ? 'Las dos juntas: la compra sale con descuento y además suma chances de regalo. ' : ''}
+            El tope de usos cuenta solo las compras ya pagadas.
           </p>
           <div className="row">
             <button className="btn" disabled={busy}>{busy ? 'Guardando…' : 'Guardar promo'}</button>

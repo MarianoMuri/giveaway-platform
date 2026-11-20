@@ -3,7 +3,8 @@ const { Promo, Order } = require('../db');
 const { HttpError } = require('./errors');
 
 /**
- * Promos de un sorteo: "descuento" (% menos en el total) o "chances de regalo" (chances de más, mismo precio).
+ * Promos de un sorteo: "descuento" (% menos en el total), "chances de regalo" (chances de más) o las dos juntas.
+ * Cada parte se activa por separado; la promo tiene que dar al menos una.
  *
  * - Con código: el comprador lo escribe. Sin código: es automática y se aplica sola a todos.
  * - El administrador las enciende y apaga con un interruptor; las fechas y el tope de usos son opcionales.
@@ -12,7 +13,6 @@ const { HttpError } = require('./errors');
  * - Todo se calcula acá, en centavos enteros. El frontend nunca calcula precios.
  */
 
-const KINDS = ['percent', 'bonus'];
 const MAX_PERCENT = 90; // un 100% dejaría el pago en 0 y Mercado Pago no lo acepta
 const MAX_BONUS = 1000;
 const MAX_PROMOS = 30;
@@ -37,11 +37,12 @@ function validate(input) {
   const name = String(b.name ?? '').trim().replace(/\s+/g, ' ');
   if (name.length < 2 || name.length > 80) throw new HttpError(400, 'Poné un nombre para la promo (hasta 80 letras)');
 
-  if (!KINDS.includes(b.kind)) throw new HttpError(400, 'Elegí el tipo de promo: descuento o chances de regalo');
-  const value = Number(b.value);
-  if (!Number.isInteger(value) || value < 1) throw new HttpError(400, b.kind === 'percent' ? 'El descuento tiene que ser un número entero de 1 a 90' : 'Las chances de regalo tienen que ser un número entero mayor a 0');
-  if (b.kind === 'percent' && value > MAX_PERCENT) throw new HttpError(400, `El descuento no puede pasar de ${MAX_PERCENT}%`);
-  if (b.kind === 'bonus' && value > MAX_BONUS) throw new HttpError(400, `No se pueden regalar más de ${MAX_BONUS} chances`);
+  const num = (v) => (v === undefined || v === null || v === '' ? 0 : Number(v));
+  const percent = num(b.percent);
+  const bonus = num(b.bonus);
+  if (!Number.isInteger(percent) || percent < 0 || percent > MAX_PERCENT) throw new HttpError(400, `El descuento tiene que ser un número entero de 1 a ${MAX_PERCENT} (o 0 si la promo no lleva descuento)`);
+  if (!Number.isInteger(bonus) || bonus < 0 || bonus > MAX_BONUS) throw new HttpError(400, `Las chances de regalo tienen que ser un número entero de 1 a ${MAX_BONUS} (o 0 si la promo no regala chances)`);
+  if (percent === 0 && bonus === 0) throw new HttpError(400, 'Activá al menos una cosa: descuento o chances de regalo');
 
   const minRaw = b.minChances === undefined || b.minChances === null || b.minChances === '' ? 0 : Number(b.minChances);
   if (!Number.isInteger(minRaw) || minRaw < 0 || minRaw > 10000) throw new HttpError(400, 'El mínimo de chances tiene que ser un número entero (0 si no hay mínimo)');
@@ -59,7 +60,7 @@ function validate(input) {
     if (!Number.isInteger(maxUses) || maxUses < 1) throw new HttpError(400, 'El tope de usos tiene que ser un número entero mayor a 0 (o dejalo vacío)');
   }
 
-  return { name, kind: b.kind, value, minChances: minRaw, code: code || null, enabled: Boolean(b.enabled), startsAt, endsAt, maxUses };
+  return { name, percent, bonus, minChances: minRaw, code: code || null, enabled: Boolean(b.enabled), startsAt, endsAt, maxUses };
 }
 
 // Estado que ve el administrador
@@ -74,21 +75,21 @@ function stateOf(promo, now = new Date()) {
 const isLive = (promo, now) => stateOf(promo, now) === 'on';
 const meetsMin = (promo, chances) => chances >= (promo.minChances || 0);
 
-// Cuánto le conviene al comprador, en centavos (sirve para elegir entre promos automáticas)
+// Cuánto le conviene al comprador, en centavos (sirve para elegir entre promos automáticas):
+// lo que se ahorra más el valor de las chances de regalo, a lo que sale cada chance
 function benefitCents(promo, q) {
   const total = toCents(q.total);
-  return promo.kind === 'percent'
-    ? Math.round((total * promo.value) / 100)
-    : promo.value * Math.round(total / q.chances);
+  const discount = Math.round((total * promo.percent) / 100);
+  const perChance = Math.round((total - discount) / (q.chances + promo.bonus));
+  return discount + promo.bonus * perChance;
 }
 
-// Aplica una promo a una cotización ya calculada (pack + "Duplicá")
+// Aplica una promo a una cotización ya calculada (pack + "Duplicá"). Si la promo trae las dos cosas,
+// el descuento baja el total y las chances de regalo se suman a la compra.
 function apply(q, promo) {
   const total = toCents(q.total);
-  let discount = 0;
-  let bonus = 0;
-  if (promo.kind === 'percent') discount = Math.round((total * promo.value) / 100);
-  else bonus = promo.value;
+  const discount = Math.round((total * promo.percent) / 100);
+  const bonus = promo.bonus;
   const chances = q.chances + bonus;
   const finalCents = total - discount;
   return {
@@ -98,7 +99,7 @@ function apply(q, promo) {
     perChance: fromCents(Math.round(finalCents / chances)),
     discount: fromCents(discount),
     bonusChances: bonus,
-    promo: { id: promo.id, name: promo.name, kind: promo.kind, value: promo.value, code: promo.code || null },
+    promo: { id: promo.id, name: promo.name, percent: promo.percent, bonus: promo.bonus, code: promo.code || null },
   };
 }
 
@@ -188,6 +189,6 @@ async function assertCodeFree(raffleId, code, exceptId = null) {
 }
 
 module.exports = {
-  KINDS, MAX_PERCENT, normalizeCode, validate, stateOf, benefitCents, apply, bestAutomatic, select, priceWithPromo,
+  MAX_PERCENT, normalizeCode, validate, stateOf, benefitCents, apply, bestAutomatic, select, priceWithPromo,
   listForRaffle, create, update, remove,
 };

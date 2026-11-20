@@ -140,11 +140,11 @@ function publicView({ packs, offer, promos: allPromos = [] }) {
     const promo = promos.bestAutomatic(allPromos, q, now);
     if (!promo) return null;
     const f = promos.apply(q, promo);
-    return { chances: f.chances, total: f.total, perChance: f.perChance, discount: f.discount, bonusChances: f.bonusChances, promo: { name: f.promo.name, kind: f.promo.kind, value: f.promo.value } };
+    return { chances: f.chances, total: f.total, perChance: f.perChance, discount: f.discount, bonusChances: f.bonusChances, promo: { name: f.promo.name, percent: f.promo.percent, bonus: f.promo.bonus } };
   };
   const automatic = allPromos
     .filter((p) => !p.code && promos.stateOf(p, now) === 'on')
-    .map((p) => ({ name: p.name, kind: p.kind, value: p.value, minChances: p.minChances }));
+    .map((p) => ({ name: p.name, percent: p.percent, bonus: p.bonus, minChances: p.minChances }));
   return {
     offer,
     promos: automatic,
