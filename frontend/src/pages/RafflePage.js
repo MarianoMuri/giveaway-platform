@@ -146,8 +146,8 @@ export default function RafflePage() {
               <div className="promo-banner" role="note">
                 {offer.promos.map((pr) => (
                   <p key={pr.name}>
-                    <strong>🎉 {pr.name}:</strong> {[pr.percent > 0 && `${pr.percent}% de descuento`, pr.bonus > 0 && `${pr.bonus} ${pr.bonus === 1 ? 'chance' : 'chances'} de regalo`].filter(Boolean).join(' + ')}
-                    {pr.minChances ? ` en compras de ${pr.minChances} chances o más` : ' en tu compra'}.
+                    <strong>🎉 {pr.name}:</strong> {pr.bonus > 0 ? `${pr.bonus} ${pr.bonus === 1 ? 'chance' : 'chances'} de regalo por cada ${pr.bonusEvery} que compres` : `${pr.percent}% de descuento`}
+                    {pr.minChances ? ` en compras de ${pr.minChances} chances o más` : pr.bonus > 0 ? '' : ' en tu compra'}.
                   </p>
                 ))}
               </div>
@@ -200,7 +200,7 @@ export default function RafflePage() {
             <div className="code-box">
               {withCode ? (
                 <p className="row between">
-                  <span>✅ Código <strong>{appliedCode.toUpperCase()}</strong> aplicado{codeQuote.promo ? `: ${codeQuote.promo.name}` : ''}</span>
+                  <span>✅ Código <strong>{appliedCode.toUpperCase()}</strong> aplicado{codeQuote.applied?.some((x) => x.code) ? `: ${codeQuote.applied.find((x) => x.code).name}` : '. Ya tenés una promo mejor aplicada, así que no suma'}</span>
                   <button type="button" className="linklike small" onClick={removeCode}>Quitar</button>
                 </p>
               ) : (

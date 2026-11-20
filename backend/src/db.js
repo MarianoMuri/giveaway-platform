@@ -42,6 +42,8 @@ const Raffle = sequelize.define('Raffle', {
   // Oferta "Duplicá tus chances": se suma este precio por cada chance extra
   doubleEnabled: { type: DataTypes.BOOLEAN, defaultValue: false },
   doublePricePerChance: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  // Varias promos en una compra: 'best' aplica la mayor, 'sum' las suma
+  promoMode: { type: DataTypes.STRING(8), allowNull: false, defaultValue: 'best' },
   // Contador de números del sorteo: solo avanza (los anulados no se reutilizan)
   nextNumber: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 100000 },
 });
@@ -54,12 +56,13 @@ const Pack = sequelize.define('Pack', {
   doubleEligible: { type: DataTypes.BOOLEAN, defaultValue: true }, // muestra la oferta "Duplicá" en este pack
 });
 
-// Promos de un sorteo: descuento en %, chances de regalo, o las dos juntas. Con código (el comprador lo escribe) o
+// Promos de un sorteo: cada una da un descuento en % o chances de regalo ("X por cada Y"). Con código (el comprador lo escribe) o
 // automáticas. El administrador las enciende y apaga; las fechas y el tope de usos son opcionales.
 const Promo = sequelize.define('Promo', {
   name: { type: DataTypes.STRING(80), allowNull: false },
   percent: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 }, // % de descuento (0 = sin descuento)
-  bonus: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 }, // chances de regalo (0 = sin regalo)
+  bonus: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 }, // chances de regalo (0 = sin regalo)...
+  bonusEvery: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 }, // ...por cada tantas chances compradas
   minChances: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   code: DataTypes.STRING(30),
   enabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
@@ -120,6 +123,7 @@ const Order = sequelize.define('Order', {
   PromoId: DataTypes.INTEGER, // referencia informativa (la promo se puede editar o borrar después)
   promoName: DataTypes.STRING(80), // copia: lo que se aplicó en esta compra
   promoCode: DataTypes.STRING(30),
+  PromoIds: DataTypes.STRING(120), // todas las promos usadas en la compra, ej. "1,3"
   discount: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
   bonusChances: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   voidedAt: DataTypes.DATE,
