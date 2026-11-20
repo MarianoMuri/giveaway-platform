@@ -23,7 +23,13 @@ const { cleanExcluded } = require('../services/provinces');
 const { AuditLog } = require('../db');
 const totp = require('../services/totp');
 
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10 });
+// Solo cuentan los intentos fallidos (los ingresos correctos no suman) y la espera es corta.
+const loginLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  limit: 10,
+  skipSuccessfulRequests: true,
+  message: { error: 'Demasiados intentos fallidos. Probá de nuevo en 5 minutos.' },
+});
 
 router.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body || {};
