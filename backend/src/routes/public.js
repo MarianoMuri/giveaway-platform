@@ -59,14 +59,16 @@ router.get('/raffles/:id/packs', wrap(async (req, res) => {
 
 // Compra de curso + pack: crea la orden y devuelve el link de pago
 router.post('/raffles/:id/purchases', buyLimiter, wrap(async (req, res) => {
-  const { packId, double, courseId, buyer } = req.body || {};
-  res.status(201).json(await createPurchase({ raffleId: req.params.id, packId, double: double === true, courseId, buyer }));
+  const { packId, double, courseId, buyer, code } = req.body || {};
+  res.status(201).json(await createPurchase({ raffleId: req.params.id, packId, double: double === true, courseId, buyer, code }));
 }));
 
 // Cotización de una compra: el frontend nunca calcula el total
-router.post('/raffles/:id/quote', quoteLimiter, wrap(async (req, res) => {
-  const { packId, double } = req.body || {};
-  res.json(await packs.quoteForRaffle(req.params.id, { packId, double }));
+// Los códigos de promo no se pueden adivinar a fuerza de probar: con código, el límite es más estricto
+const codeLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Probaste muchos códigos. Esperá unos minutos y reintentá.' } });
+router.post('/raffles/:id/quote', quoteLimiter, (req, res, next) => (req.body?.code ? codeLimiter(req, res, next) : next()), wrap(async (req, res) => {
+  const { packId, double, code } = req.body || {};
+  res.json(await packs.quoteForRaffle(req.params.id, { packId, double, code }));
 }));
 
 // Página de retorno: el comprador consulta el estado de su compra

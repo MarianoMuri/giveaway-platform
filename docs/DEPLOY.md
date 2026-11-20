@@ -148,6 +148,7 @@ Si se pierde el celular: guardando la clave se puede armar la app de nuevo en ot
 - [ ] El panel muestra "Conexión con Mercado Pago: OK" y el email de alerta llega (probar con una credencial equivocada en el entorno de pruebas)
 - [ ] Cambiar el deploy a credenciales de **producción** de Mercado Pago, quitar `ALLOW_MP_TEST`, y hacer una compra real de monto mínimo
 - [ ] Backup de la base verificado (ver abajo) y volumen de PDF montado
+- [ ] **Respaldos (decisión pendiente):** los automáticos de Railway (pestaña Backups) requieren el plan pago, y por ahora se decidió no pagarlo. Mientras tanto, la protección es la **copia propia** con `backend/scripts/respaldo.sh` (gratis): hacerla **antes de cada sorteo y una vez por semana**. Si más adelante se contrata el plan pago de Railway, activar Backups diarios y semanales
 
 ## Respaldos
 

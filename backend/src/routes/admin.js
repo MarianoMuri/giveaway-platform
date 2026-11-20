@@ -8,6 +8,7 @@ const liveOperator = require('../middleware/liveOperator');
 const { Raffle, Order, Chance, OrderEvent, FreeEntry } = require('../db');
 const { createRaffle, manualSale, raffleStats, cleanGoal, HttpError } = require('../services/orders');
 const packs = require('../services/packs');
+const promos = require('../services/promos');
 const emails = require('../services/emails');
 const readiness = require('../services/readiness');
 const freeEntries = require('../services/freeEntries');
@@ -85,6 +86,23 @@ router.get('/raffles/:id/packs', wrap(async (req, res) => {
 
 router.put('/raffles/:id/packs', wrap(async (req, res) => {
   res.json(adminPacksView(await packs.saveConfig(req.params.id, req.body)));
+}));
+
+// Promos del sorteo: descuento o chances de regalo, con código o automáticas, que se prenden y apagan
+router.get('/raffles/:id/promos', wrap(async (req, res) => {
+  if (!(await Raffle.findByPk(req.params.id))) throw new HttpError(404, 'Sorteo inexistente');
+  res.json(await promos.listForRaffle(req.params.id));
+}));
+router.post('/raffles/:id/promos', wrap(async (req, res) => {
+  if (!(await Raffle.findByPk(req.params.id))) throw new HttpError(404, 'Sorteo inexistente');
+  res.status(201).json(await promos.create(req.params.id, req.body));
+}));
+router.put('/raffles/:id/promos/:promoId', wrap(async (req, res) => {
+  res.json(await promos.update(req.params.id, req.params.promoId, req.body));
+}));
+router.delete('/raffles/:id/promos/:promoId', wrap(async (req, res) => {
+  await promos.remove(req.params.id, req.params.promoId);
+  res.status(204).end();
 }));
 
 router.patch('/raffles/:id', wrap(async (req, res) => {

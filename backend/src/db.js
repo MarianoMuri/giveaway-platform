@@ -54,6 +54,20 @@ const Pack = sequelize.define('Pack', {
   doubleEligible: { type: DataTypes.BOOLEAN, defaultValue: true }, // muestra la oferta "Duplicá" en este pack
 });
 
+// Promos de un sorteo: descuento en % o chances de regalo. Con código (el comprador lo escribe) o
+// automáticas. El administrador las enciende y apaga; las fechas y el tope de usos son opcionales.
+const Promo = sequelize.define('Promo', {
+  name: { type: DataTypes.STRING(80), allowNull: false },
+  kind: { type: DataTypes.STRING(10), allowNull: false }, // 'percent' | 'bonus'
+  value: { type: DataTypes.INTEGER, allowNull: false },
+  minChances: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+  code: DataTypes.STRING(30),
+  enabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  startsAt: DataTypes.DATE,
+  endsAt: DataTypes.DATE,
+  maxUses: DataTypes.INTEGER,
+}, { indexes: [{ unique: true, fields: ['RaffleId', 'code'], name: 'promos__raffle_id_code' }] });
+
 const Course = sequelize.define('Course', {
   title: { type: DataTypes.STRING, allowNull: false },
   description: DataTypes.TEXT,
@@ -103,6 +117,11 @@ const Order = sequelize.define('Order', {
   mpPreferenceId: DataTypes.STRING,
   mpPaymentId: DataTypes.STRING,
   mpStatusDetail: DataTypes.STRING,
+  PromoId: DataTypes.INTEGER, // referencia informativa (la promo se puede editar o borrar después)
+  promoName: DataTypes.STRING(80), // copia: lo que se aplicó en esta compra
+  promoCode: DataTypes.STRING(30),
+  discount: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
+  bonusChances: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   voidedAt: DataTypes.DATE,
   voidReason: DataTypes.STRING,
 });
@@ -217,5 +236,7 @@ Order.belongsTo(Course);
 
 Raffle.hasMany(Pack, { onDelete: 'CASCADE' });
 Pack.belongsTo(Raffle);
+Raffle.hasMany(Promo, { onDelete: 'CASCADE', foreignKey: { allowNull: false } });
+Promo.belongsTo(Raffle, { foreignKey: { allowNull: false } });
 
-module.exports = { sequelize, Raffle, Order, Course, Pack, Chance, FreeEntry, OrderEvent, Draw, AuditLog };
+module.exports = { sequelize, Raffle, Order, Course, Pack, Promo, Chance, FreeEntry, OrderEvent, Draw, AuditLog };

@@ -32,11 +32,11 @@ function cleanBuyer(buyer) {
  * Por eso no hay reserva ni vencimiento: si el comprador no paga, la orden
  * queda pendiente y no le saca nada a nadie.
  */
-async function createPurchase({ raffleId, packId, double, courseId, buyer }) {
+async function createPurchase({ raffleId, packId, double, courseId, buyer, code }) {
   const b = cleanBuyer(buyer);
   const course = await Course.findOne({ where: { id: Number(courseId) || 0, active: true } });
   if (!course) throw new HttpError(400, 'Elegí un curso');
-  const quote = await packs.quoteForRaffle(raffleId, { packId, double }); // valida sorteo activo y pack
+  const quote = await packs.quoteForRaffle(raffleId, { packId, double, code }); // valida sorteo activo, pack y código de promo
   const raffle = await Raffle.findByPk(raffleId);
   provinces.assertAvailable(raffle, b.province); // antes de crear nada: una provincia excluida no deja rastros
 
@@ -50,8 +50,13 @@ async function createPurchase({ raffleId, packId, double, courseId, buyer }) {
     locality: b.locality,
     PackId: quote.packId,
     double: quote.double,
-    chances: quote.chances,
+    chances: quote.chances, // ya incluye las chances de regalo de la promo
     amount: quote.total.toFixed(2),
+    PromoId: quote.promo?.id || null,
+    promoName: quote.promo?.name || null,
+    promoCode: quote.promo?.code || null,
+    discount: (quote.discount || 0).toFixed(2),
+    bonusChances: quote.bonusChances || 0,
     CourseId: course.id,
     courseTitle: course.title,
   });
