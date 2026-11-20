@@ -57,6 +57,16 @@ test('publicar: la vista pública trae el precio desde y no las chances vendidas
   assert.equal(list.body.length, 1);
 });
 
+test('editar nombre y premio: se guardan sin espacios sobrantes y no pueden quedar vacíos', async () => {
+  const patch = (body) => request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send(body);
+  const ok = await patch({ title: '  Gran Sorteo Verano  ', prize: 'Auto 0 km' });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.title, 'Gran Sorteo Verano');
+  assert.equal((await patch({ title: '   ' })).status, 400);
+  assert.equal((await patch({ prize: '' })).status, 400);
+  assert.equal((await patch({ title: 'x'.repeat(201) })).status, 400);
+});
+
 test('el estado "sorteado" no se puede poner a mano', async () => {
   const res = await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'drawn' });
   assert.equal(res.status, 400);

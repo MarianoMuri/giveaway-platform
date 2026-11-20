@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ## [Unreleased]
 
 ### Added
+- **Editar nombre y premio del sorteo**: en la página del sorteo hay un cuadro para cambiarlos cuando quieras. No pueden quedar vacíos ni pasar de 200 letras (#96).
 - **Sorteo en vivo**: se puede elegir cuántos segundos tarda en aparecer el número completo (3 a 120, por defecto 20; se recuerda en ese navegador) y se ve una cuenta regresiva mientras gira. Ya no se muestra cuántas chances participan, y la pantalla se ajusta al alto sin scroll (#90).
 - **Sorteo en vivo más emotivo**: cuenta regresiva grande que late cada segundo (y se pone roja en los últimos 5), lluvia de papelitos de colores cuando sale el ganador, y junto al nombre abreviado se muestran los últimos 3 dígitos del DNI para que el ganador se reconozca en la transmisión (#92).
 - **Aviso del ganador al administrador**: al salir el ganador (sorteo en vivo o cargado a mano) llega un mail a `ADMIN_EMAIL` con todos los datos del formulario (nombre, DNI, email, teléfono, provincia, curso, chances y monto). Si el mail falla se reintenta y nunca frena el sorteo (#92).

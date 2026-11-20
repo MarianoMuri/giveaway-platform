@@ -66,6 +66,13 @@ router.patch('/raffles/:id', wrap(async (req, res) => {
   if (!raffle) throw new HttpError(404, 'Sorteo inexistente');
   const allowed = ['title', 'description', 'prize', 'imageUrl', 'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'chancesGoal', 'freeEntryEnabled', 'salesCloseAt', 'excludedProvinces'];
   const changes = Object.fromEntries(Object.entries(req.body || {}).filter(([k]) => allowed.includes(k)));
+  for (const k of ['title', 'prize']) {
+    if (k in changes) {
+      changes[k] = String(changes[k] ?? '').trim();
+      if (!changes[k]) throw new HttpError(400, k === 'title' ? 'El nombre del sorteo no puede quedar vacío' : 'El premio no puede quedar vacío');
+      if (changes[k].length > 200) throw new HttpError(400, 'Es demasiado largo (máximo 200 letras)');
+    }
+  }
   if ('chancesGoal' in changes) changes.chancesGoal = cleanGoal(changes.chancesGoal);
   if ('salesCloseAt' in changes) {
     if (changes.salesCloseAt === '' || changes.salesCloseAt === null) changes.salesCloseAt = null;
