@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import brand from '../brand';
 import { useApi } from '../hooks';
 import { api, money, dateTime, goTo } from '../api';
+import { trackPurchaseOnce } from '../analytics';
 
 const states = {
   pending: { icon: '⏳', title: 'Estamos esperando la confirmación del pago', text: 'Puede tardar unos segundos (o más si pagaste en efectivo). Esta página se actualiza sola.' },
@@ -16,6 +17,11 @@ export default function OrderStatus() {
   const { id } = useParams();
   const { data: order, error } = useApi(`/orders/${id}`, { interval: 5000 });
   const [dl, setDl] = useState(null);
+
+  // Medición: compra confirmada (una sola vez por compra)
+  useEffect(() => {
+    if (order && ['approved', 'manual'].includes(order.status) && order.firstNumber) trackPurchaseOnce(order);
+  }, [order]);
 
   // Pide un link de descarga nuevo (el del email vence)
   async function download() {

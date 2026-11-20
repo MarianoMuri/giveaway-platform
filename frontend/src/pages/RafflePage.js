@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useApi } from '../hooks';
+import { track } from '../analytics';
 import { api, money, dateTime, goTo } from '../api';
 import brand from '../brand';
 import ProvinceSelect from '../components/ProvinceSelect';
@@ -30,10 +31,18 @@ export default function RafflePage() {
     if (packId === null && packs.length) setPackId((packs.find((p) => p.featured) || packs[0]).id);
   }, [packs, packId]);
 
+  // Medición: alguien mira el sorteo (una vez por sorteo)
+  const raffleId = raffle?.id;
+  const raffleTitle = raffle?.title;
+  useEffect(() => {
+    if (raffleId) track('ViewContent', { id: raffleId, name: raffleTitle });
+  }, [raffleId, raffleTitle]);
+
   if (error) return <div className="container"><p className="alert">Sorteo no encontrado.</p></div>;
   if (!raffle || !offer || !courses) return <div className="container"><p className="muted">Cargando…</p></div>;
 
   const pack = packs.find((p) => p.id === packId);
+
   const useDouble = double && pack?.double;
   const selection = pack && (useDouble ? pack.double : { chances: pack.chances, total: pack.price, perChance: pack.perChance });
   const course = courses.find((c) => c.id === courseId);
@@ -60,6 +69,7 @@ export default function RafflePage() {
       try {
         localStorage.setItem('lastOrder', res.orderId);
       } catch { /* sin storage */ }
+      track('InitiateCheckout', { id: raffle.id, name: raffle.title, value: selection?.total, chances: selection?.chances });
       goTo(res.checkoutUrl);
     } catch (err) {
       setMsg(err.message);
