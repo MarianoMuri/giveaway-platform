@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ## [Unreleased]
 
 ### Added
+- **Cuadro "Dónde compran"** en la página de cada sorteo: compras, chances, recaudación, % de la plata y participaciones gratuitas por provincia. Solo cuentan compras acreditadas (#104).
 - **Entrada aparte para el sorteo en vivo** (`/admin/en-vivo`): lista los sorteos publicados sin mostrar recaudación ni datos de compradores, así se puede transmitir sin exponer el panel. El botón se abre en otra pestaña desde la lista de sorteos y salió de la página de administración de cada sorteo; "Salir" del vivo vuelve a esa entrada (#98).
 - **Editar nombre y premio del sorteo**: en la página del sorteo hay un cuadro para cambiarlos cuando quieras. No pueden quedar vacíos ni pasar de 200 letras (#96).
 - **Sorteo en vivo**: se puede elegir cuántos segundos tarda en aparecer el número completo (3 a 120, por defecto 20; se recuerda en ese navegador) y se ve una cuenta regresiva mientras gira. Ya no se muestra cuántas chances participan, y la pantalla se ajusta al alto sin scroll (#90).

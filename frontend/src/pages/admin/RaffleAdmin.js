@@ -31,6 +31,7 @@ const toLocalInput = (iso) => {
 export default function RaffleAdmin() {
   const { id } = useParams();
   const { data: raffles, reload: reloadRaffles } = useApi('/admin/raffles', { auth: true });
+  const { data: byProv } = useApi(`/admin/raffles/${id}/by-province`, { auth: true, interval: 60000 });
   const { data: stats, reload: reloadStats } = useApi(`/admin/raffles/${id}/stats`, { auth: true, interval: 20000 });
   const [filter, setFilter] = useState('');
   const { data: orders, reload: reloadOrders } = useApi(
@@ -273,6 +274,29 @@ export default function RaffleAdmin() {
         {stats?.reversed > 0 && <div className="card stat"><span>Anuladas (reintegro / contracargo)</span><strong>{stats.reversed}</strong></div>}
         {stats?.review > 0 && <div className="card stat"><span>Para revisar</span><strong className="gold">{stats.review}</strong></div>}
       </div>
+      {byProv && byProv.provinces.length > 0 && (
+        <section className="card">
+          <h3>Dónde compran</h3>
+          <p className="small muted">Según la provincia que eligió cada persona. Solo cuentan compras acreditadas. Sirve para decidir dónde hacer publicidad.</p>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Provincia</th><th>Compras</th><th>Chances</th><th>Recaudado</th><th>% de la plata</th><th>Gratis</th></tr></thead>
+              <tbody>
+                {byProv.provinces.map((p) => (
+                  <tr key={p.code || 'sin-dato'}>
+                    <td>{p.name}</td>
+                    <td>{p.purchases}</td>
+                    <td>{p.chances.toLocaleString('es-AR')}</td>
+                    <td className="nowrap">{money(p.revenue)}</td>
+                    <td>{Math.round(p.share * 100)}%</td>
+                    <td>{p.freeEntries}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
       {stats?.emailsFailed > 0 && (
         <div className="alert row between">
           <span><strong>{stats.emailsFailed.toLocaleString('es-AR')}</strong> {stats.emailsFailed === 1 ? 'email falló' : 'emails fallaron'} después de varios intentos: esos compradores no recibieron sus números.</span>
