@@ -174,6 +174,12 @@ const Draw = sequelize.define(
     actor: { type: DataTypes.STRING, allowNull: false },
     reason: DataTypes.STRING,
     supersededAt: DataTypes.DATE,
+    // Aviso del ganador al administrador (cola con reintentos): none | pending | sent | failed
+    alertStatus: { type: DataTypes.STRING(10), allowNull: false, defaultValue: 'none' },
+    alertAttempts: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    alertNextAttemptAt: DataTypes.DATE,
+    alertSentAt: DataTypes.DATE,
+    alertLastError: DataTypes.STRING(500),
   },
   { indexes: [{ fields: ['RaffleId'] }] }
 );

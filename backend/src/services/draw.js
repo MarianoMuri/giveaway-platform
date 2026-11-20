@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { sequelize, Raffle, Chance, Draw } = require('../db');
 const { HttpError, drawWinner, assertClosedForDraw } = require('./orders');
 const audit = require('./audit');
+const winnerAlert = require('./winnerAlert');
 
 const MAX_ATTEMPTS = 5;
 
@@ -16,7 +17,8 @@ function cleanReason(raffle, reason) {
 async function saveDraw(raffleId, { number, method, validCount = null, position = null, actor, reason }) {
   const row = await sequelize.transaction(async (t) => {
     await Draw.update({ supersededAt: new Date() }, { where: { RaffleId: raffleId, supersededAt: null }, transaction: t });
-    return Draw.create({ RaffleId: raffleId, number, method, validCount, position, actor, reason }, { transaction: t });
+    // el aviso al administrador queda pendiente en la MISMA transacción: si el servidor se cae, no se pierde
+    return Draw.create({ RaffleId: raffleId, number, method, validCount, position, actor, reason, ...winnerAlert.pendingFields() }, { transaction: t });
   });
   return row;
 }
