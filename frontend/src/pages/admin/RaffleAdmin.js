@@ -5,6 +5,7 @@ import ProvinceSelect from '../../components/ProvinceSelect';
 import { useApi } from '../../hooks';
 import { api, money, DEMO, numbersLabel, dateTime } from '../../api';
 import PackEditor from '../../components/PackEditor';
+import PromoEditor from '../../components/PromoEditor';
 import SalesProgress from '../../components/SalesProgress';
 import SearchPanel from '../../components/SearchPanel';
 import ActivityLog from '../../components/ActivityLog';
@@ -355,6 +356,8 @@ export default function RaffleAdmin() {
       </section>
 
       <PackEditor raffleId={id} />
+
+      <PromoEditor raffleId={id} />
 
       <SearchPanel raffleId={id} />
 

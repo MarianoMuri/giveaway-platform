@@ -23,6 +23,11 @@ export default function RafflePage() {
   const [accept, setAccept] = useState(false);
   const [sending, setSending] = useState(false);
   const [msg, setMsg] = useState(null);
+  // Código de promo: el total con código lo calcula el backend (codeQuote); acá no se resta nada
+  const [codeInput, setCodeInput] = useState('');
+  const [appliedCode, setAppliedCode] = useState(null);
+  const [codeQuote, setCodeQuote] = useState(null);
+  const [codeMsg, setCodeMsg] = useState(null);
   const coursesRef = useRef(null);
   const packsRef = useRef(null);
 
@@ -39,13 +44,46 @@ export default function RafflePage() {
     if (raffleId) track('ViewContent', { id: raffleId, name: raffleTitle });
   }, [raffleId, raffleTitle]);
 
+  // Con un código aplicado, cada cambio de pack o de "Duplicá" se vuelve a cotizar en el backend.
+  // Si el código ya no sirve para esa elección (por ejemplo pide más chances), se avisa y se saca.
+  const doubleOn = double;
+  useEffect(() => {
+    if (!appliedCode || packId === null || !raffleId) return undefined;
+    let alive = true;
+    const p = packs.find((x) => x.id === packId);
+    api(`/raffles/${raffleId}/quote`, { method: 'POST', body: { packId, double: Boolean(doubleOn && p?.double), code: appliedCode } })
+      .then((q) => { if (alive) { setCodeQuote(q); setCodeMsg(null); } })
+      .catch((err) => { if (alive) { setCodeQuote(null); setAppliedCode(null); setCodeMsg(err.message); } });
+    return () => { alive = false; };
+  }, [appliedCode, packId, doubleOn, raffleId, packs]);
+
   if (error) return <div className="container"><p className="alert">Sorteo no encontrado.</p></div>;
   if (!raffle || !offer || !courses) return <div className="container"><p className="muted">Cargando…</p></div>;
 
   const pack = packs.find((p) => p.id === packId);
 
   const useDouble = double && pack?.double;
-  const selection = pack && (useDouble ? pack.double : { chances: pack.chances, total: pack.price, perChance: pack.perChance });
+  const baseSel = pack && (useDouble ? pack.double : { chances: pack.chances, total: pack.price, perChance: pack.perChance });
+  // Promo automática (la calcula el backend) o la del código aplicado
+  const autoFinal = pack && (useDouble ? pack.double.final : pack.final);
+  const withCode = appliedCode && codeQuote;
+  const selection = withCode ? codeQuote : autoFinal ? { ...baseSel, ...autoFinal } : baseSel;
+  const codeLoading = appliedCode && !codeQuote;
+
+  function applyCode(e) {
+    if (e) e.preventDefault();
+    const c = codeInput.trim();
+    if (!c) return;
+    setCodeMsg(null);
+    setCodeQuote(null);
+    setAppliedCode(c);
+  }
+  function removeCode() {
+    setAppliedCode(null);
+    setCodeQuote(null);
+    setCodeMsg(null);
+    setCodeInput('');
+  }
   const course = courses.find((c) => c.id === courseId);
   const scrollTo = (ref) => setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
 
@@ -65,7 +103,7 @@ export default function RafflePage() {
     try {
       const res = await api(`/raffles/${raffle.id}/purchases`, {
         method: 'POST',
-        body: { courseId: course.id, packId: pack.id, double: Boolean(useDouble), buyer },
+        body: { courseId: course.id, packId: pack.id, double: Boolean(useDouble), buyer, code: appliedCode || undefined },
       });
       try {
         localStorage.setItem('lastOrder', res.orderId);
@@ -104,6 +142,16 @@ export default function RafflePage() {
 
           <section className="step buy-packs" ref={packsRef}>
             <h2><span className="step-n">2</span> Elegí tus chances</h2>
+            {offer.promos?.length > 0 && (
+              <div className="promo-banner" role="note">
+                {offer.promos.map((pr) => (
+                  <p key={pr.name}>
+                    <strong>🎉 {pr.name}:</strong> {pr.kind === 'percent' ? `${pr.value}% de descuento` : `${pr.value} ${pr.value === 1 ? 'chance' : 'chances'} de regalo`}
+                    {pr.minChances ? ` en compras de ${pr.minChances} chances o más` : ' en tu compra'}.
+                  </p>
+                ))}
+              </div>
+            )}
             <div className="pack-list" role="radiogroup" aria-label="Packs de chances">
               {packs.map((p) => (
                 <button
@@ -115,11 +163,14 @@ export default function RafflePage() {
                   onClick={() => { setPackId(p.id); setMsg(null); }}
                 >
                   {p.featured && <span className="pack-tag">El más elegido</span>}
-                  <span className="pack-chances"><strong>{p.chances}</strong> chances</span>
-                  <span className="pack-price">{money(p.price)}</span>
+                  <span className="pack-chances"><strong>{p.final ? p.final.chances : p.chances}</strong> chances{p.final?.bonusChances > 0 && <span className="save small"> (+{p.final.bonusChances} de regalo)</span>}</span>
+                  <span className="pack-price">
+                    {p.final?.discount > 0 && <s className="pack-was">{money(p.price)}</s>}{' '}
+                    {money(p.final ? p.final.total : p.price)}
+                  </span>
                   <span className="pack-meta small">
-                    {money(p.perChance)} c/u
-                    {p.savingsPct && <span className="save"> · {p.savingsPct}% menos por chance</span>}
+                    {money(p.final ? p.final.perChance : p.perChance)} c/u
+                    {p.final ? <span className="save"> · {p.final.promo.name}</span> : p.savingsPct && <span className="save"> · {p.savingsPct}% menos por chance</span>}
                   </span>
                 </button>
               ))}
@@ -131,7 +182,7 @@ export default function RafflePage() {
                 <input type="checkbox" checked={double} onChange={(e) => setDouble(e.target.checked)} />
                 <span>
                   <strong>¡Duplicá tus chances!</strong> Sumá {pack.chances} chances más por {money(pack.double.doubleExtra)}
-                  <span className="small muted"> → {pack.double.chances} chances por {money(pack.double.total)}</span>
+                  <span className="small muted"> → {(pack.double.final || pack.double).chances} chances por {money((pack.double.final || pack.double).total)}</span>
                 </span>
               </label>
             )}
@@ -146,10 +197,30 @@ export default function RafflePage() {
             <label>Email (te llega el curso)<input required type="email" autoComplete="email" value={buyer.email} onChange={(e) => setBuyer({ ...buyer, email: e.target.value })} /></label>
             <ProfileFields value={buyer} onChange={setBuyer} />
 
+            <div className="code-box">
+              {withCode ? (
+                <p className="row between">
+                  <span>✅ Código <strong>{appliedCode.toUpperCase()}</strong> aplicado{codeQuote.promo ? `: ${codeQuote.promo.name}` : ''}</span>
+                  <button type="button" className="linklike small" onClick={removeCode}>Quitar</button>
+                </p>
+              ) : (
+                <div className="row">
+                  <label className="grow">¿Tenés un código de promo?
+                    <input value={codeInput} autoCapitalize="characters" autoComplete="off" placeholder="Escribilo acá" onChange={(e) => setCodeInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') applyCode(e); }} />
+                  </label>
+                  <button type="button" className="btn btn-ghost btn-sm" disabled={!codeInput.trim() || codeLoading} onClick={applyCode}>{codeLoading ? 'Verificando…' : 'Aplicar'}</button>
+                </div>
+              )}
+              {codeMsg && <p className="alert small" role="alert">{codeMsg}</p>}
+            </div>
+
             <div className="summary">
               <div className="row between"><span className="muted">Curso</span><span>{course ? course.title : <button type="button" className="linklike" onClick={() => scrollTo(coursesRef)}>Elegir</button>}</span></div>
-              <div className="row between"><span className="muted">Chances</span><span>{selection ? selection.chances : '-'}</span></div>
+              <div className="row between"><span className="muted">Chances</span><span>{selection ? selection.chances : '-'}{selection?.bonusChances > 0 && <span className="save small"> (incluye {selection.bonusChances} de regalo)</span>}</span></div>
               <div className="row between"><span className="muted">Precio por chance</span><span>{selection ? money(selection.perChance) : '-'}</span></div>
+              {selection?.promo && selection.discount > 0 && (
+                <div className="row between"><span className="muted">Descuento ({selection.promo.name})</span><span className="save">- {money(selection.discount)}</span></div>
+              )}
               <div className="row between total"><span>Total</span><strong>{selection ? money(selection.total) : '-'}</strong></div>
             </div>
 
