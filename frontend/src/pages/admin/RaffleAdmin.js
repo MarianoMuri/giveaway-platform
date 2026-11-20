@@ -43,6 +43,11 @@ export default function RaffleAdmin() {
   const { data: freeList, reload: reloadFree } = useApi(`/admin/raffles/${id}/free-entries`, { auth: true });
   const [history, setHistory] = useState({}); // historial de estados por compra (se carga al abrirlo)
   const [closeAt, setCloseAt] = useState(null); // null = sin tocar (se muestra el valor guardado)
+  const [drawAt, setDrawAt] = useState(null); // idem para la fecha del sorteo
+  const [drawBusy, setDrawBusy] = useState(false);
+  const [drawResult, setDrawResult] = useState(null);
+  const [closeBusy, setCloseBusy] = useState(false);
+  const [closeResult, setCloseResult] = useState(null);
   const [readiness, setReadiness] = useState(null);
   const [checking, setChecking] = useState(false);
   const [winnerInput, setWinnerInput] = useState('');
@@ -118,13 +123,35 @@ export default function RaffleAdmin() {
     );
   };
 
-  const saveCloseAt = (e) => {
+  const saveCloseAt = async (e) => {
     e.preventDefault();
     const value = closeAt === null ? toLocalInput(raffle.salesCloseAt) : closeAt;
-    return run(
+    setCloseBusy(true);
+    setCloseResult(null);
+    const ok = await run(
       () => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { salesCloseAt: value ? new Date(value).toISOString() : null } }),
       value ? 'Fecha de cierre guardada' : 'Se quitó la fecha de cierre'
-    ).then((ok) => ok && setCloseAt(null));
+    );
+    if (ok) setCloseAt(null);
+    setCloseResult(ok
+      ? { type: 'ok', text: value ? '✓ Guardado' : '✓ Fecha quitada' }
+      : { type: 'alert', text: 'No se pudo guardar. Mirá el aviso al principio de la página.' });
+    setCloseBusy(false);
+  };
+
+  const saveDrawAt = async (e) => {
+    e.preventDefault();
+    const value = drawAt === null ? toLocalInput(raffle.drawDate) : drawAt;
+    if (!value) { setDrawResult({ type: 'alert', text: 'Poné una fecha y hora para el sorteo.' }); return; }
+    setDrawBusy(true);
+    setDrawResult(null);
+    const ok = await run(
+      () => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { drawDate: new Date(value).toISOString() } }),
+      'Fecha del sorteo guardada'
+    );
+    if (ok) setDrawAt(null);
+    setDrawResult(ok ? { type: 'ok', text: '✓ Guardado' } : { type: 'alert', text: 'No se pudo guardar. Mirá el aviso al principio de la página.' });
+    setDrawBusy(false);
   };
 
   // Le pregunta a Mercado Pago por las compras sin pago registrado y carga las que faltaban
@@ -244,11 +271,19 @@ export default function RaffleAdmin() {
 
       <section className="card readiness">
         <h3>Cierre de venta y control previo al sorteo</h3>
+        <form className="row" onSubmit={saveDrawAt}>
+          <label>Fecha y hora del sorteo (se muestra en la portada)
+            <input type="datetime-local" value={drawAt === null ? toLocalInput(raffle.drawDate) : drawAt} onChange={(e) => setDrawAt(e.target.value)} />
+          </label>
+          <button className="btn btn-ghost" disabled={drawBusy}>{drawBusy ? 'Guardando…' : 'Guardar fecha del sorteo'}</button>
+          {drawResult && <span className={drawResult.type} role="status">{drawResult.text}</span>}
+        </form>
         <form className="row" onSubmit={saveCloseAt}>
           <label>Cierre de venta (opcional)
             <input type="datetime-local" value={closeAt === null ? toLocalInput(raffle.salesCloseAt) : closeAt} onChange={(e) => setCloseAt(e.target.value)} />
           </label>
-          <button className="btn btn-ghost">Guardar fecha</button>
+          <button className="btn btn-ghost" disabled={closeBusy}>{closeBusy ? 'Guardando…' : 'Guardar fecha'}</button>
+          {closeResult && <span className={closeResult.type} role="status">{closeResult.text}</span>}
         </form>
         <p className="small muted">
           Al llegar esa fecha no se pueden comprar más chances ni sumar participaciones gratuitas. Las compras iniciadas antes y acreditadas después se respetan.
