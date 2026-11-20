@@ -64,3 +64,13 @@ test('totp: coincide con los vectores de la RFC 6238 (SHA1)', () => {
   assert.equal(totp.codeAt(secret, Math.floor(1111111109 / 30)), '081804');
   assert.equal(totp.codeAt(secret, Math.floor(1234567890 / 30)), '005924');
 });
+
+test('doble verificación: si la clave cargada es inválida, avisa claro y no deja entrar', async () => {
+  const config = require('../src/config');
+  config.admin.totpSecret = '"CLAVE-CON-COMILLAS-1"';
+  const res = await request(app).post('/api/admin/login').send({ email: 'admin@test', password: 'clave123', code: '123456' });
+  assert.equal(res.status, 500);
+  assert.match(res.body.error, /ADMIN_TOTP_SECRET/);
+  assert.equal(res.body.token, undefined);
+  config.admin.totpSecret = '';
+});

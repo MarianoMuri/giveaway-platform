@@ -38,7 +38,15 @@ router.post('/login', loginLimiter, async (req, res) => {
   if (role === 'admin' && config.admin.totpSecret) {
     const code = String((req.body || {}).code || '').trim();
     if (!code) return res.status(401).json({ error: 'Ingresá el código de 6 números de tu app de autenticación', needsCode: true });
-    if (!totp.verify(config.admin.totpSecret, code)) {
+    let valid;
+    try {
+      valid = totp.verify(config.admin.totpSecret, code);
+    } catch (err) {
+      // La clave cargada en ADMIN_TOTP_SECRET tiene caracteres que no son válidos: no se puede verificar nada
+      console.error('ADMIN_TOTP_SECRET inválida:', err.message);
+      return res.status(500).json({ error: 'La doble verificación está mal configurada: revisá la variable ADMIN_TOTP_SECRET en Railway (32 letras y números del 2 al 7, sin comillas ni espacios).' });
+    }
+    if (!valid) {
       await audit.record({ actor: String(email || '').slice(0, 100), action: 'login.failed.2fa', ip: req.ip });
       return res.status(401).json({ error: 'Código incorrecto o vencido. Probá con el que se muestra ahora.', needsCode: true });
     }
