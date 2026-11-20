@@ -92,6 +92,10 @@ Es lo que usa hoy el sitio de pruebas (Netlify pausa las publicaciones si se aca
 - Las rutas de React funcionan solas (Pages sirve `index.html` si no existe el archivo) y las cabeceras de seguridad salen de `frontend/public/_headers`.
 - Después, en Railway, poner `FRONTEND_URL` con la dirección nueva (la API solo acepta esa) y volver a desplegar.
 
+### Vista previa al compartir (Cloudflare Pages)
+
+El archivo `frontend/functions/_middleware.js` completa título, descripción y foto cuando alguien comparte un link. Usa estas variables del proyecto de Pages (en *Settings → Variables and secrets*, en Producción): `REACT_APP_API_URL` (ya está), `REACT_APP_BRAND_NAME`, `REACT_APP_BRAND_DESCRIPTION` y, si se quiere otra imagen para la portada, `REACT_APP_BRAND_SHARE_IMAGE` (link a una imagen de 1200x630). Sin la imagen usa `frontend/public/share-default.jpg`. WhatsApp guarda la vista previa un tiempo: para probar un link nuevo, agregarle `?v=2` al final. Para forzar a Facebook/Instagram a releerla: https://developers.facebook.com/tools/debug/.
+
 ## 2b. Netlify: el sitio
 
 1. *Add new site → Import from Git*, con el mismo repositorio. Netlify toma `frontend/netlify.toml` (build, carpeta de salida, redirección para las rutas de React y cabeceras de seguridad).
