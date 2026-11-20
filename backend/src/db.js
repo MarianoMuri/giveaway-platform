@@ -36,6 +36,7 @@ const Raffle = sequelize.define('Raffle', {
   winnerNumber: DataTypes.INTEGER,
   // Modalidad "sin obligación de compra": cualquiera puede sumarse gratis con 1 número por DNI
   freeEntryEnabled: { type: DataTypes.BOOLEAN, defaultValue: true },
+  liveEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true }, // botón de "Sorteo en vivo" habilitado
   // Oferta "Duplicá tus chances": se suma este precio por cada chance extra
   doubleEnabled: { type: DataTypes.BOOLEAN, defaultValue: false },
   doublePricePerChance: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },

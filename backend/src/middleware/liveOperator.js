@@ -10,9 +10,15 @@ const mask = {
   dni: (dni) => String(dni || '').replace(/\D/g, '').slice(-3),
 };
 
-const RAFFLE_FIELDS = ['id', 'title', 'prize', 'status', 'salesCloseAt', 'winnerNumber', 'drawDate'];
+const { Raffle } = require('../db');
+
+const RAFFLE_FIELDS = ['id', 'title', 'prize', 'status', 'salesCloseAt', 'winnerNumber', 'drawDate', 'liveEnabled'];
 
 module.exports = function liveOperator(req, res, next) {
+  handle(req, res, next).catch(next);
+};
+
+async function handle(req, res, next) {
   if (req.admin?.role !== 'live') return next();
   const path = req.path;
 
@@ -22,6 +28,9 @@ module.exports = function liveOperator(req, res, next) {
     return next();
   }
   if (req.method === 'POST' && /^\/raffles\/\d+\/draw$/.test(path)) {
+    // El administrador puede deshabilitar un sorteo para que no se abra por error
+    const raffle = await Raffle.findByPk(Number(path.split('/')[2]));
+    if (raffle && raffle.liveEnabled === false) return res.status(403).json({ error: 'Este sorteo está deshabilitado para el vivo. Pedile al administrador que lo habilite.' });
     const json = res.json.bind(res);
     res.json = (out) => (out && out.winner
       ? json({ number: out.number, draw: out.draw ? { id: out.draw.id, number: out.draw.number } : null,
@@ -30,4 +39,4 @@ module.exports = function liveOperator(req, res, next) {
     return next();
   }
   return res.status(403).json({ error: 'Este usuario solo puede hacer el sorteo en vivo' });
-};
+}
