@@ -21,6 +21,7 @@ const { segmentSales } = require('../services/segments');
 const sales = require('../services/sales');
 const { cleanExcluded } = require('../services/provinces');
 const { AuditLog } = require('../db');
+const totp = require('../services/totp');
 
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10 });
 
@@ -32,6 +33,15 @@ router.post('/login', loginLimiter, async (req, res) => {
   if (!role) {
     await audit.record({ actor: String(email || '').slice(0, 100) || 'desconocido', action: 'login.failed', ip: req.ip });
     return res.status(401).json({ error: 'Credenciales inválidas' });
+  }
+  // Doble verificación: solo para el administrador, y solo si está activada (ADMIN_TOTP_SECRET)
+  if (role === 'admin' && config.admin.totpSecret) {
+    const code = String((req.body || {}).code || '').trim();
+    if (!code) return res.status(401).json({ error: 'Ingresá el código de 6 números de tu app de autenticación', needsCode: true });
+    if (!totp.verify(config.admin.totpSecret, code)) {
+      await audit.record({ actor: String(email || '').slice(0, 100), action: 'login.failed.2fa', ip: req.ip });
+      return res.status(401).json({ error: 'Código incorrecto o vencido. Probá con el que se muestra ahora.', needsCode: true });
+    }
   }
   await audit.record({ actor: email, action: role === 'live' ? 'login.ok.live' : 'login.ok', ip: req.ip });
   res.json({ role, token: jwt.sign({ email, role }, config.jwtSecret, { expiresIn: '12h' }) });

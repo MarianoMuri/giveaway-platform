@@ -108,6 +108,15 @@ El archivo `frontend/functions/_middleware.js` completa título, descripción y 
 
 Las variables `REACT_APP_*` se incorporan al compilar: si se cambian, hay que volver a desplegar el sitio.
 
+### Doble verificación del administrador (recomendado antes de abrir las ventas)
+
+1. En tu computadora, en la carpeta `backend`: `node scripts/two-factor-setup.js tu@mail.com`. Muestra una clave (no se guarda en ningún lado).
+2. En Railway, servicio de la API → Variables: crear `ADMIN_TOTP_SECRET` con esa clave. Esperar a que termine de publicar.
+3. En el celular, en Google Authenticator: "+" → "Ingresar clave de configuración" → pegar la misma clave.
+4. Al entrar al panel, después de la contraseña pide el código de 6 números.
+
+Si se pierde el celular: guardando la clave se puede armar la app de nuevo en otro; si no, se borra `ADMIN_TOTP_SECRET` en Railway (el panel vuelve a pedir solo la contraseña) y se repite el proceso. El operador del sorteo en vivo no usa código.
+
 ## 3. Dominio y HTTPS
 
 1. En Netlify, *Domain management → Add a domain* con `sorteos.cliente.com.ar`, y crear en el DNS del cliente el registro CNAME que indica Netlify.
