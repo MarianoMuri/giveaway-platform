@@ -39,21 +39,32 @@ function signedWebhook(paymentId) {
 // ---- Lógica pura (sin base) ----
 
 const q20 = { packId: 3, chances: 20, packPrice: 45000, double: false, doubleExtra: 0, total: 45000, perChance: 2250 };
-const P = (o) => ({ id: 1, name: 'Promo', kind: 'percent', value: 20, minChances: 0, code: null, enabled: true, startsAt: null, endsAt: null, maxUses: null, used: 0, ...o });
+const P = (o) => ({ id: 1, name: 'Promo', percent: 20, bonus: 0, minChances: 0, code: null, enabled: true, startsAt: null, endsAt: null, maxUses: null, used: 0, ...o });
 const NOW = new Date('2026-11-20T15:00:00Z');
 
 test('descuento en %: baja el total y deja las chances', () => {
-  const r = promos.apply(q20, P({ value: 20 }));
+  const r = promos.apply(q20, P({ percent: 20 }));
   assert.deepEqual([r.chances, r.total, r.discount, r.bonusChances, r.perChance], [20, 36000, 9000, 0, 1800]);
 });
 
 test('chances de regalo: suma chances y no cambia el precio', () => {
-  const r = promos.apply(q20, P({ kind: 'bonus', value: 5 }));
+  const r = promos.apply(q20, P({ percent: 0, bonus: 5 }));
   assert.deepEqual([r.chances, r.total, r.discount, r.bonusChances, r.perChance], [25, 45000, 0, 5, 1800]);
 });
 
+test('descuento y chances de regalo juntos: baja el total y suma las chances', () => {
+  const r = promos.apply(q20, P({ percent: 20, bonus: 5 }));
+  assert.deepEqual([r.chances, r.total, r.discount, r.bonusChances, r.perChance], [25, 36000, 9000, 5, 1440]);
+  assert.deepEqual([r.promo.percent, r.promo.bonus], [20, 5]);
+});
+
+test('una promo combinada le conviene más que una de solo descuento parecida', () => {
+  const list = [P({ id: 1, percent: 20 }), P({ id: 2, percent: 20, bonus: 5 })];
+  assert.equal(promos.select({ promos: list, q: q20, now: NOW }).id, 2);
+});
+
 test('el descuento se calcula en centavos enteros', () => {
-  const r = promos.apply({ ...q20, total: 0.1, packPrice: 0.1, chances: 1 }, P({ value: 15 }));
+  const r = promos.apply({ ...q20, total: 0.1, packPrice: 0.1, chances: 1 }, P({ percent: 15 }));
   assert.equal(r.discount, 0.02); // 15% de 0,10 = 0,015 -> 2 centavos
   assert.equal(r.total, 0.08);
 });
@@ -68,10 +79,10 @@ test('estado: apagada, programada, vencida, agotada y activa', () => {
 
 test('sin código: se aplica la automática que más le conviene al comprador; las apagadas no cuentan', () => {
   const list = [
-    P({ id: 1, value: 10 }),
-    P({ id: 2, value: 30 }),
-    P({ id: 3, value: 50, enabled: false }),
-    P({ id: 4, value: 80, code: 'SECRETO' }), // con código: nunca se aplica sola
+    P({ id: 1, percent: 10 }),
+    P({ id: 2, percent: 30 }),
+    P({ id: 3, percent: 50, enabled: false }),
+    P({ id: 4, percent: 80, code: 'SECRETO' }), // con código: nunca se aplica sola
   ];
   assert.equal(promos.select({ promos: list, q: q20, now: NOW }).id, 2);
   assert.equal(promos.select({ promos: [P({ enabled: false })], q: q20, now: NOW }), null);
@@ -84,7 +95,7 @@ test('el mínimo de chances decide si aplica', () => {
 });
 
 test('con código: sin importar mayúsculas ni espacios; reemplaza a la automática', () => {
-  const list = [P({ id: 1, value: 10 }), P({ id: 2, value: 20, code: 'ZONA10' })];
+  const list = [P({ id: 1, percent: 10 }), P({ id: 2, percent: 20, code: 'ZONA10' })];
   assert.equal(promos.select({ promos: list, q: q20, code: ' zona 10 ', now: NOW }).id, 2);
 });
 
@@ -97,17 +108,17 @@ test('un código malo avisa, no se ignora en silencio', () => {
 });
 
 test('validación de lo que manda el panel', () => {
-  const ok = { name: 'Black Friday', kind: 'percent', value: 20, code: 'bf 20', enabled: true };
+  const ok = { name: 'Black Friday', percent: 20, code: 'bf 20', enabled: true };
   assert.deepEqual(
     { ...promos.validate(ok), startsAt: null, endsAt: null },
-    { name: 'Black Friday', kind: 'percent', value: 20, minChances: 0, code: 'BF20', enabled: true, startsAt: null, endsAt: null, maxUses: null }
+    { name: 'Black Friday', percent: 20, bonus: 0, minChances: 0, code: 'BF20', enabled: true, startsAt: null, endsAt: null, maxUses: null }
   );
   const bad = [
     [{ ...ok, name: '' }, /nombre/],
-    [{ ...ok, kind: 'otro' }, /tipo de promo/],
-    [{ ...ok, value: 0 }, /entero/],
-    [{ ...ok, value: 100 }, /90/],
-    [{ ...ok, value: 2.5 }, /entero/],
+    [{ ...ok, percent: 0 }, /al menos una cosa/],
+    [{ ...ok, percent: 100 }, /1 a 90/],
+    [{ ...ok, percent: 2.5 }, /entero/],
+    [{ ...ok, percent: 0, bonus: 5000 }, /1 a 1000/],
     [{ ...ok, code: 'a' }, /código/],
     [{ ...ok, startsAt: '2026-12-01', endsAt: '2026-11-01' }, /posterior/],
     [{ ...ok, maxUses: 0 }, /tope de usos/],
@@ -123,7 +134,7 @@ const api = (p) => `/api/raffles/${raffleId}${p}`;
 const admin = (p) => `/api/admin/raffles/${raffleId}${p}`;
 const pack = (n) => packs.find((p) => p.chances === n);
 const quote = (body) => request(app).post(api('/quote')).send(body);
-const create = (body) => request(app).post(admin('/promos')).set(auth).send({ name: 'Promo', kind: 'percent', value: 10, ...body });
+const create = (body) => request(app).post(admin('/promos')).set(auth).send({ name: 'Promo', percent: 10, ...body });
 
 test.before(async () => {
   await sequelize.sync({ force: true });
@@ -145,7 +156,7 @@ test('el panel exige ser administrador', async () => {
 });
 
 test('promo con código: no aparece en la página pública y la cotización la aplica', async () => {
-  const made = await create({ name: 'Código ZONA20', value: 20, code: 'zona20', enabled: true });
+  const made = await create({ name: 'Código ZONA20', percent: 20, code: 'zona20', enabled: true });
   assert.equal(made.status, 201);
   assert.equal(made.body.code, 'ZONA20');
 
@@ -178,7 +189,7 @@ test('apagar la promo con el interruptor la deja sin efecto, y volver a prenderl
 });
 
 test('promo automática de chances de regalo: se muestra en la página y se aplica sola', async () => {
-  const made = await create({ name: 'Comprá 20 y llevate 5 más', kind: 'bonus', value: 5, minChances: 20, enabled: true });
+  const made = await create({ name: 'Comprá 20 y llevate 5 más', percent: 0, bonus: 5, minChances: 20, enabled: true });
   assert.equal(made.status, 201);
 
   const pub = (await request(app).get(api('/packs'))).body;
@@ -188,7 +199,7 @@ test('promo automática de chances de regalo: se muestra en la página y se apli
   assert.deepEqual([f.chances, f.total, f.bonusChances], [25, 45000, 5]);
 
   const q = await quote({ packId: pack(20).id }); // sin código: la automática
-  assert.deepEqual([q.body.chances, q.body.total, q.body.promo.kind], [25, 45000, 'bonus']);
+  assert.deepEqual([q.body.chances, q.body.total, q.body.promo.bonus, q.body.promo.percent], [25, 45000, 5, 0]);
   const withCode = await quote({ packId: pack(20).id, code: 'ZONA20' }); // el código reemplaza a la automática
   assert.deepEqual([withCode.body.chances, withCode.body.total], [20, 36000]);
 });
@@ -235,7 +246,7 @@ test('al pagar una compra con chances de regalo se asignan todas, incluidas las 
 });
 
 test('tope de usos: cuenta solo las compras acreditadas', async () => {
-  const made = await create({ name: 'Solo 1', code: 'SOLOUNO', value: 10, maxUses: 1, enabled: true });
+  const made = await create({ name: 'Solo 1', code: 'SOLOUNO', percent: 10, maxUses: 1, enabled: true });
   const first = await request(app).post(api('/purchases')).send({ courseId, packId: pack(20).id, code: 'SOLOUNO', buyer });
   assert.equal(first.status, 201);
   // pendiente, todavía sin pagar: el código sigue disponible
@@ -246,6 +257,21 @@ test('tope de usos: cuenta solo las compras acreditadas', async () => {
   assert.match(after.body.error, /ya no tiene usos/);
   const listed = (await request(app).get(admin('/promos')).set(auth)).body.find((p) => p.id === made.body.id);
   assert.equal(listed.used, 1);
+});
+
+test('una sola promo puede dar descuento, chances de regalo y código a la vez', async () => {
+  const made = await create({ name: 'Relámpago triple', percent: 20, bonus: 5, code: 'RAYO', enabled: true });
+  assert.equal(made.status, 201);
+  assert.deepEqual([made.body.percent, made.body.bonus, made.body.code], [20, 5, 'RAYO']);
+  const q = await quote({ packId: pack(20).id, code: 'rayo' });
+  assert.deepEqual([q.body.chances, q.body.total, q.body.discount, q.body.bonusChances], [25, 36000, 9000, 5]);
+  const bad = await create({ name: 'Vacía', percent: 0, bonus: 0 });
+  assert.equal(bad.status, 400);
+  assert.match(bad.body.error, /al menos una cosa/);
+  // apagarla y prenderla desde el interruptor
+  await request(app).put(admin(`/promos/${made.body.id}`)).set(auth).send({ enabled: false });
+  assert.equal((await quote({ packId: pack(20).id, code: 'RAYO' })).status, 400);
+  await request(app).delete(admin(`/promos/${made.body.id}`)).set(auth);
 });
 
 test('borrar una promo no cambia las compras ya hechas', async () => {
