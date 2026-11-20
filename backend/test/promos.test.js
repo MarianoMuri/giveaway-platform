@@ -282,18 +282,46 @@ test('al pagar una compra con chances de regalo se asignan todas, incluidas las 
   assert.equal(await Chance.count({ where: { OrderId: order.id } }), 25);
 });
 
-test('tope de usos: cuenta solo las compras acreditadas', async () => {
+let lastCheckout;
+const stubCheckout = mp.createCheckout;
+mp.createCheckout = async (args) => { lastCheckout = args; return stubCheckout(args); };
+
+test('tope de usos firme: quien está pagando reserva su cupo, y si no paga en 5 minutos se libera', async () => {
   const made = await create({ name: 'Solo 1', code: 'SOLOUNO', percent: 10, maxUses: 1, enabled: true });
   const first = await request(app).post(api('/purchases')).send({ courseId, packId: pack(20).id, code: 'SOLOUNO', buyer });
   assert.equal(first.status, 201);
-  // pendiente, todavía sin pagar: el código sigue disponible
+  assert.equal(lastCheckout.expiresInMinutes, 5); // el link de pago vence junto con la reserva
+  // el cupo ya está reservado, aunque todavía no pagó
+  const taken = await quote({ packId: pack(20).id, code: 'SOLOUNO' });
+  assert.equal(taken.status, 400);
+  assert.match(taken.body.error, /ya no tiene usos/);
+  const listed = () => request(app).get(admin('/promos')).set(auth).then((r) => r.body.find((p) => p.id === made.body.id));
+  assert.deepEqual([(await listed()).used, (await listed()).state], [1, 'soldout']);
+  // pasan más de 5 minutos sin pagar: el cupo se libera
+  const order = await Order.findByPk(first.body.orderId);
+  await sequelize.query('UPDATE "Orders" SET "createdAt" = :d WHERE id = :id', { replacements: { d: new Date(Date.now() - 6 * 60 * 1000), id: order.id } });
   assert.equal((await quote({ packId: pack(20).id, code: 'SOLOUNO' })).status, 200);
-  await signedWebhook(pay(await Order.findByPk(first.body.orderId)));
+  assert.equal((await listed()).used, 0);
+  // si paga, el cupo queda tomado para siempre
+  await signedWebhook(pay(order));
   const after = await quote({ packId: pack(20).id, code: 'SOLOUNO' });
   assert.equal(after.status, 400);
-  assert.match(after.body.error, /ya no tiene usos/);
-  const listed = (await request(app).get(admin('/promos')).set(auth)).body.find((p) => p.id === made.body.id);
-  assert.equal(listed.used, 1);
+  assert.equal((await listed()).used, 1);
+});
+
+test('compras seguidas nunca superan el tope: la que llega sin cupo se rechaza', async () => {
+  const made = await create({ name: 'Tres cupos', percent: 10, maxUses: 3, code: 'TRES', enabled: true });
+  const ok = [];
+  for (let i = 0; i < 3; i += 1) ok.push((await request(app).post(api('/purchases')).send({ courseId, packId: pack(5).id, code: 'TRES', buyer: { ...buyer, dni: String(31000000 + i) } })).status);
+  assert.deepEqual(ok, [201, 201, 201]);
+  const fourth = await request(app).post(api('/purchases')).send({ courseId, packId: pack(5).id, code: 'TRES', buyer: { ...buyer, dni: '31000009' } });
+  assert.equal(fourth.status, 400); // ya se vio agotada al cotizar
+  const used = (await request(app).get(admin('/promos')).set(auth)).body.find((p) => p.id === made.body.id).used;
+  assert.equal(used, 3);
+  // la página muestra cuántos quedan
+  await request(app).put(admin(`/promos/${made.body.id}`)).set(auth).send({ code: '' }); // pasa a automática
+  const pub = (await request(app).get(api('/packs'))).body.promos.find((p) => p.name === 'Tres cupos');
+  assert.equal(pub, undefined); // sin cupos (agotada), ya no se muestra
 });
 
 test('cada promo da una sola cosa: descuento o regalo', async () => {

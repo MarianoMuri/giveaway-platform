@@ -152,6 +152,7 @@ export default function RafflePage() {
                       : <>🔥 <strong>{pr.name}:</strong> ¡{pr.percent}% OFF en tu compra!</>}
                     {pr.minChances ? ` Desde ${pr.minChances} chances.` : ''}
                     {pr.endsAt ? <span className="small muted"> Hasta el {dateTime(pr.endsAt)}.</span> : ''}
+                    {pr.left !== null && pr.left !== undefined && <strong className="save"> ¡{pr.left === 1 ? 'Queda 1 cupo' : `Quedan ${pr.left} cupos`}!</strong>}
                   </p>
                 ))}
               </div>

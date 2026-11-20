@@ -14,6 +14,9 @@ const { HttpError } = require('./errors');
  * - Todo se calcula acá, en centavos enteros. El frontend nunca calcula precios.
  */
 
+// Cupos firmes: quien empieza a comprar con una promo con tope reserva su lugar mientras paga. Si no paga en este
+// tiempo, el lugar se libera (y el link de pago vence, ver mercadopago.js).
+const RESERVE_MINUTES = 5;
 const MAX_PERCENT = 90; // un 100% dejaría el pago en 0 y Mercado Pago no lo acepta
 const MAX_BONUS = 1000;
 const MAX_PROMOS = 30;
@@ -87,7 +90,7 @@ const meetsMin = (promo, chances) => chances >= minOf(promo);
 // Chances de regalo de una promo para una compra de `chances`: N por cada bloque completo de X
 const giftFor = (promo, chances) => (promo.bonus > 0 ? Math.floor(chances / (promo.bonusEvery || 1)) * promo.bonus : 0);
 
-const brief = (p) => ({ id: p.id, name: p.name, percent: p.percent, bonus: p.bonus, bonusEvery: p.bonusEvery || 1, code: p.code || null });
+const brief = (p) => ({ id: p.id, name: p.name, percent: p.percent, bonus: p.bonus, bonusEvery: p.bonusEvery || 1, code: p.code || null, maxUses: p.maxUses || null });
 
 // Promos que valen para esta compra: las automáticas vigentes, más la del código si el comprador escribió uno.
 // Un código inválido NO se ignora en silencio: el comprador tiene que enterarse antes de pagar.
@@ -151,18 +154,30 @@ function priceAutomatic({ promos, q, mode, now }) {
 
 // ---- Acceso a la base ----
 
-// Promos de un sorteo, cada una con la cantidad de compras acreditadas que la usaron
-async function listForRaffle(raffleId) {
-  const rows = await Promo.findAll({ where: { RaffleId: raffleId }, order: [['createdAt', 'ASC'], ['id', 'ASC']] });
-  if (!rows.length) return [];
-  // Una compra puede usar varias promos (PromoIds = "1,3"): cuenta una vez por cada una
+// Cuántas compras ocupan lugar en cada promo: las acreditadas y las que están pagando ahora mismo
+// (una compra pendiente reserva su cupo RESERVE_MINUTES). Devuelve Map(promoId -> cantidad).
+async function usedByPromo(raffleId, { transaction } = {}) {
+  const since = new Date(Date.now() - RESERVE_MINUTES * 60 * 1000);
   const orders = await Order.findAll({
-    where: { RaffleId: raffleId, status: { [Op.in]: ['approved', 'manual'] }, PromoIds: { [Op.ne]: null } },
+    where: {
+      RaffleId: raffleId,
+      PromoIds: { [Op.ne]: null },
+      [Op.or]: [{ status: { [Op.in]: ['approved', 'manual', 'in_process'] } }, { status: 'pending', createdAt: { [Op.gt]: since } }],
+    },
     attributes: ['PromoIds'],
     raw: true,
+    transaction,
   });
   const usedBy = new Map();
   for (const o of orders) for (const id of String(o.PromoIds).split(',')) usedBy.set(Number(id), (usedBy.get(Number(id)) || 0) + 1);
+  return usedBy;
+}
+
+// Promos de un sorteo, cada una con la cantidad de compras que ocupan un cupo
+async function listForRaffle(raffleId) {
+  const rows = await Promo.findAll({ where: { RaffleId: raffleId }, order: [['createdAt', 'ASC'], ['id', 'ASC']] });
+  if (!rows.length) return [];
+  const usedBy = await usedByPromo(raffleId);
   return rows.map((r) => {
     const p = { ...r.toJSON(), used: usedBy.get(r.id) || 0 };
     return { ...p, state: stateOf(p) };
@@ -199,6 +214,6 @@ async function assertCodeFree(raffleId, code, exceptId = null) {
 }
 
 module.exports = {
-  MAX_PERCENT, normalizeCode, validate, stateOf, giftFor, candidates, choose, apply, priceWithPromo, priceAutomatic,
+  MAX_PERCENT, RESERVE_MINUTES, usedByPromo, normalizeCode, validate, stateOf, giftFor, candidates, choose, apply, priceWithPromo, priceAutomatic,
   listForRaffle, create, update, remove,
 };
