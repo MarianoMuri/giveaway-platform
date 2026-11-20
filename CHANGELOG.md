@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ## [Unreleased]
 
 ### Added
+- **Sorteo en vivo**: se puede elegir cuántos segundos tarda en aparecer el número completo (3 a 120, por defecto 20; se recuerda en ese navegador) y se ve una cuenta regresiva mientras gira. Ya no se muestra cuántas chances participan, y la pantalla se ajusta al alto sin scroll (#90).
 - **Portada en dos columnas con imagen destacada**: si hay imagen (`REACT_APP_BRAND_HERO_URL`), en pantallas anchas el logo queda a la izquierda y el sorteo activo (o "Se viene un nuevo sorteo") a la derecha, así se ve sin bajar. En el celular sigue en una columna (#72).
 - **Imagen destacada en la portada**: variable opcional `REACT_APP_BRAND_HERO_URL` que muestra una imagen (logo o foto) debajo del título. Sin la variable, la portada queda igual (#62).
 
