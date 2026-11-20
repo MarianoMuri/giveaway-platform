@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ## [Unreleased]
 
 ### Changed
+- **Botones de redes con los colores originales** (Instagram degradé, YouTube rojo, Facebook azul, TikTok negro, WhatsApp verde), arriba, en el pie y en la página de links, donde cada red es un botón de su color. El WhatsApp de contacto (`REACT_APP_BRAND_WHATSAPP_CONTACT`) ahora también sale como ícono de red.
 - El logo de Zona Norte Automotores ahora se sirve desde el mismo sitio (`/zona-norte-logo.jpg`) en lugar de depender de un sitio de Netlify aparte. Para usarlo: `REACT_APP_BRAND_LOGO_URL`, `REACT_APP_BRAND_HERO_URL` y `REACT_APP_BRAND_SHARE_IMAGE` = `/zona-norte-logo.jpg`.
 
 ### Added
