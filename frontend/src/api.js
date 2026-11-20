@@ -24,6 +24,16 @@ export function getToken() {
     return null;
   }
 }
+// Rol que trae el token ("live" = solo sorteo en vivo). Es solo para mostrar la pantalla correcta:
+// quien manda es el servidor, que rechaza al operador en todo lo que no sea sortear.
+export function getRole() {
+  try {
+    const payload = JSON.parse(atob(String(getToken() || '').split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return payload.role || 'admin';
+  } catch {
+    return 'admin';
+  }
+}
 export function setToken(t) {
   try {
     if (t) localStorage.setItem('adminToken', t);

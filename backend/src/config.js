@@ -17,6 +17,11 @@ module.exports = {
     // Hash bcrypt de la contraseña: node -e "console.log(require('bcryptjs').hashSync('tuClave',10))"
     passwordHash: required('ADMIN_PASSWORD_HASH') || '',
   },
+  // Usuario opcional que solo puede hacer el sorteo en vivo (ver middleware/liveOperator.js)
+  liveOperator: {
+    email: process.env.LIVE_EMAIL || '',
+    passwordHash: process.env.LIVE_PASSWORD_HASH || '',
+  },
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
   publicApiUrl: process.env.PUBLIC_API_URL || 'http://localhost:4000',
   storageDir: process.env.STORAGE_DIR || './storage',

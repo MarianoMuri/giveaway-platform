@@ -10,9 +10,9 @@ export default function Login() {
   async function submit(e) {
     e.preventDefault();
     try {
-      const { token } = await api('/admin/login', { method: 'POST', body: form });
+      const { token, role } = await api('/admin/login', { method: 'POST', body: form });
       setToken(token);
-      nav('/admin');
+      nav(role === 'live' ? '/admin/en-vivo' : '/admin');
     } catch (err) {
       setError(err.message);
     }

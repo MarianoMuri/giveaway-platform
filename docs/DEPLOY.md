@@ -49,6 +49,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 | `DATABASE_URL` | referencia a la variable de la base: `${{Postgres.DATABASE_URL}}` |
 | `JWT_SECRET` | el secreto generado arriba |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD_HASH` | datos del administrador |
+| `LIVE_EMAIL` / `LIVE_PASSWORD_HASH` | (opcional) operador del sorteo en vivo: solo puede abrir la pantalla del sorteo y sortear; no ve compradores, recaudación ni cursos. Mismo tipo de hash bcrypt que el administrador |
 | `FRONTEND_URL` | URL del sitio, con `https://` y sin barra final |
 | `PUBLIC_API_URL` | URL pública de la API, con `https://` |
 | `MP_ACCESS_TOKEN` | credencial de Mercado Pago |

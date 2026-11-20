@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const requireAdmin = require('../middleware/auth');
+const liveOperator = require('../middleware/liveOperator');
 const { Raffle, Order, Chance, OrderEvent, FreeEntry } = require('../db');
 const { createRaffle, manualSale, raffleStats, cleanGoal, HttpError } = require('../services/orders');
 const packs = require('../services/packs');
@@ -25,19 +26,19 @@ const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10 });
 
 router.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body || {};
-  const valid =
-    email === config.admin.email &&
-    config.admin.passwordHash &&
-    (await bcrypt.compare(String(password || ''), config.admin.passwordHash));
-  if (!valid) {
+  const matches = async (u) => u.email && u.passwordHash && email === u.email && (await bcrypt.compare(String(password || ''), u.passwordHash));
+  // El administrador tiene prioridad: si los dos mails fueran iguales, entra como administrador
+  const role = (await matches(config.admin)) ? 'admin' : (await matches(config.liveOperator)) ? 'live' : null;
+  if (!role) {
     await audit.record({ actor: String(email || '').slice(0, 100) || 'desconocido', action: 'login.failed', ip: req.ip });
     return res.status(401).json({ error: 'Credenciales inválidas' });
   }
-  await audit.record({ actor: email, action: 'login.ok', ip: req.ip });
-  res.json({ token: jwt.sign({ email }, config.jwtSecret, { expiresIn: '12h' }) });
+  await audit.record({ actor: email, action: role === 'live' ? 'login.ok.live' : 'login.ok', ip: req.ip });
+  res.json({ role, token: jwt.sign({ email, role }, config.jwtSecret, { expiresIn: '12h' }) });
 });
 
-router.use(requireAdmin);
+router.use(requireAdmin.orLive);
+router.use(liveOperator);
 router.use(audit.trail);
 
 const wrap = (fn) => (req, res, next) => fn(req, res).catch(next);
