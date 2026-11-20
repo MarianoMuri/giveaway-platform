@@ -92,7 +92,7 @@ router.patch('/raffles/:id', wrap(async (req, res) => {
 router.post('/raffles/:id/winner', wrap(async (req, res) => {
   res.locals.audited = true; // lo registra el servicio, con el detalle del sorteo
   const result = await draw.loadManual(req.params.id, req.body?.number, { ...audit.who(req), reason: req.body?.reason });
-  winnerAlert.notify(req.params.id, result); // sin esperar: no demora ni hace fallar la respuesta
+  winnerAlert.deliverSoon(result.draw.id); // sin esperar: no demora ni hace fallar la respuesta
   res.json(result);
 }));
 
@@ -100,7 +100,7 @@ router.post('/raffles/:id/winner', wrap(async (req, res) => {
 router.post('/raffles/:id/draw', wrap(async (req, res) => {
   res.locals.audited = true;
   const result = await draw.drawRandom(req.params.id, { ...audit.who(req), reason: req.body?.reason });
-  winnerAlert.notify(req.params.id, result); // sin esperar: no demora ni hace fallar la respuesta
+  winnerAlert.deliverSoon(result.draw.id); // sin esperar: no demora ni hace fallar la respuesta
   res.json(result);
 }));
 

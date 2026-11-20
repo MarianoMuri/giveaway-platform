@@ -1,21 +1,31 @@
 const config = require('../config');
-const { Raffle, Order, FreeEntry } = require('../db');
+const { Raffle, Order, FreeEntry, Chance, Draw } = require('../db');
 const { mailer } = require('./mailer');
 const { esc } = require('./emailTemplates');
 const { PROVINCES } = require('./provinces');
 
 // Aviso al administrador cuando se carga un ganador: llegan TODOS los datos del formulario, para poder
-// contactarlo aunque se cierre el panel. Se manda después de guardar el sorteo y nunca lo hace fallar:
-// si el proveedor de mail está caído se reintenta unas veces y, si no se puede, queda el aviso en el log
-// (los datos siguen disponibles en el panel).
-const RETRY_MS = [0, 5000, 30000];
+// contactarlo aunque se cierre el panel. Usa el mismo patrón "outbox" que los comprobantes de compra:
+// 1. Al guardar el sorteo, EN LA MISMA transacción, el aviso queda marcado "pending" en la base.
+// 2. Después del commit se intenta enviar enseguida (deliverSoon), sin demorar ni romper el sorteo.
+// 3. Si falla o el servidor se reinicia, el worker (processPending) lo reintenta con espera creciente.
+// Nunca hay un aviso duplicado: cada envío "toma" el sorteo con un UPDATE condicional (claim).
+const { Op } = require('sequelize');
+const RETRY_MINUTES = [1, 5, 15, 60, 360];
+const MAX_ATTEMPTS = RETRY_MINUTES.length + 1;
+const LEASE_MINUTES = 2;
+const minutesFromNow = (m) => new Date(Date.now() + m * 60 * 1000);
+const hasAdminEmail = () => !!config.admin.email && config.admin.email !== 'admin@local';
+
+// Campos para crear el Draw: pendiente si hay a quién avisar
+const pendingFields = () => (hasAdminEmail() ? { alertStatus: 'pending', alertAttempts: 0, alertNextAttemptAt: new Date() } : { alertStatus: 'none' });
 
 const provinceName = (code) => PROVINCES.find((p) => p.code === code)?.name || '';
 const when = (d) => new Date(d).toLocaleString('es-AR', { dateStyle: 'full', timeStyle: 'short', timeZone: 'America/Argentina/Buenos_Aires' }) + ' h';
 
 async function winnerData(raffleId, winner) {
   if (winner.source === 'free') {
-    const f = await FreeEntry.findByPk(winner.freeEntryId);
+    const f = winner.freeEntry;
     return [
       ['Origen', 'Participación gratuita'],
       ['Nombre y apellido', f.name],
@@ -26,7 +36,7 @@ async function winnerData(raffleId, winner) {
       ['Confirmó su email', f.confirmedAt ? when(f.confirmedAt) : '—'],
     ];
   }
-  const o = await Order.findByPk(winner.orderId);
+  const o = winner.order;
   const paid = o.status === 'manual' ? 'Venta manual' : 'Compra online';
   return [
     ['Origen', paid],
@@ -43,9 +53,9 @@ async function winnerData(raffleId, winner) {
   ];
 }
 
-async function buildMail(raffleId, { number, winner }) {
+async function buildMail(raffleId, { number, winner, drawnAt }) {
   const raffle = await Raffle.findByPk(raffleId);
-  const rows = [['Sorteo', raffle.title], ['Premio', raffle.prize], ['Número ganador', String(number)], ['Fecha del sorteo', when(new Date())], ...(await winnerData(raffleId, winner))];
+  const rows = [['Sorteo', raffle.title], ['Premio', raffle.prize], ['Número ganador', String(number)], ['Fecha del sorteo', when(drawnAt || new Date())], ...(await winnerData(raffleId, winner))];
   const html = `<div style="font-family:Arial,sans-serif;color:#111;max-width:560px">
 <h2 style="margin:0 0 6px">🏆 Hay ganador: ${esc(raffle.title)}</h2>
 <p style="margin:0 0 14px;color:#555">Datos completos tal como los cargó la persona. Guardá este mail: te sirve para contactarla.</p>
@@ -55,27 +65,64 @@ async function buildMail(raffleId, { number, winner }) {
   return { subject: `🏆 Ganador del sorteo "${raffle.title}": número ${number}`, html, text };
 }
 
-async function send(raffleId, result) {
-  const to = config.admin.email;
-  if (!to || to === 'admin@local') return 'skipped';
-  const mail = await buildMail(raffleId, result);
-  for (let i = 0; i < RETRY_MS.length; i += 1) {
-    if (RETRY_MS[i]) await new Promise((r) => setTimeout(r, RETRY_MS[i]).unref());
-    try {
-      await mailer.send({ to, ...mail });
-      return 'sent';
-    } catch (err) {
-      console.error(`[mail] no se pudo avisar el ganador al administrador (intento ${i + 1}/${RETRY_MS.length}):`, err.message);
-    }
-  }
-  return 'failed';
+
+// Arma el ganador a partir del número sorteado (la compra o participación gratuita dueña de ese número)
+async function loadWinner(draw) {
+  const chance = await Chance.findOne({ where: { RaffleId: draw.RaffleId, number: draw.number }, include: [Order, FreeEntry] });
+  if (!chance) return null;
+  return chance.FreeEntry ? { source: 'free', freeEntry: chance.FreeEntry } : { source: 'purchase', order: chance.Order };
 }
 
-// Se llama sin esperar (no demora la pantalla del sorteo) y nunca lanza error
-const notify = (raffleId, result) =>
-  send(raffleId, result).catch((err) => {
+async function claim(drawId) {
+  const [count] = await Draw.update(
+    { alertNextAttemptAt: minutesFromNow(LEASE_MINUTES), alertAttempts: Draw.sequelize.literal('"alertAttempts" + 1') },
+    { where: { id: drawId, alertStatus: 'pending', alertNextAttemptAt: { [Op.lte]: new Date() } } }
+  );
+  return count === 1;
+}
+
+// Intenta enviar el aviso de un sorteo. Devuelve 'sent', 'retry', 'failed' o 'skipped'.
+async function deliver(drawId) {
+  if (!(await claim(drawId))) return 'skipped'; // ya enviado, no le toca todavía o lo tomó otro proceso
+  const draw = await Draw.findByPk(drawId);
+  try {
+    if (draw.supersededAt || !hasAdminEmail()) {
+      // un sorteo repetido ya reemplazó a este: avisar del anterior solo confunde
+      await draw.update({ alertStatus: 'none', alertNextAttemptAt: null });
+      return 'skipped';
+    }
+    const winner = await loadWinner(draw);
+    if (!winner) throw new Error('no se encontró el ganador del número sorteado');
+    const mail = await buildMail(draw.RaffleId, { number: draw.number, winner, drawnAt: draw.createdAt });
+    await mailer.send({ to: config.admin.email, ...mail });
+    await draw.update({ alertStatus: 'sent', alertSentAt: new Date(), alertNextAttemptAt: null, alertLastError: null });
+    return 'sent';
+  } catch (err) {
+    const attempts = draw.alertAttempts;
+    const failed = attempts >= MAX_ATTEMPTS;
+    await draw.update({
+      alertStatus: failed ? 'failed' : 'pending',
+      alertNextAttemptAt: failed ? null : minutesFromNow(RETRY_MINUTES[attempts - 1]),
+      alertLastError: String(err.message || err).slice(0, 500),
+    });
+    console.error(`[mail] falló el aviso del ganador al administrador (sorteo ${drawId}, intento ${attempts}):`, err.message);
+    return failed ? 'failed' : 'retry';
+  }
+}
+
+// Envío inmediato después del commit: nunca hace fallar al que lo llama
+const deliverSoon = (drawId) =>
+  deliver(drawId).catch((err) => {
     console.error('[mail] error inesperado en el aviso de ganador', err);
     return 'error';
   });
 
-module.exports = { notify, send, buildMail };
+// Reintento periódico (lo llama el worker de mails): toma los avisos pendientes a los que ya les toca
+async function processPending(limit = 20) {
+  const due = await Draw.findAll({ where: { alertStatus: 'pending', alertNextAttemptAt: { [Op.lte]: new Date() } }, attributes: ['id'], limit });
+  const out = [];
+  for (const { id } of due) out.push(await deliver(id));
+  return out;
+}
+
+module.exports = { pendingFields, deliver, deliverSoon, processPending, buildMail, RETRY_MINUTES, MAX_ATTEMPTS };
