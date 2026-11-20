@@ -95,6 +95,28 @@ test('estadísticas del sorteo', async () => {
   assert.equal(pub.body.chancesSold, undefined); // el público no ve las vendidas
 });
 
+test('"dónde compran": suma compras, chances y plata por provincia (las anuladas no cuentan)', async () => {
+  const { Order, FreeEntry, Raffle } = require('../src/db');
+  const r = await Raffle.create({ title: 'Prov', prize: 'x', status: 'active' });
+  const mk = (province, chances, amount, status = 'approved') => Order.create({ RaffleId: r.id, buyerName: 'T', buyerEmail: 't@t.com', buyerPhone: '1', buyerDni: '1', buyerProvince: province, chances, amount, status });
+  await mk('B', 5, 15000);
+  await mk('B', 10, 25000);
+  await mk('A', 5, 15000);
+  await mk(null, 5, 10000, 'manual'); // sin provincia: "Sin dato"
+  await mk('B', 50, 90000, 'refunded'); // anulada: no cuenta
+  await mk('A', 5, 15000, 'pending'); // sin pagar: no cuenta
+  await FreeEntry.create({ RaffleId: r.id, name: 'G', dni: '2', email: 'g@t.com', province: 'B', status: 'confirmed' });
+  const res = await request(app).get(`/api/admin/raffles/${r.id}/by-province`).set(auth);
+  assert.equal(res.status, 200);
+  const byName = Object.fromEntries(res.body.provinces.map((p) => [p.name, p]));
+  assert.deepEqual([byName['Buenos Aires'].purchases, byName['Buenos Aires'].chances, byName['Buenos Aires'].revenue, byName['Buenos Aires'].freeEntries], [2, 15, 40000, 1]);
+  assert.deepEqual([byName.Salta.purchases, byName.Salta.revenue], [1, 15000]);
+  assert.equal(byName['Sin dato'].purchases, 1);
+  assert.equal(res.body.totalRevenue, 65000);
+  assert.equal(res.body.provinces[0].name, 'Buenos Aires'); // la que más plata trae, primero
+  assert.equal((await request(app).get(`/api/admin/raffles/${r.id}/by-province`)).status, 401);
+});
+
 test('exportación CSV con curso y rango de números', async () => {
   const res = await request(app).get(`/api/admin/raffles/${raffleId}/export.csv`).set(auth);
   assert.equal(res.status, 200);

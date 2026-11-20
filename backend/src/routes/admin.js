@@ -16,6 +16,7 @@ const { streamRaffleCsv } = require('../services/export');
 const mpHealth = require('../services/mpHealth');
 const draw = require('../services/draw');
 const winnerAlert = require('../services/winnerAlert');
+const { bySalesProvince } = require('../services/salesByProvince');
 const sales = require('../services/sales');
 const { cleanExcluded } = require('../services/provinces');
 const { AuditLog } = require('../db');
@@ -132,6 +133,11 @@ router.get('/audit', wrap(async (req, res) => {
 // Control previo al sorteo: carga los pagos que faltaban (consulta a Mercado Pago) y resume el estado
 router.post('/raffles/:id/readiness', wrap(async (req, res) => {
   res.json(await readiness.check(req.params.id));
+}));
+
+// "Dónde compran": ventas por provincia, para decidir dónde hacer publicidad
+router.get('/raffles/:id/by-province', wrap(async (req, res) => {
+  res.json(await bySalesProvince(req.params.id));
 }));
 
 router.get('/raffles/:id/stats', wrap(async (req, res) => {
