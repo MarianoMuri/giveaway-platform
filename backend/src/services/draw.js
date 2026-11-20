@@ -9,7 +9,7 @@ function cleanReason(raffle, reason) {
   if (raffle.status !== 'drawn') return null;
   const r = String(reason || '').trim();
   if (!r) throw new HttpError(409, 'Ya hay un ganador. Para repetir el sorteo indicá el motivo.');
-  if (r.length < 10) throw new HttpError(400, 'El motivo es muy corto: explicá por qué se repite el sorteo');
+  if (r.length < 5) throw new HttpError(400, 'El motivo es muy corto: explicá por qué se repite el sorteo');
   return r.slice(0, 300);
 }
 

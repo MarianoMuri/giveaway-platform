@@ -182,7 +182,7 @@ export default function LiveDraw() {
           )}
           {!redo && <button className="btn live-btn" onClick={run}>SORTEAR</button>}
           {redo && !asking && <button className="btn btn-ghost" onClick={() => setAsking(true)}>Repetir sorteo</button>}
-          {redo && asking && <button className="btn live-btn" onClick={run} disabled={reason.trim().length < 10}>SORTEAR DE NUEVO</button>}
+          {redo && asking && <button className="btn live-btn" onClick={run} disabled={reason.trim().length < 5}>SORTEAR DE NUEVO</button>}
         </div>
       )}
     </div>
