@@ -60,7 +60,7 @@ export default function LiveDraw() {
   const raffle = (raffles || []).find((r) => String(r.id) === id);
   useEffect(() => () => clearInterval(timer.current), []);
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape' && !document.fullscreenElement) nav(`/admin/sorteo/${id}`); };
+    const onKey = (e) => { if (e.key === 'Escape' && !document.fullscreenElement) nav('/admin/en-vivo'); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [id, nav]);
@@ -133,7 +133,7 @@ export default function LiveDraw() {
         </div>
       )}
       <div className="live-top">
-        <Link to={`/admin/sorteo/${id}`} className="small">← Salir</Link>
+        <Link to="/admin/en-vivo" className="small">← Salir</Link>
         <button className="btn btn-ghost btn-sm" onClick={fullscreen}>Pantalla completa</button>
       </div>
       <p className="live-prize">🚗 {raffle.prize}</p>

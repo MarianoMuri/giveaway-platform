@@ -16,6 +16,7 @@ import Dashboard from './pages/admin/Dashboard';
 import RaffleAdmin from './pages/admin/RaffleAdmin';
 import Courses from './pages/admin/Courses';
 import LiveDraw from './pages/admin/LiveDraw';
+import LiveHub from './pages/admin/LiveHub';
 
 function RequireAdmin({ children }) {
   return getToken() ? children : <Navigate to="/admin/login" replace />;
@@ -85,6 +86,7 @@ export default function App() {
           <Route path="/admin/login" element={<Login />} />
           <Route path="/admin" element={<RequireAdmin><Dashboard /></RequireAdmin>} />
           <Route path="/admin/cursos" element={<RequireAdmin><Courses /></RequireAdmin>} />
+          <Route path="/admin/en-vivo" element={<RequireAdmin><LiveHub /></RequireAdmin>} />
           <Route path="/admin/sorteo/:id/en-vivo" element={<RequireAdmin><LiveDraw /></RequireAdmin>} />
           <Route path="/admin/sorteo/:id" element={<RequireAdmin><RaffleAdmin /></RequireAdmin>} />
           <Route path="*" element={<div className="container"><h2>Página no encontrada</h2><Link to="/">Volver al inicio</Link></div>} />
