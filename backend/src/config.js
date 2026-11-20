@@ -16,6 +16,8 @@ module.exports = {
     email: required('ADMIN_EMAIL') || 'admin@local',
     // Hash bcrypt de la contraseña: node -e "console.log(require('bcryptjs').hashSync('tuClave',10))"
     passwordHash: required('ADMIN_PASSWORD_HASH') || '',
+    // (opcional) clave de la doble verificación. Si está, el administrador debe ingresar el código de su app (ver scripts/two-factor-setup.js)
+    totpSecret: (process.env.ADMIN_TOTP_SECRET || '').trim(),
   },
   // Usuario opcional que solo puede hacer el sorteo en vivo (ver middleware/liveOperator.js)
   liveOperator: {
