@@ -223,7 +223,7 @@ function redrawReason(r, reason) {
   if (r.status !== 'drawn') return null;
   const t = String(reason || '').trim();
   if (!t) throw new Err(409, { error: 'Ya hay un ganador. Para repetir el sorteo indicá el motivo.' });
-  if (t.length < 10) throw new Err(400, { error: 'El motivo es muy corto: explicá por qué se repite el sorteo' });
+  if (t.length < 5) throw new Err(400, { error: 'El motivo es muy corto: explicá por qué se repite el sorteo' });
   return t;
 }
 function finishDraw(r, c, { method, reason, validCount = null, position = null }) {

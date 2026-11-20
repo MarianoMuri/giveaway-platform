@@ -129,7 +129,7 @@ test('repetir el sorteo exige un motivo y conserva el historial', async () => {
   const none = await drawNow();
   assert.equal(none.status, 409);
   assert.match(none.body.error, /motivo/);
-  assert.equal((await drawNow({ reason: 'corto' })).status, 400);
+  assert.equal((await drawNow({ reason: 'ok' })).status, 400);
   const again = await drawNow({ reason: 'El ganador no respondió en 48 horas' });
   assert.equal(again.status, 200);
   const list = (await request(app).get(`/api/admin/raffles/${raffleId}/draws`).set(auth)).body;
