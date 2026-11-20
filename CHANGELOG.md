@@ -4,6 +4,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Unreleased]
 
+### Changed
+- El logo de Zona Norte Automotores ahora se sirve desde el mismo sitio (`/zona-norte-logo.jpg`) en lugar de depender de un sitio de Netlify aparte. Para usarlo: `REACT_APP_BRAND_LOGO_URL`, `REACT_APP_BRAND_HERO_URL` y `REACT_APP_BRAND_SHARE_IMAGE` = `/zona-norte-logo.jpg`.
+
 ### Added
 - **Vista previa al compartir el link** (Cloudflare Pages): al compartir la portada o `/sorteo/<id>` por WhatsApp, Instagram o Facebook sale título, descripción y foto. En el sorteo usa el título, el premio y la foto cargados en el panel; en el resto, la marca. Usa las variables `REACT_APP_API_URL`, `REACT_APP_BRAND_NAME`, `REACT_APP_BRAND_DESCRIPTION` y, opcional, `REACT_APP_BRAND_SHARE_IMAGE` (imagen 1200x630 para la portada). Si falla, el sitio se ve igual. En Netlify queda la vista previa genérica de `index.html`.
 - **Íconos de redes en el celular**: la portada los muestra bajo el título (antes en el celular no se veía ninguno) y todas las páginas los llevan en el pie.
