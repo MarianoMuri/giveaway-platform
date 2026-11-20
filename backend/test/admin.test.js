@@ -176,3 +176,60 @@ test('listado de compras del sorteo', async () => {
   const res = await request(app).get(`/api/admin/orders?raffleId=${raffleId}&status=manual`).set(auth);
   assert.equal(res.body.length, 2);
 });
+
+test('operador del sorteo en vivo: solo puede ver la lista y sortear, sin datos personales del ganador', async () => {
+  const config = require('../src/config');
+  config.liveOperator.email = 'vivo@test';
+  config.liveOperator.passwordHash = require('bcryptjs').hashSync('vivo123', 4);
+  const { Raffle, Chance, FreeEntry } = require('../src/db');
+
+  assert.equal((await request(app).post('/api/admin/login').send({ email: 'vivo@test', password: 'mal' })).status, 401);
+  const login = await request(app).post('/api/admin/login').send({ email: 'vivo@test', password: 'vivo123' });
+  assert.equal(login.status, 200);
+  assert.equal(login.body.role, 'live');
+  const live = { Authorization: `Bearer ${login.body.token}` };
+  const adminLogin = await request(app).post('/api/admin/login').send({ email: 'admin@test', password: 'clave123' });
+  assert.equal(adminLogin.body.role, 'admin');
+
+  // ve la lista, pero solo los datos básicos
+  const list = await request(app).get('/api/admin/raffles').set(live);
+  assert.equal(list.status, 200);
+  assert.ok(list.body.length > 0);
+  assert.deepEqual(Object.keys(list.body[0]).sort(), ['drawDate', 'id', 'prize', 'salesCloseAt', 'status', 'title', 'winnerNumber']);
+
+  // todo lo demás está prohibido
+  for (const [method, url] of [
+    ['get', `/api/admin/raffles/${raffleId}/stats`], ['get', '/api/admin/orders'], ['get', '/api/admin/courses'],
+    ['get', `/api/admin/raffles/${raffleId}/segments`], ['get', `/api/admin/raffles/${raffleId}/draws`],
+    ['post', '/api/admin/orders/manual'], ['post', `/api/admin/raffles/${raffleId}/winner`], ['patch', `/api/admin/raffles/${raffleId}`], ['post', '/api/admin/raffles'],
+  ]) {
+    assert.equal((await request(app)[method](url).set(live).send({})).status, 403, `${method} ${url}`);
+  }
+
+  // sortea y recibe solo lo que se muestra en pantalla
+  const r = await Raffle.create({ title: 'Vivo', prize: 'x', status: 'closed' });
+  const f = await FreeEntry.create({ RaffleId: r.id, name: 'Marta Beatriz Ruiz', dni: '27111222', email: 'm@t.com', phone: '2914000000', status: 'confirmed' });
+  await Chance.create({ RaffleId: r.id, number: 100000, status: 'valid', FreeEntryId: f.id });
+  const res = await request(app).post(`/api/admin/raffles/${r.id}/draw`).set(live).send({});
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body.winner, { name: 'Marta R.', dni: '222', source: 'free' });
+  assert.equal(JSON.stringify(res.body).includes('2914000000'), false);
+  assert.equal(JSON.stringify(res.body).includes('m@t.com'), false);
+
+  // sin token o con el token de otro rol sigue igual
+  assert.equal((await request(app).get('/api/admin/raffles')).status, 401);
+  config.liveOperator.email = '';
+  config.liveOperator.passwordHash = '';
+  assert.equal((await request(app).post('/api/admin/login').send({ email: '', password: '' })).status, 401);
+});
+
+test('el operador en vivo puede tener un nombre como usuario, sin importar mayúsculas', async () => {
+  const config = require('../src/config');
+  config.liveOperator.email = 'Angelo';
+  config.liveOperator.passwordHash = require('bcryptjs').hashSync('vivo123', 4);
+  const ok = await request(app).post('/api/admin/login').send({ email: ' angelo ', password: 'vivo123' });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.role, 'live');
+  config.liveOperator.email = '';
+  config.liveOperator.passwordHash = '';
+});

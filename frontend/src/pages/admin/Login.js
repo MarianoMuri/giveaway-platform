@@ -10,9 +10,9 @@ export default function Login() {
   async function submit(e) {
     e.preventDefault();
     try {
-      const { token } = await api('/admin/login', { method: 'POST', body: form });
+      const { token, role } = await api('/admin/login', { method: 'POST', body: form });
       setToken(token);
-      nav('/admin');
+      nav(role === 'live' ? '/admin/en-vivo' : '/admin');
     } catch (err) {
       setError(err.message);
     }
@@ -22,7 +22,7 @@ export default function Login() {
     <div className="container narrow">
       <form className="card" onSubmit={submit}>
         <h2>Ingreso administrador</h2>
-        <label>Email<input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
+        <label>Usuario<input type="text" required autoCapitalize="none" autoComplete="username" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
         <label>Contraseña<input type="password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>
         {error && <p className="alert">{error}</p>}
         <button className="btn btn-block">Ingresar</button>
