@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import brand from '../brand';
 import { useApi } from '../hooks';
 import { money, dateShort } from '../api';
+import Social from '../components/Social';
 
 export default function Home() {
   const { data: raffles, loading, error } = useApi('/raffles');
@@ -18,6 +19,8 @@ export default function Home() {
             <span className="accent">{brand.name.split(' ').slice(-1)}</span>
           </h1>
           {!brand.heroUrl && <p className="lead">{brand.description}</p>}
+          {/* En el celular el encabezado no tiene redes: se muestran acá */}
+          <div className="hero-social"><Social size="md" /></div>
         </div>
       </section>
 
