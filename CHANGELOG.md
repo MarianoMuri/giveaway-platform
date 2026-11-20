@@ -6,6 +6,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ### Added
 - **Sorteo en vivo más emotivo**: cuenta regresiva grande que late cada segundo (y se pone roja en los últimos 5), lluvia de papelitos de colores cuando sale el ganador, y junto al nombre abreviado se muestran los últimos 3 dígitos del DNI para que el ganador se reconozca en la transmisión (#92).
+- **Aviso del ganador al administrador**: al salir el ganador (sorteo en vivo o cargado a mano) llega un mail a `ADMIN_EMAIL` con todos los datos del formulario (nombre, DNI, email, teléfono, provincia, curso, chances y monto). Si el mail falla se reintenta y nunca frena el sorteo (#92).
 - **Portada en dos columnas con imagen destacada**: si hay imagen (`REACT_APP_BRAND_HERO_URL`), en pantallas anchas el logo queda a la izquierda y el sorteo activo (o "Se viene un nuevo sorteo") a la derecha, así se ve sin bajar. En el celular sigue en una columna (#72).
 - **Imagen destacada en la portada**: variable opcional `REACT_APP_BRAND_HERO_URL` que muestra una imagen (logo o foto) debajo del título. Sin la variable, la portada queda igual (#62).
 

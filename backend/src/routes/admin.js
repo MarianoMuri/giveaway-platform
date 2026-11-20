@@ -15,6 +15,7 @@ const audit = require('../services/audit');
 const { streamRaffleCsv } = require('../services/export');
 const mpHealth = require('../services/mpHealth');
 const draw = require('../services/draw');
+const winnerAlert = require('../services/winnerAlert');
 const sales = require('../services/sales');
 const { cleanExcluded } = require('../services/provinces');
 const { AuditLog } = require('../db');
@@ -83,13 +84,17 @@ router.patch('/raffles/:id', wrap(async (req, res) => {
 // Cargar el número ganador del sorteo en vivo
 router.post('/raffles/:id/winner', wrap(async (req, res) => {
   res.locals.audited = true; // lo registra el servicio, con el detalle del sorteo
-  res.json(await draw.loadManual(req.params.id, req.body?.number, { ...audit.who(req), reason: req.body?.reason }));
+  const result = await draw.loadManual(req.params.id, req.body?.number, { ...audit.who(req), reason: req.body?.reason });
+  winnerAlert.notify(req.params.id, result); // sin esperar: no demora ni hace fallar la respuesta
+  res.json(result);
 }));
 
 // Sorteo en vivo: el servidor elige el ganador al azar entre los números válidos
 router.post('/raffles/:id/draw', wrap(async (req, res) => {
   res.locals.audited = true;
-  res.json(await draw.drawRandom(req.params.id, { ...audit.who(req), reason: req.body?.reason }));
+  const result = await draw.drawRandom(req.params.id, { ...audit.who(req), reason: req.body?.reason });
+  winnerAlert.notify(req.params.id, result); // sin esperar: no demora ni hace fallar la respuesta
+  res.json(result);
 }));
 
 router.get('/raffles/:id/draws', wrap(async (req, res) => {
