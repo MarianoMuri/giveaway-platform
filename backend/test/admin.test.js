@@ -74,23 +74,25 @@ test('el estado "sorteado" no se puede poner a mano', async () => {
 
 test('venta manual: asigna números en el acto y continúa la numeración', async () => {
   const bad = await request(app).post('/api/admin/orders/manual').set(auth)
-    .send({ raffleId, chances: 10, amount: 25000, buyer: { name: 'Ana Gómez', dni: '30111222' } });
+    .send({ raffleId, chances: 10, amount: 25000, buyer: { name: 'Ana Gómez', dni: '30111222', phone: '2914000000', email: 'ana@test.com', province: 'B' } });
   assert.equal(bad.status, 400); // falta el curso
 
   const a = await request(app).post('/api/admin/orders/manual').set(auth)
-    .send({ raffleId, chances: 10, courseId, amount: 25000, buyer: { name: 'Ana Gómez', dni: '30.111.222', phone: '2914000000' } });
+    .send({ raffleId, chances: 10, courseId, amount: 25000, buyer: { name: 'Ana Gómez', dni: '30.111.222', phone: '2914000000', email: 'ana@test.com', province: 'B' } });
   assert.equal(a.status, 201);
   assert.deepEqual([a.body.status, a.body.firstNumber, a.body.lastNumber], ['manual', 100000, 100009]);
   assert.equal(a.body.courseTitle, 'Herrería');
 
   const b = await request(app).post('/api/admin/orders/manual').set(auth)
-    .send({ raffleId, chances: 5, courseId, amount: 15000, buyer: { name: 'Luis Díaz', dni: '28999888' } });
+    .send({ raffleId, chances: 5, courseId, amount: 15000, buyer: { name: 'Luis Díaz', dni: '28999888', phone: '2914000000', email: 'luis@test.com', province: 'B' } });
   assert.deepEqual([b.body.firstNumber, b.body.lastNumber], [100010, 100014]);
 });
 
 test('estadísticas del sorteo', async () => {
   const res = await request(app).get(`/api/admin/raffles/${raffleId}/stats`).set(auth);
-  assert.deepEqual(res.body, { chancesSold: 15, purchases: 2, pending: 0, review: 0, revenue: 40000, freeEntries: 0, reversed: 0, winnerVoided: false, emailsPending: 0, emailsFailed: 0 });
+  // el envío de mails es asíncrono: cuántos quedan pendientes depende del momento, no se compara
+  const { emailsPending, ...stats } = res.body;
+  assert.deepEqual(stats, { chancesSold: 15, purchases: 2, pending: 0, review: 0, revenue: 40000, freeEntries: 0, reversed: 0, winnerVoided: false, emailsFailed: 0 });
   const pub = await request(app).get(`/api/raffles/${raffleId}`);
   assert.equal(pub.body.chancesSold, undefined); // el público no ve las vendidas
 });
@@ -143,7 +145,7 @@ test('exportación CSV con curso y rango de números', async () => {
   const res = await request(app).get(`/api/admin/raffles/${raffleId}/export.csv`).set(auth);
   assert.equal(res.status, 200);
   assert.match(res.headers['content-type'], /text\/csv/);
-  assert.match(res.text, /"Ana Gómez";"30111222";"2914000000";"-";"Herrería";"10";"100000";"100009";"25000.00";"manual"/);
+  assert.match(res.text, /"Ana Gómez";"30111222";"2914000000";"ana@test.com";"Herrería";"10";"100000";"100009";"25000.00";"manual"/);
 });
 
 test('ganador: un número sin asignar o anulado no cuenta', async () => {
@@ -166,7 +168,7 @@ test('ganador: devuelve los datos del comprador y cierra el sorteo', async () =>
   assert.deepEqual([pub.body.status, pub.body.winnerNumber], ['drawn', 100004]);
 
   const late = await request(app).post('/api/admin/orders/manual').set(auth)
-    .send({ raffleId, chances: 5, courseId, amount: 1, buyer: { name: 'Tarde Pérez', dni: '30111222' } });
+    .send({ raffleId, chances: 5, courseId, amount: 1, buyer: { name: 'Tarde Pérez', dni: '30111222', phone: '2914000000', email: 'tarde@test.com', province: 'B' } });
   assert.equal(late.status, 409);
 });
 

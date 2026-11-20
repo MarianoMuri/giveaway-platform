@@ -204,7 +204,7 @@ export default function RaffleAdmin() {
             chances: Number(manual.chances),
             courseId: Number(manual.courseId),
             amount: Number(manual.amount),
-            buyer: { name: manual.name, phone: manual.phone, dni: manual.dni, email: manual.email, province: manual.province || undefined, locality: manual.locality },
+            buyer: { name: manual.name, phone: manual.phone, dni: manual.dni, email: manual.email, province: manual.province, locality: manual.locality },
           },
         });
       },
@@ -392,9 +392,9 @@ export default function RaffleAdmin() {
           </label>
           <label>Nombre y apellido<input required value={manual.name} onChange={setM('name')} /></label>
           <label>DNI<input required inputMode="numeric" value={manual.dni} onChange={setM('dni')} /></label>
-          <label>Teléfono<input value={manual.phone} onChange={setM('phone')} /></label>
-          <label>Email<input type="email" value={manual.email} onChange={setM('email')} /></label>
-          <ProvinceSelect optional value={manual.province} onChange={(province) => setManual({ ...manual, province })} />
+          <label>Celular (WhatsApp)<input required inputMode="tel" value={manual.phone} onChange={setM('phone')} /></label>
+          <label>Email<input required type="email" value={manual.email} onChange={setM('email')} /></label>
+          <ProvinceSelect value={manual.province} onChange={(province) => setManual({ ...manual, province })} />
           <ProfileFields value={manual} onChange={setManual} />
           <button className="btn btn-block">Registrar venta</button>
         </form>

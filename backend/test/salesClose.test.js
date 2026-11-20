@@ -78,7 +78,7 @@ test('pasada la fecha de cierre no se puede comprar ni sumar participación grat
   const quote = await request(app).post(`/api/raffles/${raffleId}/quote`).send({ packId });
   assert.equal(quote.status, 409);
   const free = await request(app).post(`/api/raffles/${raffleId}/free-entries`)
-    .send({ name: 'Marta Ruiz', dni: '27111222', email: 'marta@test.com', province: 'B', deviceId: 'a'.repeat(32) });
+    .send({ name: 'Marta Ruiz', dni: '27111222', email: 'marta@test.com', phone: '2914567890', province: 'B', deviceId: 'a'.repeat(32) });
   assert.equal(free.status, 409);
 });
 

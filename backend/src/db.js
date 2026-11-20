@@ -124,6 +124,7 @@ const FreeEntry = sequelize.define(
     name: { type: DataTypes.STRING, allowNull: false },
     dni: { type: DataTypes.STRING, allowNull: false },
     email: { type: DataTypes.STRING, allowNull: false },
+    phone: DataTypes.STRING(30), // obligatorio al participar; vacío en participaciones anteriores
     province: DataTypes.STRING(2), // código de provincia
     locality: DataTypes.STRING(80),
     status: { type: DataTypes.ENUM('unconfirmed', 'confirmed', 'void'), defaultValue: 'unconfirmed' },

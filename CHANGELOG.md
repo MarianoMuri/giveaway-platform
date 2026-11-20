@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ## [Unreleased]
 
 ### Added
+- **Datos obligatorios para contactar al ganador**: la participación gratuita ahora pide celular (se guarda y sale en el mail de aviso del ganador) y la venta manual exige los mismos datos que la compra online (nombre, DNI, celular, email y provincia). Las participaciones anteriores quedan con el celular vacío.
 - **Segmentar compradores** (#106): campo opcional de localidad en la compra, la participación gratuita y la venta manual (migración nueva, solo agrega una columna). El cuadro del panel pasó a "Dónde compran", con selector por provincia o localidad. No se piden edad, género ni ocupación (Meta Ads ya los da). La localidad agrupa sin importar tildes ni mayúsculas. No se guarda la fecha de nacimiento. Ver docs/LEGAL.md (uso de datos).
 - **Cuadro "Dónde compran"** en la página de cada sorteo: compras, chances, recaudación, % de la plata y participaciones gratuitas por provincia. Solo cuentan compras acreditadas (#104).
 - **Entrada aparte para el sorteo en vivo** (`/admin/en-vivo`): lista los sorteos publicados sin mostrar recaudación ni datos de compradores, así se puede transmitir sin exponer el panel. El botón se abre en otra pestaña desde la lista de sorteos y salió de la página de administración de cada sorteo; "Salir" del vivo vuelve a esa entrada (#98).

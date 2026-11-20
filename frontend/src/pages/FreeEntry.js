@@ -24,7 +24,7 @@ function deviceId() {
 export default function FreeEntry() {
   const { id } = useParams();
   const { data: raffle, error } = useApi(`/raffles/${id}`);
-  const [form, setForm] = useState({ name: '', dni: '', email: '', province: '', locality: '' });
+  const [form, setForm] = useState({ name: '', dni: '', email: '', phone: '', province: '', locality: '' });
   const [accept, setAccept] = useState(false);
   const [captchaToken, setCaptchaToken] = useState(null);
   const [state, setState] = useState(null); // null | 'sending' | 'sent'
@@ -80,6 +80,7 @@ export default function FreeEntry() {
           <label>Nombre y apellido<input required autoComplete="name" value={form.name} onChange={set('name')} /></label>
           <label>DNI<input required inputMode="numeric" autoComplete="off" placeholder="Solo números" value={form.dni} onChange={set('dni')} /></label>
           <label>Email<input required type="email" autoComplete="email" inputMode="email" value={form.email} onChange={set('email')} /></label>
+          <label>Celular (WhatsApp)<input required inputMode="tel" autoComplete="tel" value={form.phone} onChange={set('phone')} /></label>
           <ProvinceSelect value={form.province} onChange={(province) => setForm({ ...form, province })} excluded={raffle.excludedProvinces} />
           <ProfileFields value={form} onChange={setForm} />
           <Turnstile onToken={onToken} />

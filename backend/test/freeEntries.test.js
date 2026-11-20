@@ -41,7 +41,7 @@ const waitFor = async (fn, ms = 1000) => {
   throw new Error('timeout');
 };
 
-const body = (extra = {}) => ({ name: 'Lucía Pérez', dni: dniN(), email: 'lucia@test.com', province: 'B', deviceId: device(), ...extra });
+const body = (extra = {}) => ({ name: 'Lucía Pérez', dni: dniN(), email: 'lucia@test.com', phone: '2914567890', province: 'B', deviceId: device(), ...extra });
 const ask = (data, id = raffleId) => request(app).post(`/api/raffles/${id}/free-entries`).send(data);
 const tokenOf = (mail) => mail.text.match(/token=([\w]+)/)[1];
 const confirmToken = (token) => request(app).post('/api/free-entries/confirm').send({ token });

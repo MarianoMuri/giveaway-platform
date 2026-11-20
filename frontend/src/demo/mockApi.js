@@ -335,12 +335,13 @@ const routes = [
     if (String(b.name || '').trim().length < 3) throw new Err(400, { error: 'Ingresá tu nombre completo' });
     if (dni.length < 7 || dni.length > 8) throw new Err(400, { error: 'El DNI no es válido' });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(b.email || '').trim())) throw new Err(400, { error: 'Ingresá un email válido' });
+    if (String(b.phone || '').replace(/\D/g, '').length < 8) throw new Err(400, { error: 'El teléfono no es válido' });
     const province = cleanProvince(b.province);
     assertProvince(r, province);
     const existing = db.freeEntries.find((f) => f.RaffleId === r.id && f.dni === dni);
     if (existing && existing.status !== 'unconfirmed') throw new Err(409, { error: 'Ese DNI ya está participando en este sorteo' });
     const token = `demo-${Math.random().toString(36).slice(2)}`;
-    const fields = { name: String(b.name).trim(), dni, province, email: String(b.email).trim().toLowerCase(), token, status: 'unconfirmed' };
+    const fields = { name: String(b.name).trim(), dni, phone: String(b.phone).trim(), province, email: String(b.email).trim().toLowerCase(), token, status: 'unconfirmed' };
     if (existing) Object.assign(existing, fields);
     else db.freeEntries.unshift({ id: `fe-${db.freeEntries.length + 1}`, RaffleId: r.id, number: null, createdAt: iso(), ...fields });
     return { ok: true, demoToken: token };
@@ -530,8 +531,11 @@ const routes = [
     const dni = String(b.buyer?.dni || '').replace(/\D/g, '');
     if (String(b.buyer?.name || '').trim().length < 3) throw new Err(400, { error: 'Falta el nombre del comprador' });
     if (dni.length < 7 || dni.length > 8) throw new Err(400, { error: 'El DNI no es válido' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(b.buyer?.email || '').trim())) throw new Err(400, { error: 'Falta un email válido del comprador' });
+    if (String(b.buyer?.phone || '').replace(/\D/g, '').length < 8) throw new Err(400, { error: 'Falta un teléfono válido del comprador' });
+    if (!b.buyer?.province) throw new Err(400, { error: 'Falta la provincia del comprador' });
     const o = {
-      id: crypto.randomUUID(), RaffleId: r.id, buyerName: b.buyer.name.trim(), buyerEmail: b.buyer.email || '-', buyerPhone: b.buyer.phone || '-', buyerDni: dni,
+      id: crypto.randomUUID(), RaffleId: r.id, buyerName: b.buyer.name.trim(), buyerEmail: b.buyer.email.trim().toLowerCase(), buyerPhone: b.buyer.phone, buyerDni: dni, buyerProvince: cleanProvince(b.buyer.province),
       chances: b.chances, double: false, amount: Number(b.amount || 0).toFixed(2), CourseId: course.id, courseTitle: course.title, status: 'manual', createdAt: iso(),
       emailStatus: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(b.buyer.email || '') ? 'sent' : 'none',
     };

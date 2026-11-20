@@ -31,7 +31,7 @@ async function winnerData(raffleId, winner) {
       ['Nombre y apellido', f.name],
       ['DNI', f.dni],
       ['Email', f.email],
-      ['Teléfono', '— (la participación gratuita no lo pide)'],
+      ['Teléfono', f.phone || '—'],
       ['Provincia', provinceName(f.province) || '—'],
       ['Confirmó su email', f.confirmedAt ? when(f.confirmedAt) : '—'],
     ];

@@ -73,6 +73,12 @@ async function manualSale({ raffleId, chances, courseId, amount, buyer }) {
   const dni = String(b.dni || '').replace(/\D/g, '');
   if (name.length < 3) throw new HttpError(400, 'Falta el nombre del comprador');
   if (dni.length < 7 || dni.length > 8) throw new HttpError(400, 'El DNI no es válido');
+  // Mismos datos obligatorios que en la compra online: hacen falta para contactar y verificar al ganador
+  const email = String(b.email || '').trim().toLowerCase();
+  const phone = String(b.phone || '').replace(/[^\d+]/g, '');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new HttpError(400, 'Falta un email válido del comprador');
+  if (phone.replace(/\D/g, '').length < 8) throw new HttpError(400, 'Falta un teléfono válido del comprador');
+  if (!b.province) throw new HttpError(400, 'Falta la provincia del comprador');
 
   const order = await sequelize.transaction(async (transaction) => {
     const raffle = await Raffle.findByPk(raffleId, { transaction });
@@ -84,10 +90,10 @@ async function manualSale({ raffleId, chances, courseId, amount, buyer }) {
       {
         RaffleId: raffle.id,
         buyerName: name,
-        buyerEmail: String(b.email || '-').trim().toLowerCase() || '-',
-        buyerPhone: String(b.phone || '-').trim() || '-',
+        buyerEmail: email,
+        buyerPhone: phone,
         buyerDni: dni,
-        buyerProvince: b.province ? cleanProvince(b.province) : null, // en una venta manual la provincia es opcional
+        buyerProvince: cleanProvince(b.province),
         locality: cleanProfile(b).locality,
         chances: n,
         amount: total.toFixed(2),
