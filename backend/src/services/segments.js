@@ -1,10 +1,8 @@
 const { fn, col } = require('sequelize');
 const { Order, FreeEntry } = require('../db');
 const { PROVINCES } = require('./provinces');
-const { AGE_RANGES, GENDERS, OCCUPATIONS } = require('./profile');
 
-// "Dónde compran y quiénes": compras, chances y recaudación agrupadas por provincia, localidad, edad, género
-// u ocupación, más las participaciones gratuitas confirmadas. Sirve para decidir dónde y a quién dirigir la publicidad.
+// "Dónde compran": compras, chances y recaudación agrupadas por provincia o localidad, más las participaciones gratuitas confirmadas. Sirve para decidir dónde dirigir la publicidad.
 // Solo cuentan compras acreditadas (online o manuales); las anuladas, pendientes o rechazadas no.
 // Quien no completó el dato (es opcional, o la compra es anterior a que existiera) queda en "Sin dato".
 const SOLD = ['approved', 'manual'];
@@ -13,9 +11,6 @@ const SOLD = ['approved', 'manual'];
 const DIMENSIONS = {
   province: { order: 'buyerProvince', free: 'province', label: (v) => PROVINCES.find((p) => p.code === v)?.name || v },
   locality: { order: 'locality', free: 'locality', label: (v) => v },
-  ageRange: { order: 'ageRange', free: 'ageRange', label: (v) => AGE_RANGES.find((o) => o.value === v)?.label || v },
-  gender: { order: 'gender', free: 'gender', label: (v) => GENDERS.find((o) => o.value === v)?.label || v },
-  occupation: { order: 'occupation', free: 'occupation', label: (v) => OCCUPATIONS.find((o) => o.value === v)?.label || v },
 };
 
 // "Bahía Blanca" y "bahia blanca" son la misma localidad

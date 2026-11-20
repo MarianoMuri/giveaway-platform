@@ -39,13 +39,13 @@ function clean({ name, dni, email, province, ...profile }) {
 }
 
 // Pide participar: valida, guarda la participación sin confirmar y manda el link por email
-async function request({ raffleId, name, dni, email, province, locality, ageRange, gender, occupation, captchaToken, deviceId, ip }) {
+async function request({ raffleId, name, dni, email, province, locality, captchaToken, deviceId, ip }) {
   const raffle = await Raffle.findByPk(raffleId);
   if (!raffle || raffle.status === 'draft') throw new HttpError(404, 'Sorteo no encontrado');
   if (!raffle.freeEntryEnabled) throw new HttpError(409, 'Este sorteo no tiene participación gratuita');
   sales.assertOpen(raffle, 'La participación en este sorteo está cerrada');
 
-  const data = clean({ name, dni, email, province, locality, ageRange, gender, occupation });
+  const data = clean({ name, dni, email, province, locality });
   provinces.assertAvailable(raffle, data.province);
   if (!DEVICE.test(String(deviceId || ''))) throw new HttpError(400, 'No pudimos identificar tu dispositivo. Recargá la página.');
   await captcha.verify(captchaToken, ip);

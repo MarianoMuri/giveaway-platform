@@ -18,7 +18,7 @@ export default function RafflePage() {
   const [courseId, setCourseId] = useState(null);
   const [packId, setPackId] = useState(null);
   const [double, setDouble] = useState(false);
-  const [buyer, setBuyer] = useState({ name: '', dni: '', phone: '', email: '', province: '', locality: '', ageRange: '', gender: '', occupation: '' });
+  const [buyer, setBuyer] = useState({ name: '', dni: '', phone: '', email: '', province: '', locality: '' });
   const [accept, setAccept] = useState(false);
   const [sending, setSending] = useState(false);
   const [msg, setMsg] = useState(null);

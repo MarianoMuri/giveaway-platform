@@ -27,7 +27,6 @@ async function withPrices(raffles) {
 
 // Las 24 jurisdicciones, para el selector de provincia
 router.get('/provinces', (req, res) => res.json(PROVINCES));
-router.get('/profile-options', (req, res) => res.json(require('../services/profile').options()));
 
 const wrap = (handler) => (req, res, next) => handler(req, res).catch(next);
 
@@ -122,8 +121,8 @@ router.get('/my-purchases', wrap(async (req, res) => {
 const freeLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: config.freeEntries.requestsPer15Min, standardHeaders: true, legacyHeaders: false });
 const confirmLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: config.freeEntries.requestsPer15Min, standardHeaders: true, legacyHeaders: false });
 router.post('/raffles/:id/free-entries', freeLimiter, wrap(async (req, res) => {
-  const { name, dni, email, province, locality, ageRange, gender, occupation, captchaToken, deviceId } = req.body || {};
-  res.status(202).json(await freeEntries.request({ raffleId: req.params.id, name, dni, email, province, locality, ageRange, gender, occupation, captchaToken, deviceId, ip: req.ip }));
+  const { name, dni, email, province, locality, captchaToken, deviceId } = req.body || {};
+  res.status(202).json(await freeEntries.request({ raffleId: req.params.id, name, dni, email, province, locality, captchaToken, deviceId, ip: req.ip }));
 }));
 
 router.post('/free-entries/confirm', confirmLimiter, wrap(async (req, res) => {

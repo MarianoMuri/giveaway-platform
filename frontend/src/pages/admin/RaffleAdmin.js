@@ -41,7 +41,7 @@ export default function RaffleAdmin() {
     `/admin/orders?raffleId=${id}${filter ? `&status=${filter}` : ''}`,
     { auth: true }
   );
-  const emptyManual = { chances: '', courseId: '', amount: '', name: '', phone: '', dni: '', email: '', province: '', locality: '', ageRange: '', gender: '', occupation: '' };
+  const emptyManual = { chances: '', courseId: '', amount: '', name: '', phone: '', dni: '', email: '', province: '', locality: '' };
   const [manual, setManual] = useState(emptyManual);
   const { data: courses } = useApi('/admin/courses', { auth: true });
   const { data: freeList, reload: reloadFree } = useApi(`/admin/raffles/${id}/free-entries`, { auth: true });
@@ -204,7 +204,7 @@ export default function RaffleAdmin() {
             chances: Number(manual.chances),
             courseId: Number(manual.courseId),
             amount: Number(manual.amount),
-            buyer: { name: manual.name, phone: manual.phone, dni: manual.dni, email: manual.email, province: manual.province || undefined, locality: manual.locality, ageRange: manual.ageRange, gender: manual.gender, occupation: manual.occupation },
+            buyer: { name: manual.name, phone: manual.phone, dni: manual.dni, email: manual.email, province: manual.province || undefined, locality: manual.locality },
           },
         });
       },
@@ -280,14 +280,11 @@ export default function RaffleAdmin() {
       {seg && (
         <section className="card">
           <div className="row between">
-            <h3>Dónde compran y quiénes</h3>
+            <h3>Dónde compran</h3>
             <label className="small">Ver por
               <select value={segBy} onChange={(e) => setSegBy(e.target.value)}>
                 <option value="province">Provincia</option>
                 <option value="locality">Localidad</option>
-                <option value="ageRange">Edad</option>
-                <option value="gender">Género</option>
-                <option value="occupation">Ocupación</option>
               </select>
             </label>
           </div>
@@ -295,7 +292,7 @@ export default function RaffleAdmin() {
           {seg.rows.length === 0 ? <p className="muted">Todavía no hay compras.</p> : (
             <div className="table-wrap">
               <table>
-                <thead><tr><th>{{ province: 'Provincia', locality: 'Localidad', ageRange: 'Edad', gender: 'Género', occupation: 'Ocupación' }[segBy]}</th><th>Compras</th><th>Chances</th><th>Recaudado</th><th>% de la plata</th><th>Gratis</th></tr></thead>
+                <thead><tr><th>{{ province: 'Provincia', locality: 'Localidad' }[segBy]}</th><th>Compras</th><th>Chances</th><th>Recaudado</th><th>% de la plata</th><th>Gratis</th></tr></thead>
                 <tbody>
                   {seg.rows.map((p) => (
                     <tr key={p.code || 'sin-dato'}>

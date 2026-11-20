@@ -88,7 +88,7 @@ async function manualSale({ raffleId, chances, courseId, amount, buyer }) {
         buyerPhone: String(b.phone || '-').trim() || '-',
         buyerDni: dni,
         buyerProvince: b.province ? cleanProvince(b.province) : null, // en una venta manual la provincia es opcional
-        ...(({ locality, ageRange, gender, occupation }) => ({ locality, ageRange, gender, occupation }))(cleanProfile(b)),
+        locality: cleanProfile(b).locality,
         chances: n,
         amount: total.toFixed(2),
         CourseId: course.id,

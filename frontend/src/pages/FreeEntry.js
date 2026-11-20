@@ -24,7 +24,7 @@ function deviceId() {
 export default function FreeEntry() {
   const { id } = useParams();
   const { data: raffle, error } = useApi(`/raffles/${id}`);
-  const [form, setForm] = useState({ name: '', dni: '', email: '', province: '', locality: '', ageRange: '', gender: '', occupation: '' });
+  const [form, setForm] = useState({ name: '', dni: '', email: '', province: '', locality: '' });
   const [accept, setAccept] = useState(false);
   const [captchaToken, setCaptchaToken] = useState(null);
   const [state, setState] = useState(null); // null | 'sending' | 'sent'
