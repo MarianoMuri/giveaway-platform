@@ -34,7 +34,7 @@ function Header() {
   const isAdmin = pathname.startsWith('/admin');
   return (
     <header className="header">
-      <Link to={isAdmin ? '/admin' : '/'} className="logo">
+      <Link to={isAdmin ? (getRole() === 'live' ? '/admin/en-vivo' : '/admin') : '/'} className="logo">
         <img src={brand.logoUrl} alt="" className="logo-img" />
         <span>{brand.name}</span>
         {isAdmin && <span className="badge">Admin</span>}
