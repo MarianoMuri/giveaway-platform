@@ -48,13 +48,14 @@ function fromOrder(o) {
 }
 
 // Cuerpo de POST /v1/orders (Checkout Pro). Un solo ítem con el total que calculó el backend.
-function orderBody({ order, title }) {
+function orderBody({ order, title, expiresInMinutes }) {
   const back = `${config.frontendUrl}/compra/${order.id}`;
   return {
     type: 'online',
     processing_mode: 'manual',
     total_amount: money(order.amount),
     external_reference: order.id,
+    ...(expiresInMinutes && { expiration_time: `PT${expiresInMinutes}M` }), // el link de pago vence (ISO 8601)
     description: title.slice(0, 250),
     payer: { email: order.buyerEmail },
     items: [{ title: title.slice(0, 250), unit_price: money(order.amount), quantity: 1 }],
@@ -66,10 +67,10 @@ function orderBody({ order, title }) {
 const mp = {
   // Crea el checkout y devuelve { id, initPoint }. El aviso de pago llega al webhook que se
   // configura en el panel de Mercado Pago (evento "Order"), el mismo donde está la clave secreta.
-  async createCheckout({ order, title }) {
-    if (config.mp.api === 'preferences') return createPreference({ order, title });
+  async createCheckout({ order, title, expiresInMinutes }) {
+    if (config.mp.api === 'preferences') return createPreference({ order, title, expiresInMinutes });
     const created = await new MpOrder(getClient()).create({
-      body: orderBody({ order, title }),
+      body: orderBody({ order, title, expiresInMinutes }),
       // La misma compra siempre usa la misma clave: un reintento no crea una orden duplicada
       requestOptions: { idempotencyKey: order.id },
     });
@@ -125,7 +126,7 @@ const mp = {
 };
 
 // API heredada (Preferences): queda disponible con MP_API=preferences
-async function createPreference({ order, title }) {
+async function createPreference({ order, title, expiresInMinutes }) {
   const pref = await new Preference(getClient()).create({
     body: {
       items: [
@@ -146,6 +147,11 @@ async function createPreference({ order, title }) {
         failure: `${config.frontendUrl}/compra/${order.id}`,
       },
       auto_return: 'approved',
+      ...(expiresInMinutes && {
+        expires: true,
+        expiration_date_from: new Date().toISOString(),
+        expiration_date_to: new Date(Date.now() + expiresInMinutes * 60 * 1000).toISOString(),
+      }),
     },
   });
   return { id: pref.id, initPoint: pref.init_point };

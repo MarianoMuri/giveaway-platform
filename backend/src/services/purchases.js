@@ -6,6 +6,7 @@ const numbers = require('./numbers');
 const emails = require('./emails');
 const provinces = require('./provinces');
 const { cleanProfile } = require('./profile');
+const promos = require('./promos');
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -40,7 +41,17 @@ async function createPurchase({ raffleId, packId, double, courseId, buyer, code 
   const raffle = await Raffle.findByPk(raffleId);
   provinces.assertAvailable(raffle, b.province); // antes de crear nada: una provincia excluida no deja rastros
 
-  const order = await Order.create({
+  const capped = (quote.applied || []).filter((x) => x.maxUses);
+  const order = await sequelize.transaction(async (t) => {
+    // Promos con tope: se reserva el cupo con el sorteo bloqueado, así dos compras a la vez nunca se pasan del tope
+    if (capped.length) {
+      if (sequelize.getDialect() === 'postgres') await sequelize.query('SELECT pg_advisory_xact_lock(:key)', { replacements: { key: 7000000 + raffle.id }, transaction: t });
+      const used = await promos.usedByPromo(raffle.id, { transaction: t });
+      if (capped.some((x) => (used.get(x.id) || 0) >= x.maxUses)) {
+        throw new HttpError(409, 'Se agotaron los cupos de esta oferta justo ahora. Actualizá la página para ver los precios al día.');
+      }
+    }
+    return Order.create({
     RaffleId: raffle.id,
     buyerName: b.name,
     buyerEmail: b.email,
@@ -60,6 +71,7 @@ async function createPurchase({ raffleId, packId, double, courseId, buyer, code 
     bonusChances: quote.bonusChances || 0,
     CourseId: course.id,
     courseTitle: course.title,
+  }, { transaction: t });
   });
 
   try {
@@ -67,6 +79,7 @@ async function createPurchase({ raffleId, packId, double, courseId, buyer, code 
       order,
       raffle,
       title: `Curso "${course.title}" + ${quote.chances} chances - ${raffle.title}`,
+      expiresInMinutes: capped.length ? promos.RESERVE_MINUTES : undefined,
     });
     await order.update({ mpPreferenceId: checkout.id });
     return { orderId: order.id, checkoutUrl: checkout.initPoint, total: quote.total, chances: quote.chances };

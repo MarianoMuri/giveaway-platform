@@ -144,10 +144,15 @@ export default function RafflePage() {
             <h2><span className="step-n">2</span> Elegí tus chances</h2>
             {offer.promos?.length > 0 && (
               <div className="promo-banner" role="note">
+                <p><strong>⚡ ¡Ofertas relámpago! Aprovechalas antes de que se terminen</strong></p>
                 {offer.promos.map((pr) => (
                   <p key={pr.name}>
-                    <strong>🎉 {pr.name}:</strong> {pr.bonus > 0 ? `${pr.bonus} ${pr.bonus === 1 ? 'chance' : 'chances'} de regalo por cada ${pr.bonusEvery} que compres` : `${pr.percent}% de descuento`}
-                    {pr.minChances ? ` en compras de ${pr.minChances} chances o más` : pr.bonus > 0 ? '' : ' en tu compra'}.
+                    {pr.bonus > 0
+                      ? <>🎁 <strong>{pr.name}:</strong> ¡te regalamos {pr.bonus} {pr.bonus === 1 ? 'chance' : 'chances'} por cada {pr.bonusEvery} que compres!</>
+                      : <>🔥 <strong>{pr.name}:</strong> ¡{pr.percent}% OFF en tu compra!</>}
+                    {pr.minChances ? ` Desde ${pr.minChances} chances.` : ''}
+                    {pr.endsAt ? <span className="small muted"> Hasta el {dateTime(pr.endsAt)}.</span> : ''}
+                    {pr.left !== null && pr.left !== undefined && <strong className="save"> ¡{pr.left === 1 ? 'Queda 1 cupo' : `Quedan ${pr.left} cupos`}!</strong>}
                   </p>
                 ))}
               </div>
@@ -163,14 +168,14 @@ export default function RafflePage() {
                   onClick={() => { setPackId(p.id); setMsg(null); }}
                 >
                   {p.featured && <span className="pack-tag">El más elegido</span>}
-                  <span className="pack-chances"><strong>{p.final ? p.final.chances : p.chances}</strong> chances{p.final?.bonusChances > 0 && <span className="save small"> (+{p.final.bonusChances} de regalo)</span>}</span>
+                  <span className="pack-chances"><strong>{p.final ? p.final.chances : p.chances}</strong> chances{p.final?.bonusChances > 0 && <span className="save small"> (+{p.final.bonusChances} de regalo 🎁)</span>}</span>
                   <span className="pack-price">
                     {p.final?.discount > 0 && <s className="pack-was">{money(p.price)}</s>}{' '}
                     {money(p.final ? p.final.total : p.price)}
                   </span>
                   <span className="pack-meta small">
                     {money(p.final ? p.final.perChance : p.perChance)} c/u
-                    {p.final ? <span className="save"> · {p.final.promo.name}</span> : p.savingsPct && <span className="save"> · {p.savingsPct}% menos por chance</span>}
+                    {p.final ? <span className="save"> · ⚡ {p.final.promo.name}</span> : p.savingsPct && <span className="save"> · {p.savingsPct}% menos por chance</span>}
                   </span>
                 </button>
               ))}
@@ -200,12 +205,12 @@ export default function RafflePage() {
             <div className="code-box">
               {withCode ? (
                 <p className="row between">
-                  <span>✅ Código <strong>{appliedCode.toUpperCase()}</strong> aplicado{codeQuote.applied?.some((x) => x.code) ? `: ${codeQuote.applied.find((x) => x.code).name}` : '. Ya tenés una promo mejor aplicada, así que no suma'}</span>
+                  <span>⚡ Código <strong>{appliedCode.toUpperCase()}</strong> aplicado{codeQuote.applied?.some((x) => x.code) ? `: ${codeQuote.applied.find((x) => x.code).name}` : '. Ya tenés una promo mejor aplicada, así que no suma'}</span>
                   <button type="button" className="linklike small" onClick={removeCode}>Quitar</button>
                 </p>
               ) : (
                 <div className="row">
-                  <label className="grow">¿Tenés un código de promo?
+                  <label className="grow">¿Tenés un código relámpago? Escribilo y ahorrá
                     <input value={codeInput} autoCapitalize="characters" autoComplete="off" placeholder="Escribilo acá" onChange={(e) => setCodeInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') applyCode(e); }} />
                   </label>
                   <button type="button" className="btn btn-ghost btn-sm" disabled={!codeInput.trim() || codeLoading} onClick={applyCode}>{codeLoading ? 'Verificando…' : 'Aplicar'}</button>
@@ -219,7 +224,7 @@ export default function RafflePage() {
               <div className="row between"><span className="muted">Chances</span><span>{selection ? selection.chances : '-'}{selection?.bonusChances > 0 && <span className="save small"> (incluye {selection.bonusChances} de regalo)</span>}</span></div>
               <div className="row between"><span className="muted">Precio por chance</span><span>{selection ? money(selection.perChance) : '-'}</span></div>
               {selection?.promo && selection.discount > 0 && (
-                <div className="row between"><span className="muted">Descuento ({selection.promo.name})</span><span className="save">- {money(selection.discount)}</span></div>
+                <div className="row between"><span className="muted">⚡ Ahorrás ({selection.promo.name})</span><span className="save">- {money(selection.discount)}</span></div>
               )}
               <div className="row between total"><span>Total</span><strong>{selection ? money(selection.total) : '-'}</strong></div>
             </div>
