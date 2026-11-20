@@ -250,7 +250,6 @@ export default function RaffleAdmin() {
           {(raffle.status === 'closed' || saleClosedByDate) && <button className="btn btn-ghost" disabled={legalMissing.length > 0} title={legalMissing.length ? `Falta cargar ${legalMissing.join(' y ')}` : undefined} onClick={enableSales}>Habilitar venta</button>}
           <button className="btn btn-ghost" onClick={toggleFree}>{raffle.freeEntryEnabled ? 'Desactivar participación gratuita' : 'Activar participación gratuita'}</button>
           {raffle.status !== 'draft' && <Link className="btn btn-ghost" to={`/sorteo/${id}`} target="_blank">Ver página</Link>}
-          {raffle.status !== 'draft' && <Link className="btn" to={`/admin/sorteo/${id}/en-vivo`}>Sorteo en vivo</Link>}
         </div>
       </div>
 
