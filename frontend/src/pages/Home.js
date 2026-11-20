@@ -47,9 +47,16 @@ export default function Home() {
                 <div><dt>Sorteo</dt><dd>{dateShort(r.drawDate)}</dd></div>
               </dl>
               <p className="small muted">Comprás un curso digital y te regalamos chances para el sorteo.</p>
-              <Link to={`/sorteo/${r.id}`} className="btn btn-lg">Quiero participar</Link>
-              {r.freeEntryEnabled && (
-                <p className="small muted mt-sm">Sin obligación de compra: también podés <Link to={`/sorteo/${r.id}/participar-gratis`}>participar gratis</Link>.</p>
+              {r.salesOpen === false ? (
+                <p className="alert" role="status">La venta de este sorteo ya cerró. ¡Mucha suerte a todos los participantes!</p>
+              ) : (
+                <>
+                  {r.salesCloseAt && <p className="small muted">La venta cierra el {dateShort(r.salesCloseAt)} h</p>}
+                  <Link to={`/sorteo/${r.id}`} className="btn btn-lg">Quiero participar</Link>
+                  {r.freeEntryEnabled && (
+                    <p className="small muted mt-sm">Sin obligación de compra: también podés <Link to={`/sorteo/${r.id}/participar-gratis`}>participar gratis</Link>.</p>
+                  )}
+                </>
               )}
               <div className="small muted mt">
                 {r.permitNumber && <>Autorización N° {r.permitNumber} · </>}
