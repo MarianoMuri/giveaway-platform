@@ -4,7 +4,13 @@ import { useApi } from '../../hooks';
 import { api } from '../../api';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const rollMs = 4500; // dura la animación; el número ya lo decidió el servidor
+const DEFAULT_SECS = 20; // duración total de la animación; el número ya lo decidió el servidor
+const MIN_SECS = 3;
+const MAX_SECS = 120;
+const clampSecs = (n) => Math.min(MAX_SECS, Math.max(MIN_SECS, Math.round(Number(n)) || DEFAULT_SECS));
+const loadSecs = () => {
+  try { return clampSecs(localStorage.getItem('liveDrawSecs') || DEFAULT_SECS); } catch (e) { return DEFAULT_SECS; }
+};
 
 // "Luis Díaz" -> "Luis D.": en la transmisión no se muestran datos personales completos
 const maskName = (name) => {
@@ -18,7 +24,6 @@ export default function LiveDraw() {
   const { id } = useParams();
   const nav = useNavigate();
   const { data: raffles, reload } = useApi('/admin/raffles', { auth: true });
-  const { data: stats, reload: reloadStats } = useApi(`/admin/raffles/${id}/stats`, { auth: true });
   const [phase, setPhase] = useState('idle'); // idle | rolling | done
   const [digits, setDigits] = useState(['?', '?', '?', '?', '?', '?']);
   const [locked, setLocked] = useState(0);
@@ -26,6 +31,8 @@ export default function LiveDraw() {
   const [error, setError] = useState(null);
   const [asking, setAsking] = useState(false); // pidiendo el motivo para repetir
   const [reason, setReason] = useState('');
+  const [secs, setSecs] = useState(loadSecs); // segundos hasta que aparecen todos los números
+  const [left, setLeft] = useState(0); // cuenta regresiva mientras gira
   const timer = useRef(null);
 
   const raffle = (raffles || []).find((r) => String(r.id) === id);
@@ -41,10 +48,20 @@ export default function LiveDraw() {
   const closedByDate = raffle.salesCloseAt && new Date(raffle.salesCloseAt) <= new Date();
   const saleOpen = raffle.status === 'active' && !closedByDate;
   const redo = raffle.status === 'drawn';
-  const participants = (stats?.chancesSold || 0) + (stats?.freeEntries || 0);
   const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
+  const changeSecs = (v) => {
+    const n = clampSecs(v);
+    setSecs(n);
+    try { localStorage.setItem('liveDrawSecs', String(n)); } catch (e) { /* sin almacenamiento: solo vale para esta vez */ }
+  };
+
   const run = async () => {
+    // el tiempo total se reparte en 6 tramos iguales: gira todo, y luego se fija un dígito por tramo
+    const stepMs = reduceMotion ? 0 : (secs * 1000) / 6;
+    const startedAt = Date.now();
+    setLeft(secs);
+    const countdown = setInterval(() => setLeft(Math.max(0, Math.ceil(secs - (Date.now() - startedAt) / 1000))), 250);
     setError(null);
     setResult(null);
     setPhase('rolling');
@@ -55,25 +72,26 @@ export default function LiveDraw() {
     try {
       const [res] = await Promise.all([
         api(`/admin/raffles/${id}/draw`, { method: 'POST', auth: true, body: redo ? { reason } : {} }),
-        sleep(reduceMotion ? 0 : rollMs),
+        sleep(stepMs),
       ]);
       const final = String(res.number).padStart(6, '0').split('');
       // los dígitos se van fijando de a uno, de izquierda a derecha
       for (let i = 1; i <= final.length; i += 1) {
         setDigits((d) => final.map((x, k) => (k < i ? x : d[k])));
         setLocked(i);
-        if (!reduceMotion) await sleep(650);
+        if (i < final.length) await sleep(stepMs);
       }
       clearInterval(timer.current);
+      clearInterval(countdown);
       setDigits(final);
       setResult(res);
       setPhase('done');
       setAsking(false);
       setReason('');
       reload();
-      reloadStats();
     } catch (e) {
       clearInterval(timer.current);
+      clearInterval(countdown);
       setDigits(['?', '?', '?', '?', '?', '?']);
       setPhase('idle');
       setError(e.message);
@@ -90,7 +108,6 @@ export default function LiveDraw() {
       </div>
       <p className="live-prize">🚗 {raffle.prize}</p>
       <h1 className="live-title">{raffle.title}</h1>
-      <p className="live-count">{participants.toLocaleString('es-AR')} chances participan</p>
 
       <div className={`live-digits ${phase}`} aria-live="polite">
         {digits.map((d, i) => <span key={i} className={`live-digit ${i < locked ? 'locked' : ''}`}>{d}</span>)}
@@ -104,11 +121,22 @@ export default function LiveDraw() {
         </div>
       )}
 
+      {phase === 'rolling' && !reduceMotion && <p className="live-count" aria-live="off">Faltan {left} s</p>}
+
       {error && <p className="alert live-msg">{error}</p>}
       {saleOpen && <p className="alert live-msg">La venta sigue abierta. Cerrala (con fecha o a mano) antes de sortear.</p>}
 
       {!saleOpen && phase !== 'rolling' && (
         <div className="live-actions">
+          {(!redo || asking) && (
+            <label className="live-secs">Duración del sorteo (segundos)
+              <span className="live-secs-ctl">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => changeSecs(secs - 5)} aria-label="Menos segundos">−</button>
+                <input type="number" min={MIN_SECS} max={MAX_SECS} value={secs} onChange={(e) => setSecs(e.target.value === '' ? '' : Number(e.target.value))} onBlur={() => changeSecs(secs)} />
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => changeSecs(secs + 5)} aria-label="Más segundos">+</button>
+              </span>
+            </label>
+          )}
           {redo && !asking && phase !== 'done' && <p className="live-msg">Ya hay un ganador: <strong>{raffle.winnerNumber}</strong>.</p>}
           {redo && asking && (
             <label className="live-reason">Motivo para repetir el sorteo (queda registrado)
