@@ -16,6 +16,7 @@ const { streamRaffleCsv } = require('../services/export');
 const mpHealth = require('../services/mpHealth');
 const draw = require('../services/draw');
 const winnerAlert = require('../services/winnerAlert');
+const { segmentSales } = require('../services/segments');
 const sales = require('../services/sales');
 const { cleanExcluded } = require('../services/provinces');
 const { AuditLog } = require('../db');
@@ -132,6 +133,13 @@ router.get('/audit', wrap(async (req, res) => {
 // Control previo al sorteo: carga los pagos que faltaban (consulta a Mercado Pago) y resume el estado
 router.post('/raffles/:id/readiness', wrap(async (req, res) => {
   res.json(await readiness.check(req.params.id));
+}));
+
+// "Dónde compran y quiénes": ventas por provincia, localidad, edad, género u ocupación (?by=...)
+router.get('/raffles/:id/segments', wrap(async (req, res) => {
+  const result = await segmentSales(req.params.id, String(req.query.by || 'province'));
+  if (!result) throw new HttpError(400, 'Segmento inválido');
+  res.json(result);
 }));
 
 router.get('/raffles/:id/stats', wrap(async (req, res) => {

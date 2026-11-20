@@ -33,7 +33,7 @@ let auth, raffleId, courseId, packId;
 const post = (url, body = {}) => request(app).post(url).set(auth).send(body);
 const drawNow = (body) => post(`/api/admin/raffles/${raffleId}/draw`, body);
 const manual = (name, dni, chances = 5) =>
-  post('/api/admin/orders/manual', { raffleId, chances, courseId, amount: 15000, buyer: { name, dni, email: `${dni}@test.com`, phone: '2914000000' } });
+  post('/api/admin/orders/manual', { raffleId, chances, courseId, amount: 15000, buyer: { name, dni, email: `${dni}@test.com`, phone: '2914000000', province: 'B' } });
 
 // Cada test arranca con la lista vacía: se anulan las chances anteriores y el sorteo queda cerrado y sin ganador
 async function fresh() {
