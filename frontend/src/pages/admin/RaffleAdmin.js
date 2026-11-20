@@ -84,6 +84,8 @@ export default function RaffleAdmin() {
   const toggleFree = () =>
     run(() => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { freeEntryEnabled: !raffle.freeEntryEnabled } }),
       raffle.freeEntryEnabled ? 'Participación gratuita desactivada' : 'Participación gratuita activada');
+  const toggleFlag = (key, on, off) =>
+    run(() => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { [key]: !raffle[key] } }), raffle[key] ? off : on);
   const voidFree = (f) => {
     if (!window.confirm(`¿Anular la participación de ${f.name} (DNI ${f.dni})? Su número no se vuelve a usar.`)) return;
     run(() => api(`/admin/free-entries/${f.id}/void`, { method: 'POST', auth: true }), 'Participación anulada');
@@ -319,6 +321,24 @@ export default function RaffleAdmin() {
       {stats?.emailsPending > 1 && <p className="muted">{stats.emailsPending.toLocaleString('es-AR')} emails en cola de envío: salen de a poco, al ritmo que acepta el proveedor.</p>}
       {stats?.winnerVoided && <p className="alert">Atención: el número ganador cargado quedó anulado por un reintegro o contracargo. Hay que sortear de nuevo.</p>}
       {raffle.chancesGoal && <SalesProgress raffle={{ ...raffle, chancesSold: stats?.chancesSold || 0 }} />}
+
+      <section className="card">
+        <h3>Dónde se ve este sorteo</h3>
+        <p className="muted small">No se borra nada: podés volver a mostrarlo cuando quieras.</p>
+        <p>
+          Lista de Angelo (sorteo en vivo): <strong>{raffle.liveHidden ? 'oculto' : 'visible'}</strong>{' '}
+          <button className="btn btn-ghost btn-sm" onClick={() => toggleFlag('liveHidden', 'Ahora Angelo no lo ve', 'Ahora Angelo lo ve')}>
+            {raffle.liveHidden ? 'Mostrar a Angelo' : 'Ocultar a Angelo'}
+          </button>
+        </p>
+        <p>
+          Página de inicio (pública): <strong>{raffle.publicHidden ? 'oculto' : 'visible'}</strong>{' '}
+          <button className="btn btn-ghost btn-sm" onClick={() => toggleFlag('publicHidden', 'Ya no aparece en la página de inicio', 'Vuelve a aparecer en la página de inicio')}>
+            {raffle.publicHidden ? 'Mostrar en el inicio' : 'Ocultar del inicio'}
+          </button>
+        </p>
+        {raffle.publicHidden && <p className="small muted">Quien tenga el link directo todavía puede abrirlo.</p>}
+      </section>
 
       <section className="card">
         <h3>Nombre y premio del sorteo</h3>

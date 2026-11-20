@@ -32,7 +32,7 @@ const wrap = (handler) => (req, res, next) => handler(req, res).catch(next);
 
 router.get('/raffles', wrap(async (req, res) => {
   const raffles = await Raffle.findAll({
-    where: { status: { [Op.ne]: 'draft' } },
+    where: { status: { [Op.ne]: 'draft' }, publicHidden: false }, // los ocultos no salen en la página de inicio (siguen andando con su link)
     attributes: publicFields,
     order: [['drawDate', 'DESC']],
   });

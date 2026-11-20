@@ -13,7 +13,7 @@ export default function LiveHub() {
   const onlyLive = getRole() === 'live';
   const enabled = (r) => r.liveEnabled !== false;
   // Habilitados arriba (el más nuevo primero); deshabilitados al final. sort() es estable: se conserva el orden por fecha.
-  const list = (raffles || []).filter((r) => r.status !== 'draft').sort((a, b) => Number(enabled(b)) - Number(enabled(a)));
+  const list = (raffles || []).filter((r) => r.status !== 'draft').sort((a, b) => Number(enabled(b) && !b.liveHidden) - Number(enabled(a) && !a.liveHidden));
 
   const state = (r) => {
     if (r.status === 'drawn') return 'Ya tiene ganador (se puede repetir con un motivo)';
@@ -40,10 +40,10 @@ export default function LiveHub() {
       {msg && <p className="alert">{msg}</p>}
       <div>
         {list.map((r) => (
-          <section key={r.id} className="card" style={enabled(r) ? undefined : { opacity: 0.55 }}>
+          <section key={r.id} className="card" style={enabled(r) && !r.liveHidden ? undefined : { opacity: 0.55 }}>
             <h3>{r.title}</h3>
             <p className="muted">{r.prize}</p>
-            <p className="small">{enabled(r) ? state(r) : 'Deshabilitado: no se puede abrir'}</p>
+            <p className="small">{r.liveHidden ? 'Oculto para Angelo (solo lo ves vos)' : enabled(r) ? state(r) : 'Deshabilitado: no se puede abrir'}</p>
             {enabled(r)
               ? <Link to={`/admin/sorteo/${r.id}/en-vivo`} className="btn btn-lg">Abrir sorteo en vivo</Link>
               : <button className="btn btn-lg" disabled style={{ filter: 'grayscale(1)', cursor: 'not-allowed' }}>Abrir sorteo en vivo</button>}

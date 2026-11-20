@@ -66,7 +66,7 @@ router.put('/raffles/:id/packs', wrap(async (req, res) => {
 router.patch('/raffles/:id', wrap(async (req, res) => {
   const raffle = await Raffle.findByPk(req.params.id);
   if (!raffle) throw new HttpError(404, 'Sorteo inexistente');
-  const allowed = ['title', 'description', 'prize', 'imageUrl', 'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'chancesGoal', 'freeEntryEnabled', 'salesCloseAt', 'excludedProvinces', 'liveEnabled'];
+  const allowed = ['title', 'description', 'prize', 'imageUrl', 'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'chancesGoal', 'freeEntryEnabled', 'salesCloseAt', 'excludedProvinces', 'liveEnabled', 'liveHidden', 'publicHidden'];
   const changes = Object.fromEntries(Object.entries(req.body || {}).filter(([k]) => allowed.includes(k)));
   for (const k of ['title', 'prize']) {
     if (k in changes) {
@@ -75,8 +75,8 @@ router.patch('/raffles/:id', wrap(async (req, res) => {
       if (changes[k].length > 200) throw new HttpError(400, 'Es demasiado largo (máximo 200 letras)');
     }
   }
-  if ('liveEnabled' in changes) {
-    if (typeof changes.liveEnabled !== 'boolean') throw new HttpError(400, 'Valor inválido');
+  for (const k of ['liveEnabled', 'liveHidden', 'publicHidden']) {
+    if (k in changes && typeof changes[k] !== 'boolean') throw new HttpError(400, 'Valor inválido');
   }
   if ('chancesGoal' in changes) changes.chancesGoal = cleanGoal(changes.chancesGoal);
   if ('salesCloseAt' in changes) {

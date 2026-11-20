@@ -23,7 +23,7 @@ const pick = (body, keys) =>
 
 const TABLE = [
   ['POST', /^\/raffles$/, 'raffle.create', (r) => ({ detail: `title=${r.body?.title}` })],
-  ['PATCH', /^\/raffles\/(\d+)$/, 'raffle.update', (r, m) => ({ raffleId: Number(m[1]), detail: pick(r.body, ['status', 'salesCloseAt', 'freeEntryEnabled', 'liveEnabled', 'drawDate', 'chancesGoal', 'title', 'prize', 'description', 'terms', 'imageUrl', 'youtubeUrl', 'permitNumber', 'excludedProvinces']) })],
+  ['PATCH', /^\/raffles\/(\d+)$/, 'raffle.update', (r, m) => ({ raffleId: Number(m[1]), detail: pick(r.body, ['status', 'salesCloseAt', 'freeEntryEnabled', 'liveEnabled', 'liveHidden', 'publicHidden', 'drawDate', 'chancesGoal', 'title', 'prize', 'description', 'terms', 'imageUrl', 'youtubeUrl', 'permitNumber', 'excludedProvinces']) })],
   ['PUT', /^\/raffles\/(\d+)\/packs$/, 'packs.update', (r, m) => ({ raffleId: Number(m[1]), detail: `${(r.body?.packs || []).length} packs` })],
   ['POST', /^\/raffles\/(\d+)\/readiness$/, 'readiness.check', (r, m) => ({ raffleId: Number(m[1]) })],
   ['POST', /^\/orders\/manual$/, 'order.manual', (r) => ({ raffleId: Number(r.body?.raffleId) || null, detail: `chances=${r.body?.chances}, amount=${r.body?.amount}` })],
