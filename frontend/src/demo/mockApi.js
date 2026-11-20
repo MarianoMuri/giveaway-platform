@@ -446,7 +446,7 @@ const routes = [
       const missing = missingBeforeOpening({ ...raffleOr404(id), ...b });
       if (missing.length) throw new Err(409, { error: `Para abrir la venta falta cargar ${missing.join(' y ')}`, code: 'legal_missing', missing });
     }
-    const changed = Object.keys(b).filter((k) => ['status', 'salesCloseAt', 'freeEntryEnabled', 'drawDate', 'chancesGoal', 'permitNumber', 'excludedProvinces'].includes(k)).map((k) => `${k}=${b[k]}`).join(', ');
+    const changed = Object.keys(b).filter((k) => ['status', 'salesCloseAt', 'freeEntryEnabled', 'liveEnabled', 'drawDate', 'chancesGoal', 'permitNumber', 'excludedProvinces'].includes(k)).map((k) => `${k}=${b[k]}`).join(', ');
     logAudit('raffle.update', Number(id), changed || Object.keys(b).join(', '));
     return Object.assign(raffleOr404(id), b, 'salesCloseAt' in b ? { salesCloseAt: b.salesCloseAt || null } : {});
   }],

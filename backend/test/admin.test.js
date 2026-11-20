@@ -195,7 +195,7 @@ test('operador del sorteo en vivo: solo puede ver la lista y sortear, sin datos 
   const list = await request(app).get('/api/admin/raffles').set(live);
   assert.equal(list.status, 200);
   assert.ok(list.body.length > 0);
-  assert.deepEqual(Object.keys(list.body[0]).sort(), ['drawDate', 'id', 'prize', 'salesCloseAt', 'status', 'title', 'winnerNumber']);
+  assert.deepEqual(Object.keys(list.body[0]).sort(), ['drawDate', 'id', 'liveEnabled', 'prize', 'salesCloseAt', 'status', 'title', 'winnerNumber']);
 
   // todo lo demás está prohibido
   for (const [method, url] of [
@@ -215,6 +215,16 @@ test('operador del sorteo en vivo: solo puede ver la lista y sortear, sin datos 
   assert.deepEqual(res.body.winner, { name: 'Marta R.', dni: '222', source: 'free' });
   assert.equal(JSON.stringify(res.body).includes('2914000000'), false);
   assert.equal(JSON.stringify(res.body).includes('m@t.com'), false);
+
+  // el administrador puede deshabilitar un sorteo: el operador ya no puede sortearlo
+  assert.equal((await request(app).patch(`/api/admin/raffles/${r.id}`).set(auth).send({ liveEnabled: 'si' })).status, 400);
+  assert.equal((await request(app).patch(`/api/admin/raffles/${r.id}`).set(auth).send({ liveEnabled: false })).status, 200);
+  const off = await request(app).post(`/api/admin/raffles/${r.id}/draw`).set(live).send({ reason: 'repetir por prueba' });
+  assert.equal(off.status, 403);
+  assert.equal((await request(app).get('/api/admin/raffles').set(live)).body.find((x) => x.id === r.id).liveEnabled, false);
+  assert.equal((await request(app).patch(`/api/admin/raffles/${r.id}`).set(live).send({ liveEnabled: true })).status, 403); // él no puede habilitarse solo
+  assert.equal((await request(app).patch(`/api/admin/raffles/${r.id}`).set(auth).send({ liveEnabled: true })).status, 200);
+  assert.equal((await request(app).post(`/api/admin/raffles/${r.id}/draw`).set(live).send({ reason: 'repetir por prueba' })).status, 200);
 
   // sin token o con el token de otro rol sigue igual
   assert.equal((await request(app).get('/api/admin/raffles')).status, 401);
