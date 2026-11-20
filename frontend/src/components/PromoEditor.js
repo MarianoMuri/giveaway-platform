@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { api, dateTime } from '../api';
 
-// Promos y cupones de un sorteo: descuento en %, chances de regalo o las dos a la vez; con código o automáticas.
-// El interruptor "Activa" las prende y apaga al instante. Los precios los calcula el backend.
+// Promos y cupones de un sorteo. Cada promo da UNA cosa (descuento % o chances de regalo "por cada X"), con código o
+// automática, y tiene sus propias fechas. Pueden estar varias a la vez. El interruptor las prende y apaga al instante.
+// Los precios los calcula el backend.
 
 const STATE = {
   on: { label: 'Activa', cls: 's-active' },
@@ -12,7 +13,7 @@ const STATE = {
   soldout: { label: 'Agotada', cls: 'free-void' },
 };
 
-const EMPTY = { name: '', useDiscount: true, percent: '', useBonus: false, bonus: '', useCode: false, minChances: '', code: '', startsAt: '', endsAt: '', maxUses: '', enabled: true };
+const EMPTY = { name: '', type: 'percent', percent: '', bonus: '', bonusEvery: '', useCode: false, minChances: '', code: '', startsAt: '', endsAt: '', maxUses: '', enabled: true };
 
 // datetime-local trabaja con la hora del que mira, sin zona: se convierte al guardar y al leer
 const toLocalInput = (iso) => {
@@ -23,18 +24,17 @@ const toLocalInput = (iso) => {
 };
 const fromLocalInput = (v) => (v ? new Date(v).toISOString() : null);
 
-const describe = (p) => [
-  p.percent > 0 && `${p.percent}% de descuento`,
-  p.bonus > 0 && `${p.bonus} ${p.bonus === 1 ? 'chance' : 'chances'} de regalo`,
-].filter(Boolean).join(' + ');
+const describe = (p) => (p.bonus > 0
+  ? `${p.bonus} ${p.bonus === 1 ? 'chance' : 'chances'} de regalo por cada ${p.bonusEvery} comprada${p.bonusEvery === 1 ? '' : 's'}`
+  : `${p.percent}% de descuento`);
 
 const toForm = (p) => ({
-  name: p.name, useDiscount: p.percent > 0, percent: p.percent || '', useBonus: p.bonus > 0, bonus: p.bonus || '',
+  name: p.name, type: p.bonus > 0 ? 'bonus' : 'percent', percent: p.percent || '', bonus: p.bonus || '', bonusEvery: p.bonus > 0 ? p.bonusEvery : '',
   useCode: !!p.code, minChances: p.minChances || '', code: p.code || '',
   startsAt: toLocalInput(p.startsAt), endsAt: toLocalInput(p.endsAt), maxUses: p.maxUses || '', enabled: p.enabled,
 });
 
-export default function PromoEditor({ raffleId }) {
+export default function PromoEditor({ raffleId, mode = 'best', onModeChange }) {
   const base = `/admin/raffles/${raffleId}/promos`;
   const [list, setList] = useState(null);
   const [form, setForm] = useState(null); // null = cerrado; { id?, ...campos }
@@ -49,7 +49,8 @@ export default function PromoEditor({ raffleId }) {
   if (!list) return msg ? <p className="alert">{msg.text}</p> : null;
 
   const body = (f) => ({
-    name: f.name, percent: f.useDiscount ? Number(f.percent) : 0, bonus: f.useBonus ? Number(f.bonus) : 0, minChances: f.minChances === '' ? 0 : Number(f.minChances),
+    name: f.name, percent: f.type === 'percent' ? Number(f.percent) : 0, bonus: f.type === 'bonus' ? Number(f.bonus) : 0,
+    bonusEvery: f.type === 'bonus' ? Number(f.bonusEvery) : 1, minChances: f.minChances === '' ? 0 : Number(f.minChances),
     code: f.useCode ? f.code : '', startsAt: fromLocalInput(f.startsAt), endsAt: fromLocalInput(f.endsAt),
     maxUses: f.maxUses === '' ? null : Number(f.maxUses), enabled: f.enabled,
   });
@@ -70,6 +71,18 @@ export default function PromoEditor({ raffleId }) {
       setMsg({ type: 'alert', text: err.message });
     } finally {
       setBusy(false);
+    }
+  }
+
+  // Qué pasa cuando coinciden dos promos del mismo tipo: se guarda en el momento
+  async function changeMode(value) {
+    setMsg(null);
+    try {
+      await api(`/admin/raffles/${raffleId}`, { method: 'PATCH', auth: true, body: { promoMode: value } });
+      if (onModeChange) onModeChange();
+      setMsg({ type: 'ok', text: value === 'sum' ? 'Listo: las promos del mismo tipo se suman' : 'Listo: se aplica la mayor de cada tipo' });
+    } catch (err) {
+      setMsg({ type: 'alert', text: err.message });
     }
   }
 
@@ -101,12 +114,25 @@ export default function PromoEditor({ raffleId }) {
     <section className="card mt">
       <div className="row between">
         <h2>Promos y cupones</h2>
-        {!form && <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setForm({ ...EMPTY }); setMsg(null); }}>+ Nueva promo</button>}
+        {!form && (
+          <div className="row">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setForm({ ...EMPTY, type: 'percent' }); setMsg(null); }}>+ Descuento %</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setForm({ ...EMPTY, type: 'bonus' }); setMsg(null); }}>+ Chances de regalo</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setForm({ ...EMPTY, type: 'percent', useCode: true }); setMsg(null); }}>+ Código</button>
+          </div>
+        )}
       </div>
       <p className="small muted">
-        Prendé y apagá cada promo cuando quieras con el interruptor. Una compra usa <strong>una sola promo</strong>: si el comprador
-        escribe un código, se usa ese en lugar de la automática. Las promos con código no se muestran en la página.
+        Cada promo da <strong>una sola cosa</strong> (descuento o chances de regalo), con sus propias fechas, y se prende o apaga con su interruptor.
+        Podés tener varias activas a la vez: un descuento y un regalo siempre se combinan. Las promos con código no se muestran en la página:
+        solo las usa quien escribe el código.
       </p>
+      <label className="small">Si coinciden dos descuentos (o dos regalos) en una compra:{' '}
+        <select value={mode} onChange={(e) => changeMode(e.target.value)}>
+          <option value="best">Aplicar solo el mayor</option>
+          <option value="sum">Sumarlos (el descuento total nunca pasa de 90%)</option>
+        </select>
+      </label>
 
       {list.length === 0 && !form && <p className="muted">Todavía no hay promos. Creá la primera con "+ Nueva promo".</p>}
 
@@ -151,33 +177,38 @@ export default function PromoEditor({ raffleId }) {
 
       {form && (
         <form className="card mt-sm" onSubmit={save}>
-          <h3>{form.id ? 'Editar promo' : 'Nueva promo'}</h3>
+          <h3>{form.id ? 'Editar promo' : form.useCode ? 'Nuevo código' : form.type === 'bonus' ? 'Nueva promo de chances de regalo' : 'Nuevo descuento'}</h3>
           <div className="row">
             <label>Nombre (lo ve el comprador)
               <input required maxLength={80} placeholder="Ej: Black Friday" value={form.name} onChange={(e) => set('name', e.target.value)} />
             </label>
+            <label>Qué da
+              <select value={form.type} onChange={(e) => set('type', e.target.value)}>
+                <option value="percent">Descuento (% menos en el total)</option>
+                <option value="bonus">Chances de regalo (más chances, mismo precio)</option>
+              </select>
+            </label>
           </div>
-          <p className="small muted">Elegí qué da la promo. Podés prender una, dos o las tres cosas a la vez.</p>
-          <div className="row">
-            <label className="check"><input type="checkbox" checked={form.useDiscount} onChange={(e) => set('useDiscount', e.target.checked)} /> Descuento (% menos en el total)</label>
-            {form.useDiscount && (
+          {form.type === 'percent' ? (
+            <div className="row">
               <label>Descuento (%)
                 <input required type="number" min="1" max="90" style={{ width: '7rem' }} value={form.percent} onChange={(e) => set('percent', e.target.value)} />
               </label>
-            )}
-          </div>
-          <div className="row">
-            <label className="check"><input type="checkbox" checked={form.useBonus} onChange={(e) => set('useBonus', e.target.checked)} /> Chances de regalo (más chances, mismo precio)</label>
-            {form.useBonus && (
+            </div>
+          ) : (
+            <div className="row">
               <label>Chances de regalo
                 <input required type="number" min="1" max="1000" style={{ width: '7rem' }} value={form.bonus} onChange={(e) => set('bonus', e.target.value)} />
               </label>
-            )}
-          </div>
+              <label>por cada (chances compradas)
+                <input required type="number" min="1" max="10000" style={{ width: '7rem' }} value={form.bonusEvery} onChange={(e) => set('bonusEvery', e.target.value)} />
+              </label>
+            </div>
+          )}
           <div className="row">
             <label className="check"><input type="checkbox" checked={form.useCode} onChange={(e) => set('useCode', e.target.checked)} /> Con código (si lo apagás, se aplica sola a todos)</label>
             {form.useCode && (
-              <label>Código
+              <label>Código (es solo la palabra que escribe el comprador)
                 <input required maxLength={30} placeholder="Ej: ZONA10" value={form.code} onChange={(e) => set('code', e.target.value.toUpperCase())} />
               </label>
             )}
@@ -200,8 +231,10 @@ export default function PromoEditor({ raffleId }) {
             <label className="check"><input type="checkbox" checked={form.enabled} onChange={(e) => set('enabled', e.target.checked)} /> Activa</label>
           </div>
           <p className="small muted">
-            {form.useDiscount && form.useBonus ? 'Las dos juntas: la compra sale con descuento y además suma chances de regalo. ' : ''}
-            El tope de usos cuenta solo las compras ya pagadas.
+            {form.type === 'bonus' && form.bonus && form.bonusEvery
+              ? `Ejemplo: quien compra ${Number(form.bonusEvery) * 2} chances recibe ${Number(form.bonus) * 2} de regalo; quien compra menos de ${form.bonusEvery}, ninguna. `
+              : ''}
+            Las fechas son de esta promo. El tope de usos cuenta solo las compras ya pagadas.
           </p>
           <div className="row">
             <button className="btn" disabled={busy}>{busy ? 'Guardando…' : 'Guardar promo'}</button>

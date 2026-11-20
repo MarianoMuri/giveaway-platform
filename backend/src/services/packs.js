@@ -132,19 +132,19 @@ function savingsPct(perChance, basePerChance) {
 // Vista pública: cada pack ya trae calculado su precio por chance, el ahorro y cómo queda con "Duplicá".
 // Si hay una promo automática vigente, cada pack (y su versión "Duplicá") trae además `final`: lo que se
 // paga de verdad con la promo. Las promos con código nunca se listan: solo las conoce quien las recibe.
-function publicView({ packs, offer, promos: allPromos = [] }) {
+function publicView({ packs, offer, promos: allPromos = [], raffle }) {
   const smallest = packs.reduce((a, p) => (!a || p.chances < a.chances ? p : a), null);
   const base = smallest ? quote({ pack: smallest, offer }).perChance : null;
   const now = new Date();
+  const mode = raffle?.promoMode || 'best';
   const withFinal = (q) => {
-    const promo = promos.bestAutomatic(allPromos, q, now);
-    if (!promo) return null;
-    const f = promos.apply(q, promo);
-    return { chances: f.chances, total: f.total, perChance: f.perChance, discount: f.discount, bonusChances: f.bonusChances, promo: { name: f.promo.name, percent: f.promo.percent, bonus: f.promo.bonus } };
+    const f = promos.priceAutomatic({ promos: allPromos, q, mode, now });
+    if (!f.applied) return null;
+    return { chances: f.chances, total: f.total, perChance: f.perChance, discount: f.discount, bonusChances: f.bonusChances, promo: { name: f.promo.name }, applied: f.applied };
   };
   const automatic = allPromos
     .filter((p) => !p.code && promos.stateOf(p, now) === 'on')
-    .map((p) => ({ name: p.name, percent: p.percent, bonus: p.bonus, minChances: p.minChances }));
+    .map((p) => ({ name: p.name, percent: p.percent, bonus: p.bonus, bonusEvery: p.bonusEvery, minChances: p.minChances }));
   return {
     offer,
     promos: automatic,
@@ -172,7 +172,7 @@ async function quoteForRaffle(raffleId, { packId, double, code }) {
   const pack = list.find((p) => p.id === Number(packId));
   if (!pack) throw new HttpError(400, 'Pack inválido');
   const q = quote({ pack, offer, double: double === true });
-  return promos.priceWithPromo({ promos: allPromos, q, code });
+  return promos.priceWithPromo({ promos: allPromos, q, code, mode: raffle.promoMode });
 }
 
 module.exports = { DEFAULT_PACKS, DEFAULT_OFFER, quote, validateConfig, getConfig, saveConfig, seedDefaults, publicView, quoteForRaffle };

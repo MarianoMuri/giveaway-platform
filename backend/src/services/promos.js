@@ -1,15 +1,16 @@
-const { Op, fn, col } = require('sequelize');
+const { Op } = require('sequelize');
 const { Promo, Order } = require('../db');
 const { HttpError } = require('./errors');
 
 /**
- * Promos de un sorteo: "descuento" (% menos en el total), "chances de regalo" (chances de más) o las dos juntas.
- * Cada parte se activa por separado; la promo tiene que dar al menos una.
+ * Promos de un sorteo. Cada promo da UNA cosa:
+ *  - "descuento": un % menos en el total, o
+ *  - "chances de regalo": N chances de más por cada X chances compradas (comprar 3 no es lo mismo que comprar 50).
  *
  * - Con código: el comprador lo escribe. Sin código: es automática y se aplica sola a todos.
- * - El administrador las enciende y apaga con un interruptor; las fechas y el tope de usos son opcionales.
- * - Una compra usa UNA sola promo. Si el comprador escribe un código, se usa ese en lugar de la automática.
- *   Entre varias automáticas, se aplica la que más le conviene al comprador.
+ * - El administrador las enciende y apaga con un interruptor; cada una tiene sus propias fechas, mínimo y tope de usos.
+ * - Pueden estar varias a la vez. Si coinciden dos descuentos (o dos regalos) el sorteo elige: aplicar la mayor
+ *   ('best') o sumarlas ('sum'). Un descuento y un regalo siempre van juntos.
  * - Todo se calcula acá, en centavos enteros. El frontend nunca calcula precios.
  */
 
@@ -40,9 +41,14 @@ function validate(input) {
   const num = (v) => (v === undefined || v === null || v === '' ? 0 : Number(v));
   const percent = num(b.percent);
   const bonus = num(b.bonus);
-  if (!Number.isInteger(percent) || percent < 0 || percent > MAX_PERCENT) throw new HttpError(400, `El descuento tiene que ser un número entero de 1 a ${MAX_PERCENT} (o 0 si la promo no lleva descuento)`);
-  if (!Number.isInteger(bonus) || bonus < 0 || bonus > MAX_BONUS) throw new HttpError(400, `Las chances de regalo tienen que ser un número entero de 1 a ${MAX_BONUS} (o 0 si la promo no regala chances)`);
-  if (percent === 0 && bonus === 0) throw new HttpError(400, 'Activá al menos una cosa: descuento o chances de regalo');
+  if (!Number.isInteger(percent) || percent < 0 || percent > MAX_PERCENT) throw new HttpError(400, `El descuento tiene que ser un número entero de 1 a ${MAX_PERCENT}`);
+  if (!Number.isInteger(bonus) || bonus < 0 || bonus > MAX_BONUS) throw new HttpError(400, `Las chances de regalo tienen que ser un número entero de 1 a ${MAX_BONUS}`);
+  if ((percent > 0) === (bonus > 0)) throw new HttpError(400, 'Cada promo da una sola cosa: un descuento o chances de regalo. Para dar las dos, creá dos promos');
+  let bonusEvery = 1;
+  if (bonus > 0) {
+    bonusEvery = num(b.bonusEvery) || 1;
+    if (!Number.isInteger(bonusEvery) || bonusEvery < 1 || bonusEvery > 10000) throw new HttpError(400, 'El "por cada" tiene que ser un número entero mayor a 0 (ej: 1 de regalo por cada 10 chances)');
+  }
 
   const minRaw = b.minChances === undefined || b.minChances === null || b.minChances === '' ? 0 : Number(b.minChances);
   if (!Number.isInteger(minRaw) || minRaw < 0 || minRaw > 10000) throw new HttpError(400, 'El mínimo de chances tiene que ser un número entero (0 si no hay mínimo)');
@@ -60,7 +66,7 @@ function validate(input) {
     if (!Number.isInteger(maxUses) || maxUses < 1) throw new HttpError(400, 'El tope de usos tiene que ser un número entero mayor a 0 (o dejalo vacío)');
   }
 
-  return { name, percent, bonus, minChances: minRaw, code: code || null, enabled: Boolean(b.enabled), startsAt, endsAt, maxUses };
+  return { name, percent, bonus, bonusEvery, minChances: minRaw, code: code || null, enabled: Boolean(b.enabled), startsAt, endsAt, maxUses };
 }
 
 // Estado que ve el administrador
@@ -73,23 +79,52 @@ function stateOf(promo, now = new Date()) {
 }
 
 const isLive = (promo, now) => stateOf(promo, now) === 'on';
-const meetsMin = (promo, chances) => chances >= (promo.minChances || 0);
 
-// Cuánto le conviene al comprador, en centavos (sirve para elegir entre promos automáticas):
-// lo que se ahorra más el valor de las chances de regalo, a lo que sale cada chance
-function benefitCents(promo, q) {
-  const total = toCents(q.total);
-  const discount = Math.round((total * promo.percent) / 100);
-  const perChance = Math.round((total - discount) / (q.chances + promo.bonus));
-  return discount + promo.bonus * perChance;
+// Mínimo real de chances: el que puso el administrador, y en las de regalo al menos el "por cada"
+const minOf = (promo) => Math.max(promo.minChances || 0, promo.bonus > 0 ? promo.bonusEvery || 1 : 0);
+const meetsMin = (promo, chances) => chances >= minOf(promo);
+
+// Chances de regalo de una promo para una compra de `chances`: N por cada bloque completo de X
+const giftFor = (promo, chances) => (promo.bonus > 0 ? Math.floor(chances / (promo.bonusEvery || 1)) * promo.bonus : 0);
+
+const brief = (p) => ({ id: p.id, name: p.name, percent: p.percent, bonus: p.bonus, bonusEvery: p.bonusEvery || 1, code: p.code || null });
+
+// Promos que valen para esta compra: las automáticas vigentes, más la del código si el comprador escribió uno.
+// Un código inválido NO se ignora en silencio: el comprador tiene que enterarse antes de pagar.
+function candidates({ promos, q, code, now = new Date() }) {
+  const pool = promos.filter((p) => !p.code && isLive(p, now) && meetsMin(p, q.chances));
+  const wanted = normalizeCode(code);
+  if (wanted) {
+    const p = promos.find((x) => x.code === wanted);
+    const st = p && stateOf(p, now);
+    if (!p || st === 'off' || st === 'scheduled' || st === 'expired') throw new HttpError(400, 'El código no es válido o ya venció');
+    if (st === 'soldout') throw new HttpError(400, 'Este código ya no tiene usos disponibles');
+    if (!meetsMin(p, q.chances)) throw new HttpError(400, `Este código aplica a compras de ${minOf(p)} chances o más`);
+    pool.push(p);
+  }
+  return pool;
 }
 
-// Aplica una promo a una cotización ya calculada (pack + "Duplicá"). Si la promo trae las dos cosas,
-// el descuento baja el total y las chances de regalo se suman a la compra.
-function apply(q, promo) {
+// De los candidatos, cuáles se aplican de verdad. 'best': el mayor descuento y el mayor regalo. 'sum': todos.
+function choose(pool, chances, mode = 'best') {
+  const byId = (a, b) => a.id - b.id;
+  const discounts = pool.filter((p) => p.percent > 0).sort(byId);
+  const gifts = pool.filter((p) => p.bonus > 0).sort(byId);
+  const top = (list, value) => list.reduce((best, p) => (!best || value(p) > value(best) ? p : best), null);
+  if (mode === 'sum') return [...discounts, ...gifts];
+  const d = top(discounts, (p) => p.percent);
+  const g = top(gifts, (p) => giftFor(p, chances));
+  return [d, g].filter(Boolean);
+}
+
+// Aplica las promos elegidas a una cotización ya calculada (pack + "Duplicá"): el descuento baja el total
+// y las chances de regalo se suman a la compra.
+function apply(q, applied) {
+  if (!applied.length) return q;
   const total = toCents(q.total);
-  const discount = Math.round((total * promo.percent) / 100);
-  const bonus = promo.bonus;
+  const percent = Math.min(MAX_PERCENT, applied.reduce((n, p) => n + p.percent, 0));
+  const discount = Math.round((total * percent) / 100);
+  const bonus = applied.reduce((n, p) => n + giftFor(p, q.chances), 0);
   const chances = q.chances + bonus;
   const finalCents = total - discount;
   return {
@@ -99,45 +134,19 @@ function apply(q, promo) {
     perChance: fromCents(Math.round(finalCents / chances)),
     discount: fromCents(discount),
     bonusChances: bonus,
-    promo: { id: promo.id, name: promo.name, percent: promo.percent, bonus: promo.bonus, code: promo.code || null },
+    applied: applied.map(brief),
+    promo: { id: applied[0].id, name: applied.map((p) => p.name).join(' + '), code: applied.find((p) => p.code)?.code || null },
   };
 }
 
-// La mejor promo automática vigente para esta cotización (o null)
-function bestAutomatic(promos, q, now = new Date()) {
-  let best = null;
-  let bestValue = 0;
-  for (const p of promos) {
-    if (p.code || !isLive(p, now) || !meetsMin(p, q.chances)) continue;
-    const v = benefitCents(p, q);
-    if (v > bestValue || (v === bestValue && best && p.id < best.id)) {
-      best = p;
-      bestValue = v;
-    }
-  }
-  return best;
+// Cotización final de una compra: base + promos
+function priceWithPromo({ promos, q, code, mode, now }) {
+  return apply(q, choose(candidates({ promos, q, code, now }), q.chances, mode));
 }
 
-// Elige la promo de una compra: el código si lo hay, si no la mejor automática.
-// Un código inválido NO se ignora en silencio: el comprador tiene que enterarse antes de pagar.
-function select({ promos, q, code, now = new Date() }) {
-  const wanted = normalizeCode(code);
-  if (wanted) {
-    const p = promos.find((x) => x.code === wanted);
-    if (!p || stateOf(p, now) === 'off' || stateOf(p, now) === 'scheduled' || stateOf(p, now) === 'expired') {
-      throw new HttpError(400, 'El código no es válido o ya venció');
-    }
-    if (stateOf(p, now) === 'soldout') throw new HttpError(400, 'Este código ya no tiene usos disponibles');
-    if (!meetsMin(p, q.chances)) throw new HttpError(400, `Este código aplica a compras de ${p.minChances} chances o más`);
-    return p;
-  }
-  return bestAutomatic(promos, q, now);
-}
-
-// Cotización final de una compra: base + promo elegida
-function priceWithPromo({ promos, q, code, now }) {
-  const p = select({ promos, q, code, now });
-  return p ? apply(q, p) : q;
+// Solo las automáticas (lo que se muestra en la página, sin código)
+function priceAutomatic({ promos, q, mode, now }) {
+  return apply(q, choose(candidates({ promos, q, now }), q.chances, mode));
 }
 
 // ---- Acceso a la base ----
@@ -146,13 +155,14 @@ function priceWithPromo({ promos, q, code, now }) {
 async function listForRaffle(raffleId) {
   const rows = await Promo.findAll({ where: { RaffleId: raffleId }, order: [['createdAt', 'ASC'], ['id', 'ASC']] });
   if (!rows.length) return [];
-  const counts = await Order.findAll({
-    where: { PromoId: rows.map((r) => r.id), status: { [Op.in]: ['approved', 'manual'] } },
-    attributes: ['PromoId', [fn('COUNT', col('id')), 'n']],
-    group: ['PromoId'],
+  // Una compra puede usar varias promos (PromoIds = "1,3"): cuenta una vez por cada una
+  const orders = await Order.findAll({
+    where: { RaffleId: raffleId, status: { [Op.in]: ['approved', 'manual'] }, PromoIds: { [Op.ne]: null } },
+    attributes: ['PromoIds'],
     raw: true,
   });
-  const usedBy = new Map(counts.map((c) => [c.PromoId, Number(c.n)]));
+  const usedBy = new Map();
+  for (const o of orders) for (const id of String(o.PromoIds).split(',')) usedBy.set(Number(id), (usedBy.get(Number(id)) || 0) + 1);
   return rows.map((r) => {
     const p = { ...r.toJSON(), used: usedBy.get(r.id) || 0 };
     return { ...p, state: stateOf(p) };
@@ -189,6 +199,6 @@ async function assertCodeFree(raffleId, code, exceptId = null) {
 }
 
 module.exports = {
-  MAX_PERCENT, normalizeCode, validate, stateOf, benefitCents, apply, bestAutomatic, select, priceWithPromo,
+  MAX_PERCENT, normalizeCode, validate, stateOf, giftFor, candidates, choose, apply, priceWithPromo, priceAutomatic,
   listForRaffle, create, update, remove,
 };

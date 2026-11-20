@@ -53,7 +53,8 @@ async function createPurchase({ raffleId, packId, double, courseId, buyer, code 
     chances: quote.chances, // ya incluye las chances de regalo de la promo
     amount: quote.total.toFixed(2),
     PromoId: quote.promo?.id || null,
-    promoName: quote.promo?.name || null,
+    PromoIds: quote.applied?.length ? quote.applied.map((x) => x.id).join(',') : null,
+    promoName: quote.promo?.name ? quote.promo.name.slice(0, 80) : null,
     promoCode: quote.promo?.code || null,
     discount: (quote.discount || 0).toFixed(2),
     bonusChances: quote.bonusChances || 0,

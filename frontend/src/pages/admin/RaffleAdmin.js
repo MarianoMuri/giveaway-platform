@@ -357,7 +357,7 @@ export default function RaffleAdmin() {
 
       <PackEditor raffleId={id} />
 
-      <PromoEditor raffleId={id} />
+      <PromoEditor raffleId={id} mode={raffle.promoMode} onModeChange={reloadRaffles} />
 
       <SearchPanel raffleId={id} />
 
