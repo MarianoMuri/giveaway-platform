@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApi } from '../../hooks';
 import { api } from '../../api';
@@ -18,6 +18,26 @@ const maskName = (name) => {
   return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0] || '';
 };
 
+// "12345678" -> "DNI ••• 678": alcanza para que el ganador se reconozca en el vivo sin mostrar el dato completo
+const maskDni = (dni) => {
+  const d = String(dni || '').replace(/\D/g, '');
+  return d.length >= 3 ? `DNI ••• ${d.slice(-3)}` : '';
+};
+
+const CONFETTI_COLORS = ['#e11d2e', '#facc15', '#22c55e', '#38bdf8', '#f472b6', '#ffffff', '#fb923c'];
+// papelitos de colores: cada uno con posición, caída, giro y demora al azar (solo ambientación)
+const makeConfetti = () => Array.from({ length: 110 }, (_, i) => ({
+  id: i,
+  left: Math.random() * 100,
+  size: 6 + Math.random() * 9,
+  color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+  delay: Math.random() * 1.8,
+  dur: 3.2 + Math.random() * 2.8,
+  drift: (Math.random() - 0.5) * 220,
+  spin: 360 + Math.random() * 720,
+  round: Math.random() < 0.25,
+}));
+
 // Pantalla completa para transmitir el sorteo en vivo. El azar lo hace el servidor (crypto) entre los
 // números válidos; la animación es solo ambientación y se detiene en el número que ya salió.
 export default function LiveDraw() {
@@ -34,6 +54,8 @@ export default function LiveDraw() {
   const [secs, setSecs] = useState(loadSecs); // segundos hasta que aparecen todos los números
   const [left, setLeft] = useState(0); // cuenta regresiva mientras gira
   const timer = useRef(null);
+  const [confettiKey, setConfettiKey] = useState(0); // cambia en cada ganador para reiniciar los papelitos
+  const confetti = useMemo(makeConfetti, [confettiKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const raffle = (raffles || []).find((r) => String(r.id) === id);
   useEffect(() => () => clearInterval(timer.current), []);
@@ -86,6 +108,7 @@ export default function LiveDraw() {
       setDigits(final);
       setResult(res);
       setPhase('done');
+      setConfettiKey((k) => k + 1);
       setAsking(false);
       setReason('');
       reload();
@@ -102,6 +125,13 @@ export default function LiveDraw() {
 
   return (
     <div className="live">
+      {phase === 'done' && !reduceMotion && (
+        <div className="confetti" aria-hidden="true">
+          {confetti.map((c) => (
+            <i key={`${confettiKey}-${c.id}`} className={c.round ? 'round' : ''} style={{ left: `${c.left}%`, width: c.size, height: c.round ? c.size : c.size * 1.7, background: c.color, animationDelay: `${c.delay}s`, animationDuration: `${c.dur}s`, '--drift': `${c.drift}px`, '--spin': `${c.spin}deg` }} />
+          ))}
+        </div>
+      )}
       <div className="live-top">
         <Link to={`/admin/sorteo/${id}`} className="small">← Salir</Link>
         <button className="btn btn-ghost btn-sm" onClick={fullscreen}>Pantalla completa</button>
@@ -117,11 +147,18 @@ export default function LiveDraw() {
         <div className="live-winner">
           <div className="live-congrats">¡Ganador!</div>
           <div className="live-name">{maskName(result.winner.name)}</div>
-          <div className="small">{result.winner.source === 'free' ? 'Participación gratuita' : 'Compra'} · número {result.number}</div>
+          <div className="live-proof">
+            {[maskDni(result.winner.dni), `número ${result.number}`, result.winner.source === 'free' ? 'participación gratuita' : 'compra'].filter(Boolean).join(' · ')}
+          </div>
         </div>
       )}
 
-      {phase === 'rolling' && !reduceMotion && <p className="live-count" aria-live="off">Faltan {left} s</p>}
+      {phase === 'rolling' && !reduceMotion && left > 0 && (
+        <div className={`live-countdown ${left <= 5 ? 'hot' : ''}`} aria-live="off">
+          <span className="live-countdown-label">El número sale en</span>
+          <span key={left} className="live-countdown-num">{left}</span>
+        </div>
+      )}
 
       {error && <p className="alert live-msg">{error}</p>}
       {saleOpen && <p className="alert live-msg">La venta sigue abierta. Cerrala (con fecha o a mano) antes de sortear.</p>}
