@@ -47,7 +47,7 @@ Formosa no figura con régimen propio en las fuentes, pero suele excluirse por p
 - [ ] Definir cómo se hace el sorteo: ante escribano público, y si se toma como referencia un sorteo oficial.
 - [ ] Confirmar que la vía gratuita online cumple lo exigido.
 - [ ] Revisar impuestos (Ingresos Brutos, premios, transferencia del vehículo).
-- [ ] Revisar el tratamiento de datos personales (Ley 25.326) y el aviso de privacidad.
+- [ ] Revisar el tratamiento de datos personales (Ley 25.326) y el aviso de privacidad, incluida la localidad opcional y las cookies de medición (Meta Pixel / Analytics).
 
 ## Borrador de bases y condiciones
 
@@ -75,7 +75,7 @@ Formosa no figura con régimen propio en las fuentes, pero suele excluirse por p
 
 **11. Entrega del premio.** [Lugar, plazo y forma de entrega. A cargo de quién son los gastos e impuestos].
 
-**12. Datos personales.** Los datos se usan solo para este sorteo y para enviar el curso. [Responsable de la base de datos, derechos de acceso y rectificación (Ley 25.326), y datos de la autoridad de control].
+**12. Datos personales.** Los datos se usan para este sorteo y para enviar el curso. La localidad, que es opcional, se usa sin identificar a la persona para estadísticas y para decidir dónde dirigir la publicidad; completarla no es obligatorio ni influye en las chances de ganar. [Responsable de la base de datos, derechos de acceso y rectificación (Ley 25.326), y datos de la autoridad de control].
 
 **13. Imagen del ganador.** [Autorización o no para difundir su nombre e imagen].
 

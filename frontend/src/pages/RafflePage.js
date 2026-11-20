@@ -4,6 +4,7 @@ import { useApi } from '../hooks';
 import { api, money, dateTime, goTo } from '../api';
 import brand from '../brand';
 import ProvinceSelect from '../components/ProvinceSelect';
+import ProfileFields from '../components/ProfileFields';
 import CoursePicker from '../components/CoursePicker';
 
 // Página de compra: curso + pack de chances (+ "Duplicá").
@@ -17,7 +18,7 @@ export default function RafflePage() {
   const [courseId, setCourseId] = useState(null);
   const [packId, setPackId] = useState(null);
   const [double, setDouble] = useState(false);
-  const [buyer, setBuyer] = useState({ name: '', dni: '', phone: '', email: '', province: '' });
+  const [buyer, setBuyer] = useState({ name: '', dni: '', phone: '', email: '', province: '', locality: '' });
   const [accept, setAccept] = useState(false);
   const [sending, setSending] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -133,6 +134,7 @@ export default function RafflePage() {
             <ProvinceSelect value={buyer.province} onChange={(province) => setBuyer({ ...buyer, province })} excluded={raffle.excludedProvinces} />
             <label>Celular (WhatsApp)<input required inputMode="tel" autoComplete="tel" value={buyer.phone} onChange={(e) => setBuyer({ ...buyer, phone: e.target.value })} /></label>
             <label>Email (te llega el curso)<input required type="email" autoComplete="email" value={buyer.email} onChange={(e) => setBuyer({ ...buyer, email: e.target.value })} /></label>
+            <ProfileFields value={buyer} onChange={setBuyer} />
 
             <div className="summary">
               <div className="row between"><span className="muted">Curso</span><span>{course ? course.title : <button type="button" className="linklike" onClick={() => scrollTo(coursesRef)}>Elegir</button>}</span></div>

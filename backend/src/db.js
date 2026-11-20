@@ -73,6 +73,8 @@ const Order = sequelize.define('Order', {
   buyerPhone: { type: DataTypes.STRING, allowNull: false },
   buyerDni: { type: DataTypes.STRING, allowNull: false },
   buyerProvince: DataTypes.STRING(2), // código de provincia (las compras anteriores no lo tienen)
+  // Localidad opcional para estadísticas (ver services/profile.js)
+  locality: DataTypes.STRING(80),
   // Los números se asignan al confirmarse el pago, en un bloque consecutivo
   PackId: DataTypes.INTEGER, // referencia informativa (el pack se puede editar o borrar después)
   double: { type: DataTypes.BOOLEAN, defaultValue: false },
@@ -122,7 +124,9 @@ const FreeEntry = sequelize.define(
     name: { type: DataTypes.STRING, allowNull: false },
     dni: { type: DataTypes.STRING, allowNull: false },
     email: { type: DataTypes.STRING, allowNull: false },
+    phone: DataTypes.STRING(30), // obligatorio al participar; vacío en participaciones anteriores
     province: DataTypes.STRING(2), // código de provincia
+    locality: DataTypes.STRING(80),
     status: { type: DataTypes.ENUM('unconfirmed', 'confirmed', 'void'), defaultValue: 'unconfirmed' },
     tokenHash: DataTypes.STRING, // hash del link de confirmación (el link en sí solo viaja por email)
     tokenExpiresAt: DataTypes.DATE,

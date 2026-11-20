@@ -176,13 +176,18 @@ test('dos procesos enviando el mismo email a la vez mandan uno solo', async () =
   assert.equal(results.flat().filter((r) => r === 'sent').length, 1);
 });
 
-test('venta manual: manda email solo si se cargó uno válido', async () => {
+test('venta manual: exige los mismos datos que la compra online y manda el email', async () => {
   const base = { raffleId, chances: 5, courseId, amount: 15000 };
-  const sinMail = await request(app).post('/api/admin/orders/manual').set(auth).send({ ...base, buyer: { name: 'Luis Díaz', dni: '28999888' } });
-  assert.equal(sinMail.body.emailStatus, 'none');
+  const full = { name: 'Eva Ríos', dni: '27888777', email: 'eva@test.com', phone: '2914000000', province: 'B' };
+  const post = (buyer) => request(app).post('/api/admin/orders/manual').set(auth).send({ ...base, buyer });
+  for (const falta of ['email', 'phone', 'province']) {
+    const { [falta]: _omit, ...incompleto } = full;
+    assert.equal((await post(incompleto)).status, 400, `sin ${falta} debe fallar`);
+  }
+  assert.equal((await post({ ...full, email: 'no-es-mail' })).status, 400);
 
   const conMail = await request(app).post('/api/admin/orders/manual').set(auth)
-    .send({ ...base, buyer: { name: 'Eva Ríos', dni: '27888777', email: 'eva@test.com' } });
+    .send({ ...base, buyer: full });
   await waitFor(() => sent.length === 1);
   assert.equal(sent[0].to, 'eva@test.com');
   assert.match(sent[0].subject, new RegExp(`${conMail.body.firstNumber} al ${conMail.body.lastNumber}`));

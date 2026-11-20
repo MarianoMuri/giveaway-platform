@@ -2,14 +2,14 @@ import { useApi } from '../hooks';
 
 // Selector de provincia de la compra o participación. Las provincias donde el sorteo no se ofrece
 // aparecen deshabilitadas; el backend vuelve a validarlo igual.
-export default function ProvinceSelect({ value, onChange, excluded = [] }) {
+export default function ProvinceSelect({ value, onChange, excluded = [], optional = false }) {
   const { data: provinces } = useApi('/provinces');
   const blocked = (provinces || []).filter((p) => excluded.includes(p.code));
   return (
     <>
       <label>Provincia
-        <select required className="province-select" autoComplete="address-level1" value={value} onChange={(e) => onChange(e.target.value)}>
-          <option value="">Elegí tu provincia</option>
+        <select required={!optional} className="province-select" autoComplete="address-level1" value={value} onChange={(e) => onChange(e.target.value)}>
+          <option value="">{optional ? 'Sin dato' : 'Elegí tu provincia'}</option>
           {(provinces || []).map((p) => (
             <option key={p.code} value={p.code} disabled={excluded.includes(p.code)}>
               {p.name}{excluded.includes(p.code) ? ' (no disponible por ahora)' : ''}

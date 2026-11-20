@@ -27,7 +27,7 @@ const BASES = 'Bases y condiciones de prueba. '.repeat(5); // más de 100 caract
 let auth, raffleId, courseId, packId, seq = 0;
 const buyer = (extra = {}) => ({ name: 'Ana Gómez', email: 'ana@test.com', phone: '2914555555', dni: String(30000000 + ++seq), province: 'B', ...extra });
 const buy = (b, id = raffleId) => request(app).post(`/api/raffles/${id}/purchases`).send({ packId, courseId, buyer: b });
-const freeBody = (extra = {}) => ({ name: 'Lucía Pérez', dni: String(31000000 + ++seq), email: 'lucia@test.com', province: 'B', deviceId: `dispositivo-${String(++seq).padStart(6, '0')}-abcdefgh`, ...extra });
+const freeBody = (extra = {}) => ({ name: 'Lucía Pérez', dni: String(31000000 + ++seq), email: 'lucia@test.com', phone: '2914567890', province: 'B', deviceId: `dispositivo-${String(++seq).padStart(6, '0')}-abcdefgh`, ...extra });
 const ask = (data, id = raffleId) => request(app).post(`/api/raffles/${id}/free-entries`).send(data);
 
 test.before(async () => {
@@ -164,8 +164,11 @@ test('cargar los datos primero y abrir después también funciona; reabrir una v
   assert.equal((await patch({ status: 'active' })).status, 409);
 });
 
-test('la venta manual desde el panel no pide provincia', async () => {
+test('la venta manual desde el panel pide provincia, teléfono y email', async () => {
   const res = await request(app).post('/api/admin/orders/manual').set(auth)
-    .send({ raffleId, chances: 2, courseId, amount: 5000, buyer: { name: 'Luis Díaz', dni: '28999888' } });
-  assert.equal(res.status, 201);
+    .send({ raffleId, chances: 2, courseId, amount: 5000, buyer: { name: 'Luis Díaz', dni: '28999888', phone: '2914000000', email: 'luis@test.com' } });
+  assert.equal(res.status, 400); // falta la provincia
+  const ok = await request(app).post('/api/admin/orders/manual').set(auth)
+    .send({ raffleId, chances: 2, courseId, amount: 5000, buyer: { name: 'Luis Díaz', dni: '28999888', phone: '2914000000', email: 'luis@test.com', province: 'B' } });
+  assert.equal(ok.status, 201);
 });
