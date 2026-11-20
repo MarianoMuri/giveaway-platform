@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ## [Unreleased]
 
 ### Added
+- **Medición con Meta Pixel y Google Analytics 4** (opcional): se activa con `REACT_APP_META_PIXEL_ID` y/o `REACT_APP_GA_ID`, solo después de que la persona acepta el aviso de cookies. Informa vista del sorteo, inicio de compra y compra confirmada (una vez por compra), sin datos personales (#102).
 - **Datos obligatorios para contactar al ganador**: la participación gratuita ahora pide celular (se guarda y sale en el mail de aviso del ganador) y la venta manual exige los mismos datos que la compra online (nombre, DNI, celular, email y provincia). Las participaciones anteriores quedan con el celular vacío.
 - **Segmentar compradores** (#106): campo opcional de localidad en la compra, la participación gratuita y la venta manual (migración nueva, solo agrega una columna). El cuadro del panel pasó a "Dónde compran", con selector por provincia o localidad. No se piden edad, género ni ocupación (Meta Ads ya los da). La localidad agrupa sin importar tildes ni mayúsculas. No se guarda la fecha de nacimiento. Ver docs/LEGAL.md (uso de datos).
 - **Cuadro "Dónde compran"** en la página de cada sorteo: compras, chances, recaudación, % de la plata y participaciones gratuitas por provincia. Solo cuentan compras acreditadas (#104).
