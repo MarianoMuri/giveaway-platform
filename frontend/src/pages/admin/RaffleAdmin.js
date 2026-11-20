@@ -45,6 +45,9 @@ export default function RaffleAdmin() {
   const [closeAt, setCloseAt] = useState(null); // null = sin tocar (se muestra el valor guardado)
   const [drawAt, setDrawAt] = useState(null); // idem para la fecha del sorteo
   const [drawBusy, setDrawBusy] = useState(false);
+  const [nameForm, setNameForm] = useState(null); // { title, prize } mientras se edita; null = sin cambios
+  const [nameBusy, setNameBusy] = useState(false);
+  const [nameResult, setNameResult] = useState(null);
   const [drawResult, setDrawResult] = useState(null);
   const [closeBusy, setCloseBusy] = useState(false);
   const [closeResult, setCloseResult] = useState(null);
@@ -137,6 +140,22 @@ export default function RaffleAdmin() {
       ? { type: 'ok', text: value ? '✓ Guardado' : '✓ Fecha quitada' }
       : { type: 'alert', text: 'No se pudo guardar. Mirá el aviso al principio de la página.' });
     setCloseBusy(false);
+  };
+
+  const saveName = async (e) => {
+    e.preventDefault();
+    const title = (nameForm?.title ?? raffle.title).trim();
+    const prize = (nameForm?.prize ?? raffle.prize).trim();
+    if (!title || !prize) { setNameResult({ type: 'alert', text: 'El nombre y el premio no pueden quedar vacíos.' }); return; }
+    setNameBusy(true);
+    setNameResult(null);
+    const ok = await run(
+      () => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { title, prize } }),
+      'Nombre y premio guardados'
+    );
+    if (ok) setNameForm(null);
+    setNameResult(ok ? { type: 'ok', text: '✓ Guardado' } : { type: 'alert', text: 'No se pudo guardar. Mirá el aviso al principio de la página.' });
+    setNameBusy(false);
   };
 
   const saveDrawAt = async (e) => {
@@ -264,6 +283,20 @@ export default function RaffleAdmin() {
       {stats?.emailsPending > 1 && <p className="muted">{stats.emailsPending.toLocaleString('es-AR')} emails en cola de envío: salen de a poco, al ritmo que acepta el proveedor.</p>}
       {stats?.winnerVoided && <p className="alert">Atención: el número ganador cargado quedó anulado por un reintegro o contracargo. Hay que sortear de nuevo.</p>}
       {raffle.chancesGoal && <SalesProgress raffle={{ ...raffle, chancesSold: stats?.chancesSold || 0 }} />}
+
+      <section className="card">
+        <h3>Nombre y premio del sorteo</h3>
+        <form className="row" onSubmit={saveName}>
+          <label>Nombre del sorteo
+            <input maxLength={200} value={nameForm?.title ?? raffle.title} onChange={(e) => setNameForm((f) => ({ ...(f || { title: raffle.title, prize: raffle.prize }), title: e.target.value }))} />
+          </label>
+          <label>Premio
+            <input maxLength={200} value={nameForm?.prize ?? raffle.prize} onChange={(e) => setNameForm((f) => ({ ...(f || { title: raffle.title, prize: raffle.prize }), prize: e.target.value }))} />
+          </label>
+          <button className="btn btn-ghost" disabled={nameBusy || !nameForm}>{nameBusy ? 'Guardando…' : 'Guardar nombre y premio'}</button>
+          {nameResult && <span className={nameResult.type} role="status">{nameResult.text}</span>}
+        </form>
+      </section>
 
       <PackEditor raffleId={id} />
 
