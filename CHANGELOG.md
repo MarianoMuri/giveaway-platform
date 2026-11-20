@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ## [Unreleased]
 
 ### Added
+- **Segmentar compradores** (#106): campos opcionales de localidad, rango de edad, género y ocupación en la compra, la participación gratuita y la venta manual (migración nueva, solo agrega columnas). El cuadro del panel pasó a "Dónde compran y quiénes", con selector por provincia, localidad, edad, género u ocupación. La localidad agrupa sin importar tildes ni mayúsculas. No se guarda la fecha de nacimiento. Ver docs/LEGAL.md (uso de datos).
 - **Cuadro "Dónde compran"** en la página de cada sorteo: compras, chances, recaudación, % de la plata y participaciones gratuitas por provincia. Solo cuentan compras acreditadas (#104).
 - **Entrada aparte para el sorteo en vivo** (`/admin/en-vivo`): lista los sorteos publicados sin mostrar recaudación ni datos de compradores, así se puede transmitir sin exponer el panel. El botón se abre en otra pestaña desde la lista de sorteos y salió de la página de administración de cada sorteo; "Salir" del vivo vuelve a esa entrada (#98).
 - **Editar nombre y premio del sorteo**: en la página del sorteo hay un cuadro para cambiarlos cuando quieras. No pueden quedar vacíos ni pasar de 200 letras (#96).

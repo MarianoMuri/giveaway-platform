@@ -7,7 +7,8 @@ const numbers = require('./numbers');
 const { confirmPackOrder } = require('./purchases');
 const emails = require('./emails');
 const sales = require('./sales');
-const { cleanExcluded } = require('./provinces');
+const { cleanExcluded, cleanProvince } = require('./provinces');
+const { cleanProfile } = require('./profile');
 
 function cleanGoal(v) {
   if (v === undefined) return undefined;
@@ -86,6 +87,8 @@ async function manualSale({ raffleId, chances, courseId, amount, buyer }) {
         buyerEmail: String(b.email || '-').trim().toLowerCase() || '-',
         buyerPhone: String(b.phone || '-').trim() || '-',
         buyerDni: dni,
+        buyerProvince: b.province ? cleanProvince(b.province) : null, // en una venta manual la provincia es opcional
+        ...(({ locality, ageRange, gender, occupation }) => ({ locality, ageRange, gender, occupation }))(cleanProfile(b)),
         chances: n,
         amount: total.toFixed(2),
         CourseId: course.id,

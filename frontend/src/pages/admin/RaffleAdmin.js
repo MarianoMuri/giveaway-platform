@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import ProfileFields from '../../components/ProfileFields';
+import ProvinceSelect from '../../components/ProvinceSelect';
 import { useApi } from '../../hooks';
 import { api, money, DEMO, numbersLabel, dateTime } from '../../api';
 import PackEditor from '../../components/PackEditor';
@@ -31,14 +33,15 @@ const toLocalInput = (iso) => {
 export default function RaffleAdmin() {
   const { id } = useParams();
   const { data: raffles, reload: reloadRaffles } = useApi('/admin/raffles', { auth: true });
-  const { data: byProv } = useApi(`/admin/raffles/${id}/by-province`, { auth: true, interval: 60000 });
+  const [segBy, setSegBy] = useState('province');
+  const { data: seg } = useApi(`/admin/raffles/${id}/segments?by=${segBy}`, { auth: true, interval: 60000 });
   const { data: stats, reload: reloadStats } = useApi(`/admin/raffles/${id}/stats`, { auth: true, interval: 20000 });
   const [filter, setFilter] = useState('');
   const { data: orders, reload: reloadOrders } = useApi(
     `/admin/orders?raffleId=${id}${filter ? `&status=${filter}` : ''}`,
     { auth: true }
   );
-  const emptyManual = { chances: '', courseId: '', amount: '', name: '', phone: '', dni: '', email: '' };
+  const emptyManual = { chances: '', courseId: '', amount: '', name: '', phone: '', dni: '', email: '', province: '', locality: '', ageRange: '', gender: '', occupation: '' };
   const [manual, setManual] = useState(emptyManual);
   const { data: courses } = useApi('/admin/courses', { auth: true });
   const { data: freeList, reload: reloadFree } = useApi(`/admin/raffles/${id}/free-entries`, { auth: true });
@@ -201,7 +204,7 @@ export default function RaffleAdmin() {
             chances: Number(manual.chances),
             courseId: Number(manual.courseId),
             amount: Number(manual.amount),
-            buyer: { name: manual.name, phone: manual.phone, dni: manual.dni, email: manual.email },
+            buyer: { name: manual.name, phone: manual.phone, dni: manual.dni, email: manual.email, province: manual.province || undefined, locality: manual.locality, ageRange: manual.ageRange, gender: manual.gender, occupation: manual.occupation },
           },
         });
       },
@@ -274,27 +277,40 @@ export default function RaffleAdmin() {
         {stats?.reversed > 0 && <div className="card stat"><span>Anuladas (reintegro / contracargo)</span><strong>{stats.reversed}</strong></div>}
         {stats?.review > 0 && <div className="card stat"><span>Para revisar</span><strong className="gold">{stats.review}</strong></div>}
       </div>
-      {byProv && byProv.provinces.length > 0 && (
+      {seg && (
         <section className="card">
-          <h3>Dónde compran</h3>
-          <p className="small muted">Según la provincia que eligió cada persona. Solo cuentan compras acreditadas. Sirve para decidir dónde hacer publicidad.</p>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Provincia</th><th>Compras</th><th>Chances</th><th>Recaudado</th><th>% de la plata</th><th>Gratis</th></tr></thead>
-              <tbody>
-                {byProv.provinces.map((p) => (
-                  <tr key={p.code || 'sin-dato'}>
-                    <td>{p.name}</td>
-                    <td>{p.purchases}</td>
-                    <td>{p.chances.toLocaleString('es-AR')}</td>
-                    <td className="nowrap">{money(p.revenue)}</td>
-                    <td>{Math.round(p.share * 100)}%</td>
-                    <td>{p.freeEntries}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="row between">
+            <h3>Dónde compran y quiénes</h3>
+            <label className="small">Ver por
+              <select value={segBy} onChange={(e) => setSegBy(e.target.value)}>
+                <option value="province">Provincia</option>
+                <option value="locality">Localidad</option>
+                <option value="ageRange">Edad</option>
+                <option value="gender">Género</option>
+                <option value="occupation">Ocupación</option>
+              </select>
+            </label>
           </div>
+          <p className="small muted">Solo cuentan compras acreditadas. Los datos de localidad, edad, género y ocupación son opcionales: quien no los completó figura en “Sin dato”.</p>
+          {seg.rows.length === 0 ? <p className="muted">Todavía no hay compras.</p> : (
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>{{ province: 'Provincia', locality: 'Localidad', ageRange: 'Edad', gender: 'Género', occupation: 'Ocupación' }[segBy]}</th><th>Compras</th><th>Chances</th><th>Recaudado</th><th>% de la plata</th><th>Gratis</th></tr></thead>
+                <tbody>
+                  {seg.rows.map((p) => (
+                    <tr key={p.code || 'sin-dato'}>
+                      <td>{p.name}</td>
+                      <td>{p.purchases}</td>
+                      <td>{p.chances.toLocaleString('es-AR')}</td>
+                      <td className="nowrap">{money(p.revenue)}</td>
+                      <td>{Math.round(p.share * 100)}%</td>
+                      <td>{p.freeEntries}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       )}
       {stats?.emailsFailed > 0 && (
@@ -381,6 +397,8 @@ export default function RaffleAdmin() {
           <label>DNI<input required inputMode="numeric" value={manual.dni} onChange={setM('dni')} /></label>
           <label>Teléfono<input value={manual.phone} onChange={setM('phone')} /></label>
           <label>Email<input type="email" value={manual.email} onChange={setM('email')} /></label>
+          <ProvinceSelect optional value={manual.province} onChange={(province) => setManual({ ...manual, province })} />
+          <ProfileFields value={manual} onChange={setManual} />
           <button className="btn btn-block">Registrar venta</button>
         </form>
 

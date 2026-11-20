@@ -106,15 +106,40 @@ test('"dónde compran": suma compras, chances y plata por provincia (las anulada
   await mk('B', 50, 90000, 'refunded'); // anulada: no cuenta
   await mk('A', 5, 15000, 'pending'); // sin pagar: no cuenta
   await FreeEntry.create({ RaffleId: r.id, name: 'G', dni: '2', email: 'g@t.com', province: 'B', status: 'confirmed' });
-  const res = await request(app).get(`/api/admin/raffles/${r.id}/by-province`).set(auth);
+  const res = await request(app).get(`/api/admin/raffles/${r.id}/segments`).set(auth);
   assert.equal(res.status, 200);
-  const byName = Object.fromEntries(res.body.provinces.map((p) => [p.name, p]));
+  const byName = Object.fromEntries(res.body.rows.map((p) => [p.name, p]));
   assert.deepEqual([byName['Buenos Aires'].purchases, byName['Buenos Aires'].chances, byName['Buenos Aires'].revenue, byName['Buenos Aires'].freeEntries], [2, 15, 40000, 1]);
   assert.deepEqual([byName.Salta.purchases, byName.Salta.revenue], [1, 15000]);
   assert.equal(byName['Sin dato'].purchases, 1);
   assert.equal(res.body.totalRevenue, 65000);
-  assert.equal(res.body.provinces[0].name, 'Buenos Aires'); // la que más plata trae, primero
-  assert.equal((await request(app).get(`/api/admin/raffles/${r.id}/by-province`)).status, 401);
+  assert.equal(res.body.rows[0].name, 'Buenos Aires'); // la que más plata trae, primero
+  assert.equal((await request(app).get(`/api/admin/raffles/${r.id}/segments`)).status, 401);
+});
+
+test('segmentos: localidad (sin importar tildes ni mayúsculas), edad, género y ocupación', async () => {
+  const { Order, Raffle } = require('../src/db');
+  const r = await Raffle.create({ title: 'Seg', prize: 'x', status: 'active' });
+  const mk = (extra, amount = 10000) => Order.create({ RaffleId: r.id, buyerName: 'T', buyerEmail: 't@t.com', buyerPhone: '1', buyerDni: '1', chances: 5, amount, status: 'approved', ...extra });
+  await mk({ locality: 'Bahía Blanca', ageRange: '25-34', gender: 'M', occupation: 'employee' });
+  await mk({ locality: 'bahia blanca', ageRange: '25-34', gender: 'F', occupation: 'self' });
+  await mk({ locality: 'Punta Alta', ageRange: '35-44' }, 5000);
+  const get = async (by) => (await request(app).get(`/api/admin/raffles/${r.id}/segments?by=${by}`).set(auth)).body;
+  const loc = await get('locality');
+  assert.deepEqual(loc.rows.map((x) => [x.name, x.purchases]), [['Bahía Blanca', 2], ['Punta Alta', 1]]);
+  const age = await get('ageRange');
+  assert.equal(age.rows[0].name, '25 a 34 años');
+  assert.equal((await get('gender')).rows.find((x) => x.name === 'Sin dato').purchases, 1);
+  assert.equal((await get('occupation')).rows.find((x) => x.name === 'Empleado/a').purchases, 1);
+  assert.equal((await request(app).get(`/api/admin/raffles/${r.id}/segments?by=dni`).set(auth)).status, 400);
+});
+
+test('perfil opcional: se limpia y un valor inválido se descarta sin bloquear', () => {
+  const { cleanProfile } = require('../src/services/profile');
+  assert.deepEqual(cleanProfile({ locality: '  bahía   BLANCA ', ageRange: '25-34', gender: 'F', occupation: 'student' }),
+    { locality: 'Bahía Blanca', ageRange: '25-34', gender: 'F', occupation: 'student' });
+  assert.deepEqual(cleanProfile({ locality: 'x', ageRange: '99', gender: 'Z', occupation: 'astronauta' }), { locality: null, ageRange: null, gender: null, occupation: null });
+  assert.deepEqual(cleanProfile(undefined), { locality: null, ageRange: null, gender: null, occupation: null });
 });
 
 test('exportación CSV con curso y rango de números', async () => {

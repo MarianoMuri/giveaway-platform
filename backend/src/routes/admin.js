@@ -16,7 +16,7 @@ const { streamRaffleCsv } = require('../services/export');
 const mpHealth = require('../services/mpHealth');
 const draw = require('../services/draw');
 const winnerAlert = require('../services/winnerAlert');
-const { bySalesProvince } = require('../services/salesByProvince');
+const { segmentSales } = require('../services/segments');
 const sales = require('../services/sales');
 const { cleanExcluded } = require('../services/provinces');
 const { AuditLog } = require('../db');
@@ -135,9 +135,11 @@ router.post('/raffles/:id/readiness', wrap(async (req, res) => {
   res.json(await readiness.check(req.params.id));
 }));
 
-// "Dónde compran": ventas por provincia, para decidir dónde hacer publicidad
-router.get('/raffles/:id/by-province', wrap(async (req, res) => {
-  res.json(await bySalesProvince(req.params.id));
+// "Dónde compran y quiénes": ventas por provincia, localidad, edad, género u ocupación (?by=...)
+router.get('/raffles/:id/segments', wrap(async (req, res) => {
+  const result = await segmentSales(req.params.id, String(req.query.by || 'province'));
+  if (!result) throw new HttpError(400, 'Segmento inválido');
+  res.json(result);
 }));
 
 router.get('/raffles/:id/stats', wrap(async (req, res) => {

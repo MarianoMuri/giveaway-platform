@@ -286,3 +286,6 @@ th { color: var(--muted); font-weight: 500; font-size: .78rem; text-transform: u
 .legal summary { cursor: pointer; }
 .province-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: .4rem .8rem; margin-top: .5rem; }
 .province-select { width: 100%; }
+
+.profile-fields { border: 1px dashed #2a2a30; border-radius: 10px; padding: .6rem .8rem .8rem; margin: .5rem 0; display: grid; gap: .6rem; }
+.profile-fields legend { padding: 0 .4rem; }

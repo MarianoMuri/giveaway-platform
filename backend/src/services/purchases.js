@@ -5,6 +5,7 @@ const packs = require('./packs');
 const numbers = require('./numbers');
 const emails = require('./emails');
 const provinces = require('./provinces');
+const { cleanProfile } = require('./profile');
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -16,6 +17,7 @@ function cleanBuyer(buyer) {
     phone: String(b.phone || '').replace(/[^\d+]/g, ''),
     dni: String(b.dni || '').replace(/\D/g, ''),
     province: provinces.cleanProvince(b.province),
+    ...cleanProfile(b),
   };
   if (out.name.length < 3) throw new HttpError(400, 'Ingresá tu nombre y apellido');
   if (!EMAIL.test(out.email)) throw new HttpError(400, 'El email no es válido');
@@ -45,6 +47,10 @@ async function createPurchase({ raffleId, packId, double, courseId, buyer }) {
     buyerPhone: b.phone,
     buyerDni: b.dni,
     buyerProvince: b.province,
+    locality: b.locality,
+    ageRange: b.ageRange,
+    gender: b.gender,
+    occupation: b.occupation,
     PackId: quote.packId,
     double: quote.double,
     chances: quote.chances,

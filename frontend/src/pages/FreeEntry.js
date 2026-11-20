@@ -4,6 +4,7 @@ import { useApi } from '../hooks';
 import { api, DEMO } from '../api';
 import Turnstile from '../components/Turnstile';
 import ProvinceSelect from '../components/ProvinceSelect';
+import ProfileFields from '../components/ProfileFields';
 
 // Identificador anónimo del navegador: ayuda a limitar abusos (no reemplaza al DNI ni al captcha)
 function deviceId() {
@@ -23,7 +24,7 @@ function deviceId() {
 export default function FreeEntry() {
   const { id } = useParams();
   const { data: raffle, error } = useApi(`/raffles/${id}`);
-  const [form, setForm] = useState({ name: '', dni: '', email: '', province: '' });
+  const [form, setForm] = useState({ name: '', dni: '', email: '', province: '', locality: '', ageRange: '', gender: '', occupation: '' });
   const [accept, setAccept] = useState(false);
   const [captchaToken, setCaptchaToken] = useState(null);
   const [state, setState] = useState(null); // null | 'sending' | 'sent'
@@ -80,10 +81,11 @@ export default function FreeEntry() {
           <label>DNI<input required inputMode="numeric" autoComplete="off" placeholder="Solo números" value={form.dni} onChange={set('dni')} /></label>
           <label>Email<input required type="email" autoComplete="email" inputMode="email" value={form.email} onChange={set('email')} /></label>
           <ProvinceSelect value={form.province} onChange={(province) => setForm({ ...form, province })} excluded={raffle.excludedProvinces} />
+          <ProfileFields value={form} onChange={setForm} />
           <Turnstile onToken={onToken} />
           <label className="check mt-sm">
             <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} />
-            <span className="small">Soy mayor de 18 años y acepto las <Link to={`/sorteo/${raffle.id}/bases`}>bases y condiciones</Link>. Usan mis datos solo para este sorteo.</span>
+            <span className="small">Soy mayor de 18 años y acepto las <Link to={`/sorteo/${raffle.id}/bases`}>bases y condiciones</Link>. Usan mis datos para este sorteo y, sin identificarme, para estadísticas.</span>
           </label>
           {msg && <p className="alert small mt-sm">{msg}</p>}
           <button className="btn btn-lg btn-block mt" disabled={state === 'sending'}>{state === 'sending' ? 'Enviando…' : 'Quiero mi número gratis'}</button>
