@@ -243,3 +243,39 @@ test('el operador en vivo puede tener un nombre como usuario, sin importar mayú
   config.liveOperator.email = '';
   config.liveOperator.passwordHash = '';
 });
+
+test('ocultar un sorteo: de la lista del operador en vivo y de la página de inicio, sin borrar nada', async () => {
+  const config = require('../src/config');
+  const { Raffle } = require('../src/db');
+  config.liveOperator.email = 'vivo2@test';
+  config.liveOperator.passwordHash = require('bcryptjs').hashSync('vivo123', 4);
+  const login = await request(app).post('/api/admin/login').send({ email: 'vivo2@test', password: 'vivo123' });
+  const live = { Authorization: `Bearer ${login.body.token}` };
+  const r = await Raffle.create({ title: 'Para ocultar', prize: 'x', status: 'active' });
+  const ids = async (headers) => (await request(app).get('/api/admin/raffles').set(headers)).body.map((x) => x.id);
+  const publicIds = async () => (await request(app).get('/api/raffles')).body.map((x) => x.id);
+
+  assert.ok((await ids(live)).includes(r.id));
+  assert.ok((await publicIds()).includes(r.id));
+
+  // ocultar a Angelo: él no lo ve ni lo puede sortear; el administrador lo sigue viendo; el público no cambia
+  assert.equal((await request(app).patch(`/api/admin/raffles/${r.id}`).set(auth).send({ liveHidden: 'si' })).status, 400);
+  assert.equal((await request(app).patch(`/api/admin/raffles/${r.id}`).set(auth).send({ liveHidden: true })).status, 200);
+  assert.equal((await ids(live)).includes(r.id), false);
+  assert.ok((await ids(auth)).includes(r.id));
+  assert.ok((await publicIds()).includes(r.id));
+  assert.equal((await request(app).post(`/api/admin/raffles/${r.id}/draw`).set(live).send({})).status, 403);
+
+  // ocultar del inicio: ya no sale en la lista pública, pero el link directo sigue andando
+  assert.equal((await request(app).patch(`/api/admin/raffles/${r.id}`).set(auth).send({ publicHidden: true })).status, 200);
+  assert.equal((await publicIds()).includes(r.id), false);
+  assert.equal((await request(app).get(`/api/raffles/${r.id}`)).status, 200);
+
+  // se puede volver a mostrar, y el operador no puede cambiar nada de esto
+  assert.equal((await request(app).patch(`/api/admin/raffles/${r.id}`).set(live).send({ liveHidden: false })).status, 403);
+  await request(app).patch(`/api/admin/raffles/${r.id}`).set(auth).send({ liveHidden: false, publicHidden: false });
+  assert.ok((await ids(live)).includes(r.id));
+  assert.ok((await publicIds()).includes(r.id));
+  config.liveOperator.email = '';
+  config.liveOperator.passwordHash = '';
+});

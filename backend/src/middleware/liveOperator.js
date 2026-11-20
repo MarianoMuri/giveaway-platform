@@ -24,13 +24,14 @@ async function handle(req, res, next) {
 
   if (req.method === 'GET' && path === '/raffles') {
     const json = res.json.bind(res);
-    res.json = (rows) => json((rows || []).map((r) => Object.fromEntries(RAFFLE_FIELDS.map((k) => [k, r[k]]))));
+    // los sorteos que el administrador ocultó no aparecen en la lista
+    res.json = (rows) => json((rows || []).filter((r) => !r.liveHidden).map((r) => Object.fromEntries(RAFFLE_FIELDS.map((k) => [k, r[k]]))));
     return next();
   }
   if (req.method === 'POST' && /^\/raffles\/\d+\/draw$/.test(path)) {
     // El administrador puede deshabilitar un sorteo para que no se abra por error
     const raffle = await Raffle.findByPk(Number(path.split('/')[2]));
-    if (raffle && raffle.liveEnabled === false) return res.status(403).json({ error: 'Este sorteo está deshabilitado para el vivo. Pedile al administrador que lo habilite.' });
+    if (raffle && (raffle.liveHidden || raffle.liveEnabled === false)) return res.status(403).json({ error: 'Este sorteo está deshabilitado para el vivo. Pedile al administrador que lo habilite.' });
     const json = res.json.bind(res);
     res.json = (out) => (out && out.winner
       ? json({ number: out.number, draw: out.draw ? { id: out.draw.id, number: out.draw.number } : null,
