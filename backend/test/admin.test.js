@@ -222,3 +222,14 @@ test('operador del sorteo en vivo: solo puede ver la lista y sortear, sin datos 
   config.liveOperator.passwordHash = '';
   assert.equal((await request(app).post('/api/admin/login').send({ email: '', password: '' })).status, 401);
 });
+
+test('el operador en vivo puede tener un nombre como usuario, sin importar mayúsculas', async () => {
+  const config = require('../src/config');
+  config.liveOperator.email = 'Angelo';
+  config.liveOperator.passwordHash = require('bcryptjs').hashSync('vivo123', 4);
+  const ok = await request(app).post('/api/admin/login').send({ email: ' angelo ', password: 'vivo123' });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body.role, 'live');
+  config.liveOperator.email = '';
+  config.liveOperator.passwordHash = '';
+});

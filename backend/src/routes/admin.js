@@ -26,7 +26,7 @@ const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10 });
 
 router.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body || {};
-  const matches = async (u) => u.email && u.passwordHash && email === u.email && (await bcrypt.compare(String(password || ''), u.passwordHash));
+  const matches = async (u) => u.email && u.passwordHash && String(email || '').trim().toLowerCase() === u.email.trim().toLowerCase() && (await bcrypt.compare(String(password || ''), u.passwordHash));
   // El administrador tiene prioridad: si los dos mails fueran iguales, entra como administrador
   const role = (await matches(config.admin)) ? 'admin' : (await matches(config.liveOperator)) ? 'live' : null;
   if (!role) {
