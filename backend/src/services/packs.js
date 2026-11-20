@@ -144,7 +144,7 @@ function publicView({ packs, offer, promos: allPromos = [], raffle }) {
   };
   const automatic = allPromos
     .filter((p) => !p.code && promos.stateOf(p, now) === 'on')
-    .map((p) => ({ name: p.name, percent: p.percent, bonus: p.bonus, bonusEvery: p.bonusEvery, minChances: p.minChances }));
+    .map((p) => ({ name: p.name, percent: p.percent, bonus: p.bonus, bonusEvery: p.bonusEvery, minChances: p.minChances, endsAt: p.endsAt }));
   return {
     offer,
     promos: automatic,
