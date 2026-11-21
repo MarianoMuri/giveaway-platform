@@ -341,11 +341,22 @@ th { color: var(--muted); font-weight: 500; font-size: .78rem; text-transform: u
 /* ¿Cómo funciona? */
 .how { text-align: center; }
 .how h2 { margin-bottom: .25rem; }
-.how-steps { list-style: none; padding: 0; margin: 1.5rem 0 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; counter-reset: none; }
-.how-step { position: relative; background: var(--surface); border: 1px solid #ffffff14; border-top: 3px solid var(--primary); border-radius: 14px; padding: 1.5rem 1rem 1.25rem; overflow: hidden; }
-.how-n { position: absolute; top: -.35rem; right: .6rem; font-size: 3.6rem; font-weight: 800; line-height: 1; color: #ffffff0d; }
-.how-icon { display: inline-flex; align-items: center; justify-content: center; width: 3.2rem; height: 3.2rem; border-radius: 50%; background: #ffffff0f; font-size: 1.5rem; margin-bottom: .75rem; }
-.how-step h3 { font-size: 1rem; margin: 0 0 .4rem; }
-.how-step p { margin: 0; color: var(--muted); font-size: .86rem; }
-@media (max-width: 900px) { .how-steps { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 520px) { .how-steps { grid-template-columns: 1fr; } }
+.how-path { position: relative; margin-top: 1.5rem; }
+.how-line { position: absolute; left: 0; top: 0; width: 100%; height: 7.7rem; overflow: visible; pointer-events: none; }
+.how-line path { fill: none; stroke: #ffffff33; stroke-width: 2.5; stroke-dasharray: 7 7; }
+.how-steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(5, 1fr); position: relative; }
+.how-step { display: flex; flex-direction: column; align-items: center; padding: 0 .4rem; }
+.how-step:nth-child(odd) { margin-top: 3.5rem; }
+.how-node { position: relative; width: 4.2rem; height: 4.2rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--surface); border: 2px solid var(--primary); color: var(--primary); margin-bottom: .7rem; }
+.how-node b { position: absolute; top: -.35rem; right: -.35rem; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--primary); color: #fff; font-size: .78rem; display: flex; align-items: center; justify-content: center; }
+.how-step.last .how-node { background: var(--primary); color: #fff; box-shadow: 0 0 0 5px #ffffff14; }
+.how-step.last .how-node b { background: #fff; color: var(--primary); }
+.how-step h3 { font-size: 1rem; margin: 0 0 .2rem; }
+.how-step p { margin: 0; color: var(--muted); font-size: .84rem; }
+@media (max-width: 760px) {
+  .how-line { display: none; }
+  .how-steps { grid-template-columns: 1fr; gap: 1.1rem; text-align: left; }
+  .how-step, .how-step:nth-child(odd) { margin-top: 0; flex-direction: column; align-items: flex-start; padding-left: 5.2rem; position: relative; min-height: 4.2rem; justify-content: center; }
+  .how-node { position: absolute; left: 0; top: 0; margin: 0; }
+  .how-step:not(:last-child)::after { content: ''; position: absolute; left: 2.1rem; top: 4.4rem; bottom: -1rem; border-left: 2px dashed #ffffff33; }
+}
