@@ -9,7 +9,7 @@ const { accessLink } = require('./emailTemplates');
 const { HttpError } = require('./errors');
 
 /**
- * "Mis compras" con link mágico (sin contraseñas):
+ * "Mis números" con link mágico (sin contraseñas):
  * el comprador pone su email, le llega un link que vence en pocos minutos y con él
  * ve todas sus compras y puede volver a bajar los cursos.
  *
@@ -67,7 +67,7 @@ async function requestLink(rawEmail) {
   const orders = await paidOrders(email);
   if (!orders.length) return { sent: false, reason: 'no-orders' };
 
-  const url = `${config.frontendUrl}/mis-compras?token=${createToken(email)}`;
+  const url = `${config.frontendUrl}/mis-numeros?token=${createToken(email)}`;
   await mailer.send({ to: email, ...accessLink({ brand: config.brand, url, minutes: LINK_MINUTES, count: orders.length }) });
   return { sent: true };
 }

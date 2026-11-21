@@ -3,8 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, money, dateTime, goTo, numbersLabel, DEMO } from '../api';
 import Turnstile from '../components/Turnstile';
 
-// "Mis compras" sin contraseña: el comprador pide un link por email y con él ve sus compras.
-export default function MisCompras() {
+// "Mis números" sin contraseña: el comprador pide un link por email y con él ve sus compras.
+export default function MisNumeros() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const [token, setToken] = useState(params.get('token'));
@@ -14,7 +14,7 @@ export default function MisCompras() {
 
   // El token sale de la URL apenas se lee: no queda en el historial ni se comparte sin querer
   useEffect(() => {
-    if (params.get('token')) navigate('/mis-compras', { replace: true });
+    if (params.get('token')) navigate('/mis-numeros', { replace: true });
   }, [params, navigate]);
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export default function MisCompras() {
 
   return (
     <div className="container narrow">
-      <h2 className="mt">Mis compras</h2>
+      <h2 className="mt">Mis números</h2>
       {purchases.map((p) => <Purchase key={p.id} p={p} />)}
       <button type="button" className="linklike small" onClick={() => { setToken(null); setPurchases(null); }}>Salir</button>
     </div>
@@ -91,7 +91,7 @@ function DniResult({ data, onExit }) {
   const empty = !purchases.length && !freeEntries.length;
   return (
     <div className="container narrow">
-      <h2 className="mt">{name ? `Hola, ${name}` : 'Mis compras'}</h2>
+      <h2 className="mt">{name ? `Hola, ${name}` : 'Mis números'}</h2>
       {empty && (
         <div className="card">
           <p><strong>No encontramos compras ni participaciones con ese DNI.</strong></p>
@@ -136,7 +136,7 @@ function DniLogin({ expired, onResult, onDemoToken }) {
   return (
     <div className="container narrow">
       <div className="card">
-        <h2>Mis compras</h2>
+        <h2>Mis números</h2>
         <p className="muted">Ingresá tu DNI y mirá tus números. No hace falta contraseña ni email.</p>
         {expired && <p className="alert small">{expired}</p>}
         <form onSubmit={submit}>
@@ -182,7 +182,7 @@ function RequestLink({ expired, onDemoToken }) {
   return (
     <div className="container narrow">
       <div className="card">
-        <h2>Mis compras</h2>
+        <h2>Mis números</h2>
         <p className="muted">Ingresá el email con el que compraste y te mandamos un link para ver tus números y descargar tus cursos. No hace falta contraseña.</p>
         {expired && <p className="alert small">{expired}</p>}
         {state === 'sent' ? (

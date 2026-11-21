@@ -4,6 +4,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Unreleased]
 
+### Added
+- **Página de compra más completa**: franja de beneficios (números al instante, sorteo en vivo, curso por email), cuenta regresiva hasta el cierre de la venta, lista de los cursos disponibles a la vista y preguntas frecuentes al pie (lo de participar gratis solo aparece si está habilitado).
+
+### Changed
+- "Mis compras" ahora se llama **"Mis números"** en todos lados: menú, página, emails y dirección (`/mis-numeros`). Los links viejos (`/mis-compras`) siguen funcionando.
+
 ### Changed
 - **Botones de redes con los colores originales** (Instagram degradé, YouTube rojo, Facebook azul, TikTok negro, WhatsApp verde), arriba, en el pie y en la página de links, donde cada red es un botón de su color. El WhatsApp de contacto (`REACT_APP_BRAND_WHATSAPP_CONTACT`) ahora también sale como ícono de red.
 - El logo de Zona Norte Automotores ahora se sirve desde el mismo sitio (`/zona-norte-logo.jpg`) en lugar de depender de un sitio de Netlify aparte. Para usarlo: `REACT_APP_BRAND_LOGO_URL`, `REACT_APP_BRAND_HERO_URL` y `REACT_APP_BRAND_SHARE_IMAGE` = `/zona-norte-logo.jpg`.
@@ -51,7 +57,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - **Marca del cliente por variables de Netlify**: nombre, textos, color principal, redes y logo se pueden cargar con variables `REACT_APP_BRAND_*`, sin tocar el código ni subir datos del cliente al repositorio (#60).
 - **Control contra credenciales de prueba en producción**: las credenciales de prueba de Mercado Pago empiezan con `APP_USR-` igual que las reales, y el control de arranque solo reconocía `TEST-`. Ahora, al crear el checkout, si Mercado Pago devuelve una orden de prueba y `ALLOW_MP_TEST` no está en `true`, la compra se rechaza antes de mandar al comprador a pagar (#56).
 - **Email por API de Resend** (`RESEND_API_KEY`): los mails salen por HTTPS y funcionan en cualquier plan de hosting (Railway bloquea el SMTP fuera del plan Pro). El SMTP queda como alternativa; un 429 o 5xx del proveedor hace que la cola reintente (#46).
-- **Mis compras con DNI**: el comprador ve sus números ingresando solo el DNI, sin contraseña ni mail (compras acreditadas y participación gratuita confirmada). Muestra el nombre abreviado; descargar el curso pide además el email de la compra. Límite por IP y por DNI, captcha y respuestas iguales exista o no el DNI (#44).
+- **Mis números con DNI**: el comprador ve sus números ingresando solo el DNI, sin contraseña ni mail (compras acreditadas y participación gratuita confirmada). Muestra el nombre abreviado; descargar el curso pide además el email de la compra. Límite por IP y por DNI, captcha y respuestas iguales exista o no el DNI (#44).
 - Provincias excluidas por sorteo (#42): al comprar y al participar gratis se pide la provincia (las 24 jurisdicciones) y quien está en una provincia excluida no puede hacerlo, con un mensaje claro y sin dejar rastro en la base. Por defecto quedan excluidas Mendoza, Formosa, Jujuy, Neuquén, Salta, Río Negro y Tierra del Fuego, que tienen reglas propias para sorteos promocionales, hasta que el abogado del cliente resuelva el trámite de cada una. Se edita desde el panel, y la página pública y las bases informan dónde no está disponible.
 - Requisitos legales antes de vender (#42): no se puede abrir (ni reabrir) la venta sin N° de autorización y sin bases y condiciones cargadas. El panel tiene una sección "Requisitos legales y provincias" para cargarlos, y el botón de publicar se deshabilita con el motivo.
 - Aviso en la compra y en las bases: "Esta compra se realiza en [lugar], lugar habilitado para este sorteo (autorización N° …)". Se muestra si el organizador completa `location` en `frontend/src/brand.js`; el texto lo tiene que confirmar el abogado del cliente.
@@ -128,7 +134,7 @@ El comprador elige un curso y un pack de chances; los números se asignan solos 
 - Envío con patrón outbox: reintentos con espera creciente y estado del envío en cada compra.
 - Reenvío del email desde el panel, opcionalmente a una dirección corregida.
 - Botón "Descargar el curso" en la página de la compra, que genera un link nuevo cada vez.
-- Página "Mis compras" con acceso por link mágico: el comprador pone su email, recibe un link que vence en 30 minutos y ve sus números, comprobantes y cursos (#8).
+- Página "Mis números" con acceso por link mágico: el comprador pone su email, recibe un link que vence en 30 minutos y ve sus números, comprobantes y cursos (#8).
 - `POST /api/my-purchases/link` y `GET /api/my-purchases`, con respuesta idéntica exista o no el email, límite por IP y por email, y token de propósito único.
 
 ### Changed

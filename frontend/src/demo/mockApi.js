@@ -281,13 +281,13 @@ const routes = [
     if (!['approved', 'manual'].includes(o.status)) throw new Err(409, { error: 'La compra todavía no está acreditada' });
     throw new Err(400, { error: 'En la demo no hay archivos reales para descargar. En la versión real se descarga el PDF.' });
   }],
-  // "Mis compras": en la demo no se manda email, el link se abre desde la propia pantalla
+  // "Mis números": en la demo no se manda email, el link se abre desde la propia pantalla
   ['POST', /^\/my-purchases\/link$/, (_, b) => {
     const email = String(b.email || '').trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new Err(400, { error: 'Ingresá un email válido' });
     return { ok: true, demoToken: `demo:${email}` };
   }],
-  // "Mis compras" con DNI: solo números; descargar pide además el email (en la demo no hay PDF real)
+  // "Mis números" con DNI: solo números; descargar pide además el email (en la demo no hay PDF real)
   ['POST', /^\/my-purchases\/by-dni$/, (_, b) => {
     const dni = String(b.dni || '').replace(/\D/g, '');
     if (dni.length < 7 || dni.length > 8) throw new Err(400, { error: 'El DNI no es válido' });

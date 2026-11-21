@@ -92,18 +92,18 @@ router.post('/orders/:id/download-link', downloadLimiter, wrap(async (req, res) 
   res.json({ url: courses.downloadUrl(order.CourseId, 1) });
 }));
 
-// "Mis compras" con link mágico: el comprador pide un link por email y con él ve sus compras.
+// "Mis números" con link mágico: el comprador pide un link por email y con él ve sus compras.
 // Responde siempre lo mismo exista o no el email (no se puede averiguar quién compró).
 const linkLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false });
 router.post('/my-purchases/link', linkLimiter, wrap(async (req, res) => {
   const pending = myPurchases.requestLink(req.body?.email);
   // Un email con formato inválido se rechaza al instante; el resto se resuelve sin esperar al proveedor de mail
   await Promise.race([pending, new Promise((r) => setTimeout(r, 0))]);
-  pending.catch((e) => { if (!e.status) console.error('[mis-compras] no se pudo enviar el link:', e.message); });
+  pending.catch((e) => { if (!e.status) console.error('[mis-numeros] no se pudo enviar el link:', e.message); });
   res.status(202).json({ ok: true });
 }));
 
-// "Mis compras" con DNI: solo lectura de números. Límite por IP acá, por DNI y captcha en el servicio.
+// "Mis números" con DNI: solo lectura de números. Límite por IP acá, por DNI y captcha en el servicio.
 const dniLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false });
 router.post('/my-purchases/by-dni', dniLimiter, wrap(async (req, res) => {
   const { dni, captchaToken } = req.body || {};

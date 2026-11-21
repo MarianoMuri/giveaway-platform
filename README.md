@@ -17,7 +17,7 @@ Desarrollada para una concesionaria y publicada como versión **white-label**: l
   &nbsp;
   <img src="docs/screenshots/confirmacion-mobile.png" width="170" alt="Confirmación con los números asignados" />
   &nbsp;
-  <img src="docs/screenshots/mis-compras-mobile.png" width="170" alt="Mis compras con acceso por link" />
+  <img src="docs/screenshots/mis-numeros-mobile.png" width="170" alt="Mis números con acceso por link" />
 </p>
 
 <p align="center">
@@ -31,7 +31,7 @@ Desarrollada para una concesionaria y publicada como versión **white-label**: l
 - Oferta **"Duplicá tus chances"**: el doble de chances pagando un extra por chance.
 - Paga con Mercado Pago Checkout Pro (también en efectivo, porque no hay reserva que pueda vencer).
 - Recibe sus números **consecutivos** (desde el 100000) apenas se acredita el pago, en una página que funciona como comprobante.
-- Le llega un **email de confirmación** con sus números, el botón para descargar el curso y los datos del sorteo. Desde su compra, o desde **Mis compras** (con solo su DNI, sin contraseña ni mail; el curso se baja con DNI y el email de la compra), puede volver a ver sus números y descargar el curso cuando quiera.
+- Le llega un **email de confirmación** con sus números, el botón para descargar el curso y los datos del sorteo. Desde su compra, o desde **Mis números** (con solo su DNI, sin contraseña ni mail; el curso se baja con DNI y el email de la compra), puede volver a ver sus números y descargar el curso cuando quiera.
 - Barra de progreso de chances vendidas y bases y condiciones con los precios de cada pack.
 - Página de links para la bio de Instagram, con el sorteo activo y las redes.
 
@@ -125,7 +125,7 @@ Para probar pagos se usan las **credenciales y usuarios de prueba** de Mercado P
 | POST | `/api/orders/:id/download-link` | Link de descarga nuevo del curso de una compra pagada |
 | POST | `/api/my-purchases/by-dni` | Devuelve los números de un DNI (solo lectura, nombre abreviado; límite por IP y DNI, captcha) |
 | POST | `/api/my-purchases/download` | Link de descarga del curso: exige DNI + email de esa compra |
-| POST | `/api/my-purchases/link` | Envía por email el link de acceso a "Mis compras" (responde igual exista o no el email) |
+| POST | `/api/my-purchases/link` | Envía por email el link de acceso a "Mis números" (responde igual exista o no el email) |
 | GET | `/api/my-purchases` | Compras acreditadas del dueño del link (header `Authorization: Bearer <token>`) |
 | POST | `/api/raffles/:id/free-entries` | Pide participar gratis (nombre, DNI, email, captcha); manda el link de confirmación |
 | POST | `/api/free-entries/confirm` | Confirma el email con el link y asigna el número |
