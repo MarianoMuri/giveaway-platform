@@ -7,6 +7,7 @@ const packs = require('../services/packs');
 const { createPurchase } = require('../services/purchases');
 const courses = require('../services/courses');
 const myPurchases = require('../services/myPurchases');
+const withdrawals = require('../services/withdrawals');
 const freeEntries = require('../services/freeEntries');
 const sales = require('../services/sales');
 const { PROVINCES } = require('../services/provinces');
@@ -90,6 +91,13 @@ router.post('/orders/:id/download-link', downloadLimiter, wrap(async (req, res) 
   if (!['approved', 'manual'].includes(order.status)) return res.status(409).json({ error: 'La compra todavía no está acreditada' });
   if (!order.CourseId) return res.status(404).json({ error: 'El curso ya no está disponible' });
   res.json({ url: courses.downloadUrl(order.CourseId, 1) });
+}));
+
+// Arrepentimiento: pedido con DNI + email. Responde siempre igual (no revela quién compró).
+const withdrawalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 8, standardHeaders: true, legacyHeaders: false });
+router.post('/withdrawals', withdrawalLimiter, wrap(async (req, res) => {
+  const { dni, email } = req.body || {};
+  res.status(202).json(await withdrawals.request({ dni, email }));
 }));
 
 // "Mis números" con link mágico: el comprador pide un link por email y con él ve sus compras.

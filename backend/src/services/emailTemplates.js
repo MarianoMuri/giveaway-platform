@@ -207,6 +207,34 @@ function freeEntryNumber({ brand, entry, raffle }) {
 }
 
 /**
+ * Emails del arrepentimiento: constancia al comprador, resolución (devuelto o rechazado) y aviso al administrador.
+ * kind: received | approved | rejected | admin
+ * @returns {{ subject: string, html: string, text: string }}
+ */
+function withdrawalMail({ brand, kind, code, courseTitle, note, panelUrl }) {
+  const color = safeColor(brand.color);
+  const titles = {
+    received: 'Recibimos tu solicitud de arrepentimiento',
+    approved: 'Tu arrepentimiento fue aceptado',
+    rejected: 'Respuesta a tu solicitud de arrepentimiento',
+    admin: 'Nueva solicitud de arrepentimiento',
+  };
+  const bodies = {
+    received: [`Registramos tu solicitud ${code} sobre la compra del curso "${courseTitle}". La revisamos y te respondemos por este medio.`, 'Guardá este email: es tu constancia.'],
+    approved: [`Aceptamos tu solicitud ${code}. Te devolvemos el importe por el mismo medio de pago que usaste; el plazo depende de tu banco o tarjeta.`, 'Tus chances de esa compra quedaron anuladas.'],
+    rejected: [`No pudimos aceptar tu solicitud ${code}.`, note ? `Motivo: ${note}` : null],
+    admin: [`Solicitud ${code} sobre el curso "${courseTitle}".`, 'Revisala en el panel para devolver el dinero o responder.'],
+  };
+  const lines = bodies[kind].filter(Boolean);
+  const subject = `${titles[kind]} (${code})`;
+  const inner = `<h1 style="margin:0 0 8px;font-size:22px;color:#18181b">${esc(titles[kind])}</h1>
+    ${lines.map((l) => `<p style="margin:0 0 10px;color:#52525b;font-size:15px">${esc(l)}</p>`).join('')}
+    ${kind === 'admin' && panelUrl ? button(panelUrl, 'Abrir el panel', color) : ''}`;
+  const text = [titles[kind], '', ...lines, kind === 'admin' && panelUrl ? `\nPanel: ${panelUrl}` : null].filter((l) => l !== null).join('\n');
+  return { subject, html: shell({ brand, color, subject, inner }), text };
+}
+
+/**
  * Aviso interno al administrador: la conexión con Mercado Pago se cayó, sigue caída o se recuperó.
  * @returns {{ subject: string, html: string, text: string }}
  */
@@ -234,4 +262,4 @@ function mpAlert({ brand, kind, reason, since, panelUrl }) {
   return { subject, html: shell({ brand, color, subject, inner }), text };
 }
 
-module.exports = { purchaseConfirmation, accessLink, freeEntryConfirm, freeEntryNumber, mpAlert, esc };
+module.exports = { purchaseConfirmation, accessLink, freeEntryConfirm, freeEntryNumber, mpAlert, withdrawalMail, esc };

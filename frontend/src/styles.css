@@ -334,3 +334,6 @@ th { color: var(--muted); font-weight: 500; font-size: .78rem; text-transform: u
 .faq details p { margin: .5rem 0 0; color: var(--muted); font-size: .9rem; }
 .course-chips { list-style: none; display: flex; flex-wrap: wrap; gap: .5rem; padding: 0; margin: .75rem 0 0; }
 .course-chips li { background: var(--surface); border: 1px solid #ffffff1f; border-radius: 999px; padding: .35rem .8rem; font-size: .85rem; }
+/* Link del arrepentimiento: solo una palabra, sin llamar la atención */
+.subtle-link { display: inline-block; margin-top: .75rem; font-size: .68rem; color: var(--muted); opacity: .55; text-decoration: none; }
+.subtle-link:hover { opacity: .9; text-decoration: underline; }

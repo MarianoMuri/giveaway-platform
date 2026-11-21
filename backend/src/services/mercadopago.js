@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { MercadoPagoConfig, Preference, Payment, Order: MpOrder } = require('mercadopago');
+const { MercadoPagoConfig, Preference, Payment, PaymentRefund, Order: MpOrder } = require('mercadopago');
 const config = require('../config');
 
 let client;
@@ -109,6 +109,14 @@ const mp = {
   // responde, falla. La usa el monitor de conexión.
   async ping() {
     await new Payment(getClient()).search({ options: { limit: 1 } });
+  },
+
+  // Devuelve el pago completo. Acepta ids de orden (ORD...) y de pago (numéricos). La misma clave
+  // de idempotencia evita devolver dos veces si se reintenta.
+  async refund(id, idempotencyKey) {
+    const requestOptions = idempotencyKey ? { idempotencyKey } : undefined;
+    if (isOrderId(id)) return new MpOrder(getClient()).refund({ id: String(id), requestOptions });
+    return new PaymentRefund(getClient()).create({ payment_id: id, body: {}, requestOptions });
   },
 
   // Acepta ids de orden (ORD...) y de pago (numéricos): sirve para compras de las dos épocas
