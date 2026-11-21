@@ -12,7 +12,7 @@ export default function Faq({ raffle }) {
     ['¿Cómo me entero si gané?', 'Te avisamos por email y por teléfono con los datos que cargaste al comprar. Por eso es importante que estén bien.'],
     ['¿Qué pasa si mi pago se rechaza?', 'No se te cobra ni se asignan números. Podés volver a intentar con otro medio de pago.'],
     ...(free ? [['¿Puedo participar sin comprar?', <>Sí. Tenés 1 número gratis por DNI: <Link to={`/sorteo/${raffle.id}/participar-gratis`}>participá acá</Link>.</>]] : []),
-    ['¿Tengo un problema con mi compra, qué hago?', 'Escribinos por cualquiera de nuestras redes y lo resolvemos. Dejanos tu DNI, teléfono y email, y contanos qué pasó.'],
+    ['¿Tengo un problema con mi compra, qué hago?', 'Escribinos por cualquiera de nuestras redes y lo resolvemos. Dejanos tu DNI, email y teléfono, y contanos qué pasó.'],
     ['¿Quiénes pueden participar?', 'Mayores de 18 años con DNI argentino. Los detalles están en las bases y condiciones de cada sorteo.'],
   ];
   return (
