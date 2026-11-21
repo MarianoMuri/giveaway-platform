@@ -5,7 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ## [Unreleased]
 
 ### Added
-- **Página de compra más completa**: franja de beneficios (números al instante, sorteo en vivo, curso por email), cuenta regresiva hasta el cierre de la venta, lista de los cursos disponibles a la vista y preguntas frecuentes al pie (lo de participar gratis solo aparece si está habilitado).
+- **Portada más completa**: franja de beneficios (números al instante, sorteo en vivo, curso por email), lista de los cursos disponibles y preguntas frecuentes al pie (lo de participar gratis solo aparece si está habilitado). La página de compra tiene la cuenta regresiva hasta el cierre de la venta.
 
 ### Changed
 - "Mis compras" ahora se llama **"Mis números"** en todos lados: menú, página, emails y dirección (`/mis-numeros`). Los links viejos (`/mis-compras`) siguen funcionando.

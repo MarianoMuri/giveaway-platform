@@ -3,9 +3,11 @@ import brand from '../brand';
 import { useApi } from '../hooks';
 import { money, dateShort } from '../api';
 import Social from '../components/Social';
+import Faq from '../components/Faq';
 
 export default function Home() {
   const { data: raffles, loading, error } = useApi('/raffles');
+  const { data: courses } = useApi('/courses');
   const active = (raffles || []).filter((r) => r.status === 'active');
   const past = (raffles || []).filter((r) => r.status === 'drawn');
 
@@ -20,6 +22,11 @@ export default function Home() {
           </h1>
           {!brand.heroUrl && <p className="lead">{brand.description}</p>}
           {/* En el celular el encabezado no tiene redes: se muestran acá */}
+          <ul className="perks">
+            <li>⚡ Números al instante</li>
+            <li>📺 Sorteo en vivo</li>
+            <li>📘 Curso en tu email</li>
+          </ul>
           <div className="hero-social"><Social size="md" /></div>
         </div>
       </section>
@@ -83,6 +90,16 @@ export default function Home() {
         </div>
         </div>
 
+        {courses && courses.length > 0 && (
+          <section className="mt-lg home-courses">
+            <h3>Cursos disponibles ({courses.length})</h3>
+            <p className="muted small">Con cada compra elegís uno y te llevás chances para el sorteo.</p>
+            <ul className="course-chips">
+              {courses.map((c) => <li key={c.id}>{c.title}</li>)}
+            </ul>
+          </section>
+        )}
+
         {past.length > 0 && (
           <section className="mt-lg">
             <h3>Ganadores anteriores</h3>
@@ -98,6 +115,8 @@ export default function Home() {
             </div>
           </section>
         )}
+
+        <Faq raffle={active[0]} />
       </div>
     </>
   );

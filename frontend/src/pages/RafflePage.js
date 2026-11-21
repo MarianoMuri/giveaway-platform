@@ -8,7 +8,6 @@ import ProvinceSelect from '../components/ProvinceSelect';
 import ProfileFields from '../components/ProfileFields';
 import CoursePicker from '../components/CoursePicker';
 import Countdown from '../components/Countdown';
-import Faq from '../components/Faq';
 
 // Página de compra: curso + pack de chances (+ "Duplicá").
 // Los totales que se muestran vienen calculados por el backend: acá no se suman precios.
@@ -131,11 +130,6 @@ export default function RafflePage() {
         <p className="alert">{raffle.status === 'active' ? 'La venta de este sorteo ya cerró. ¡Mucha suerte a todos los participantes!' : 'Este sorteo ya no está a la venta.'}</p>
       ) : (
         <>
-          <ul className="perks">
-            <li>⚡ Números al instante</li>
-            <li>📺 Sorteo en vivo</li>
-            <li>📘 Curso en tu email</li>
-          </ul>
           {raffle.salesCloseAt && (
             <>
               <Countdown until={raffle.salesCloseAt} />
@@ -149,11 +143,6 @@ export default function RafflePage() {
           <div className="buy-grid">
           <section className="step buy-courses" ref={coursesRef}>
             <h2><span className="step-n">1</span> Elegí tu curso</h2>
-            {courses.length > 0 && (
-              <p className="small muted course-all">
-                <strong>Cursos disponibles ({courses.length}):</strong> {courses.map((c) => c.title).join(' · ')}
-              </p>
-            )}
             <CoursePicker courses={courses} value={courseId} onPick={pickCourse} />
           </section>
 
@@ -271,7 +260,6 @@ export default function RafflePage() {
           )}
         </>
       )}
-      <Faq raffle={raffle} />
     </div>
   );
 }
