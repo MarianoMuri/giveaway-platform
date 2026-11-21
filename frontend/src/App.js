@@ -20,6 +20,7 @@ import Courses from './pages/admin/Courses';
 import LiveDraw from './pages/admin/LiveDraw';
 import LiveHub from './pages/admin/LiveHub';
 import Analytics from './components/Analytics';
+import ScrollTop from './components/ScrollTop';
 
 function RequireAdmin({ children }) {
   return getToken() ? children : <Navigate to="/admin/login" replace />;
@@ -106,6 +107,7 @@ export default function App() {
         </Routes>
       </main>
       <Footer />
+      <ScrollTop />
       <Analytics />
     </>
   );
