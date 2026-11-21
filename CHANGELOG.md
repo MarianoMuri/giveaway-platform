@@ -6,6 +6,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ### Added
 - **¿Cómo funciona?** en la portada: camino de 5 pasos (elegir curso y chances, pagar, recibir los números, recibir el curso por email, mirar el sorteo en vivo), con los colores del sitio.
+- **Ganadores anteriores:** ahora muestran el nombre del ganador (las Bases, cláusula 12, lo autorizan). Si el número ganador se anula, deja de mostrarse.
 - **Preguntas frecuentes:** nueva respuesta en "¿Cuándo y cómo es el sorteo?".
 
 ### Added

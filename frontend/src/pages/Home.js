@@ -112,6 +112,7 @@ export default function Home() {
                   <div className="muted small">{r.title}</div>
                   <div className="prize">{r.prize}</div>
                   <div>Número ganador: <strong className="gold">{r.winnerNumber}</strong></div>
+                  {r.winnerName && <div>Ganó: <strong>{r.winnerName}</strong></div>}
                   {r.youtubeUrl && <a href={r.youtubeUrl} target="_blank" rel="noreferrer" className="small">Ver el sorteo ▶</a>}
                 </div>
               ))}

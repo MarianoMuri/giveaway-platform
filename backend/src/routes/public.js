@@ -2,7 +2,7 @@ const router = require('express').Router();
 const config = require('../config');
 const rateLimit = require('express-rate-limit');
 const { Op, fn, col } = require('sequelize');
-const { Raffle, Order, Pack, Chance } = require('../db');
+const { Raffle, Order, Pack, Chance, FreeEntry } = require('../db');
 const packs = require('../services/packs');
 const { createPurchase } = require('../services/purchases');
 const courses = require('../services/courses');
@@ -23,7 +23,19 @@ async function withPrices(raffles) {
   if (!ids.length) return [];
   const prices = await Pack.findAll({ where: { RaffleId: ids }, attributes: ['RaffleId', [fn('MIN', col('price')), 'min']], group: ['RaffleId'], raw: true });
   const priceBy = new Map(prices.map((r) => [r.RaffleId, Number(r.min)]));
-  return raffles.map((r) => ({ ...r.toJSON(), salesOpen: sales.isOpen(r), fromPrice: priceBy.get(r.id) ?? null }));
+  const names = await winnerNames(raffles);
+  return raffles.map((r) => ({ ...r.toJSON(), salesOpen: sales.isOpen(r), fromPrice: priceBy.get(r.id) ?? null, winnerName: names.get(r.id) ?? null }));
+}
+
+// Nombre del ganador, para "Ganadores anteriores" (las Bases, cláusula 12, lo autorizan). Solo si el número sigue válido.
+async function winnerNames(raffles) {
+  const out = new Map();
+  for (const r of raffles.filter((x) => x.winnerNumber != null)) {
+    const c = await Chance.findOne({ where: { RaffleId: r.id, number: r.winnerNumber, status: 'valid' }, include: [{ model: Order, attributes: ['buyerName'] }, { model: FreeEntry, attributes: ['name'] }] });
+    const name = c?.Order?.buyerName || c?.FreeEntry?.name;
+    if (name) out.set(r.id, String(name).trim());
+  }
+  return out;
 }
 
 // Las 24 jurisdicciones, para el selector de provincia
