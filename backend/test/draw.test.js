@@ -118,7 +118,9 @@ test('queda verificable: población, posición y quién lo hizo; el generador es
   assert.equal(res.body.number, valid[7]);
   const row = await Draw.findOne({ where: { RaffleId: raffleId } });
   assert.deepEqual([row.number, row.method, row.validCount, row.position, row.actor], [valid[7], 'random', 10, 7, 'admin@test']);
-  assert.equal((await request(app).get(`/api/raffles/${raffleId}`)).body.winnerNumber, valid[7]);
+  const pub = (await request(app).get(`/api/raffles/${raffleId}`)).body;
+  assert.equal(pub.winnerNumber, valid[7]);
+  assert.equal(pub.winnerName, 'Beto'); // el número 7 de 10 cae en las chances de Beto
 });
 
 test('repetir el sorteo exige un motivo y conserva el historial', async () => {
