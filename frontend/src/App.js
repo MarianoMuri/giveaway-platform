@@ -39,7 +39,7 @@ function Header() {
         <span>{brand.name}</span>
         {isAdmin && <span className="badge">Admin</span>}
       </Link>
-      {!isAdmin && <Link to="/mis-compras" className="header-link">Mis compras</Link>}
+      {!isAdmin && <Link to="/mis-compras" className="header-link">Mis números</Link>}
       {!isAdmin && <div className="header-social"><Social size="sm" /></div>}
     </header>
   );

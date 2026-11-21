@@ -313,3 +313,23 @@ th { color: var(--muted); font-weight: 500; font-size: .78rem; text-transform: u
 .pack-was { color: var(--muted); font-weight: 500; font-size: .85em; }
 .code-box { margin: 1rem 0 .25rem; }
 .code-box .grow { flex: 1 1 12rem; }
+
+/* Página de compra: beneficios, cuenta regresiva, cursos y preguntas frecuentes */
+.perks { list-style: none; display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; padding: 0; margin: 1rem 0; }
+.perks li { background: var(--surface); border: 1px solid #ffffff1f; border-radius: 999px; padding: .35rem .8rem; font-size: .85rem; }
+.countdown { display: flex; flex-direction: column; align-items: center; gap: .4rem; background: var(--surface); border: 1px solid var(--primary); border-radius: 12px; padding: .7rem; margin: .75rem 0 .25rem; }
+.countdown.closed { color: var(--muted); border-color: #ffffff1f; }
+.countdown.urgent { animation: cd-pulse 1.2s ease-in-out infinite; }
+.cd-title { font-size: .85rem; color: var(--muted); }
+.cd-cells { display: flex; gap: .6rem; }
+.cd-cell { display: flex; flex-direction: column; align-items: center; min-width: 3rem; }
+.cd-cell strong { font-size: 1.6rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.cd-cell small { font-size: .7rem; color: var(--muted); }
+@keyframes cd-pulse { 50% { box-shadow: 0 0 0 4px #ffffff10; } }
+@media (prefers-reduced-motion: reduce) { .countdown.urgent { animation: none; } }
+.course-all { margin: 0 0 .75rem; }
+.faq { margin: 2rem 0 1rem; }
+.faq h2 { font-size: 1.15rem; }
+.faq details { background: var(--surface); border: 1px solid #ffffff14; border-radius: 10px; padding: .6rem .9rem; margin: .5rem 0; }
+.faq summary { cursor: pointer; font-weight: 600; font-size: .95rem; }
+.faq details p { margin: .5rem 0 0; color: var(--muted); font-size: .9rem; }
