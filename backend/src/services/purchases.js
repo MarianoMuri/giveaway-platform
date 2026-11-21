@@ -106,8 +106,8 @@ function addEvent(order, status, detail, mpPaymentId, transaction) {
 
 // Pago devuelto o desconocido: la compra y sus números quedan anulados (con fecha y motivo).
 // Solo cuenta si el aviso es del pago que acreditó la compra, no de un intento anterior.
-async function reverseOrder(order, payment, transaction) {
-  const reason = REVERSALS[payment.status];
+async function reverseOrder(order, payment, transaction, reasonOverride) {
+  const reason = reasonOverride || REVERSALS[payment.status];
   const voided = await numbers.voidNumbers(order.id, transaction, reason);
   await order.update(
     { status: payment.status, voidedAt: new Date(), voidReason: reason, mpStatusDetail: payment.statusDetail || payment.status },
@@ -144,4 +144,4 @@ async function confirmPackOrder(order, payment, transaction) {
   return { order };
 }
 
-module.exports = { createPurchase, confirmPackOrder, cleanBuyer };
+module.exports = { createPurchase, confirmPackOrder, reverseOrder, cleanBuyer };

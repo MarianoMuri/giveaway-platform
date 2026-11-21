@@ -4,6 +4,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Unreleased]
 
+### Added
+- **Arrepentimiento (Res. 424/2020)**: enlace discreto "Arrepentimiento" al pie del sitio. El comprador pone DNI y email, la respuesta es siempre la misma (no revela quién compró) y, si coincide con una compra, recibe la constancia por email; el administrador recibe un aviso. En el panel, sección **Arrepentimientos**: "Aprobar y devolver" pide la devolución a Mercado Pago, anula los números y avisa al comprador (si Mercado Pago falla no se cambia nada); "Rechazar" pide un motivo. Las compras cargadas a mano se anulan igual y el panel avisa que la plata se devuelve a mano. Migración nueva: tabla `Withdrawals`. La devolución por Mercado Pago no se pudo probar con credenciales de prueba: se verifica con una compra real chica.
+
 ### Changed
 - Textos de la portada y de las preguntas frecuentes: el sorteo es "en vivo por redes sociales" y ya no se nombra solo a los 0km ("vehículo").
 

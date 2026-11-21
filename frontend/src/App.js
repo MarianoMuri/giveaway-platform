@@ -9,6 +9,8 @@ import OrderStatus from './pages/OrderStatus';
 import Terms from './pages/Terms';
 import Links from './pages/Links';
 import MisNumeros from './pages/MisNumeros';
+import Arrepentimiento from './pages/Arrepentimiento';
+import Withdrawals from './pages/admin/Withdrawals';
 import FreeEntry from './pages/FreeEntry';
 import FreeEntryConfirm from './pages/FreeEntryConfirm';
 import Login from './pages/admin/Login';
@@ -53,6 +55,7 @@ function Footer() {
       <div><strong>{brand.name}</strong>{brand.location && <> · {brand.location}</>}</div>
       <Social size="sm" />
       <div className="muted small">Pagos procesados por Mercado Pago</div>
+      <Link to="/arrepentimiento" className="subtle-link">Arrepentimiento</Link>
     </footer>
   );
 }
@@ -86,6 +89,7 @@ export default function App() {
           <Route path="/sorteo/:id" element={<RafflePage />} />
           <Route path="/sorteo/:id/bases" element={<Terms />} />
           <Route path="/compra/:id" element={<OrderStatus />} />
+          <Route path="/arrepentimiento" element={<Arrepentimiento />} />
           <Route path="/mis-numeros" element={<MisNumeros />} />
           <Route path="/mis-compras" element={<Navigate to={`/mis-numeros${window.location.search}`} replace />} />
           <Route path="/sorteo/:id/participar-gratis" element={<FreeEntry />} />
@@ -93,6 +97,7 @@ export default function App() {
           {DEMO && <Route path="/demo-pago/:id" element={<DemoPayment />} />}
           <Route path="/admin/login" element={<Login />} />
           <Route path="/admin" element={<RequireFullAdmin><Dashboard /></RequireFullAdmin>} />
+          <Route path="/admin/arrepentimientos" element={<RequireFullAdmin><Withdrawals /></RequireFullAdmin>} />
           <Route path="/admin/cursos" element={<RequireFullAdmin><Courses /></RequireFullAdmin>} />
           <Route path="/admin/en-vivo" element={<RequireAdmin><LiveHub /></RequireAdmin>} />
           <Route path="/admin/sorteo/:id/en-vivo" element={<RequireAdmin><LiveDraw /></RequireAdmin>} />

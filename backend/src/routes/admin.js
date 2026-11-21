@@ -17,6 +17,7 @@ const audit = require('../services/audit');
 const { streamRaffleCsv } = require('../services/export');
 const mpHealth = require('../services/mpHealth');
 const draw = require('../services/draw');
+const withdrawals = require('../services/withdrawals');
 const winnerAlert = require('../services/winnerAlert');
 const { segmentSales } = require('../services/segments');
 const sales = require('../services/sales');
@@ -222,6 +223,17 @@ router.get('/orders/:id/history', wrap(async (req, res) => {
   const events = await OrderEvent.findAll({ where: { OrderId: order.id }, order: [['createdAt', 'ASC'], ['id', 'ASC']] });
   const voided = await Chance.count({ where: { OrderId: order.id, status: 'void' } });
   res.json({ status: order.status, voidedAt: order.voidedAt, voidReason: order.voidReason, voidedNumbers: voided, events });
+}));
+
+// Arrepentimientos: lista, aprobar (devuelve el dinero por Mercado Pago y anula los números) y rechazar
+router.get('/withdrawals', wrap(async (req, res) => {
+  res.json(await withdrawals.list(req.query.status));
+}));
+router.post('/withdrawals/:id/approve', wrap(async (req, res) => {
+  res.json(await withdrawals.approve(Number(req.params.id)));
+}));
+router.post('/withdrawals/:id/reject', wrap(async (req, res) => {
+  res.json(await withdrawals.reject(Number(req.params.id), req.body?.note));
 }));
 
 router.post('/orders/manual', wrap(async (req, res) => {

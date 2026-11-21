@@ -229,6 +229,21 @@ const AuditLog = sequelize.define(
   { updatedAt: false, indexes: [{ fields: ['createdAt'] }, { fields: ['RaffleId'] }] }
 );
 
+// Solicitud de arrepentimiento: la decisión (devolver o rechazar) la toma el administrador.
+const Withdrawal = sequelize.define(
+  'Withdrawal',
+  {
+    dni: { type: DataTypes.STRING(8), allowNull: false },
+    email: { type: DataTypes.STRING, allowNull: false },
+    status: { type: DataTypes.STRING(10), allowNull: false, defaultValue: 'pending' }, // pending | approved | rejected
+    note: DataTypes.STRING(500),
+    resolvedAt: DataTypes.DATE,
+  },
+  { indexes: [{ fields: ['status'] }, { fields: ['OrderId'] }] }
+);
+Order.hasMany(Withdrawal);
+Withdrawal.belongsTo(Order);
+
 Order.hasMany(OrderEvent);
 OrderEvent.belongsTo(Order);
 Order.hasMany(Chance);
@@ -243,4 +258,4 @@ Pack.belongsTo(Raffle);
 Raffle.hasMany(Promo, { onDelete: 'CASCADE', foreignKey: { allowNull: false } });
 Promo.belongsTo(Raffle, { foreignKey: { allowNull: false } });
 
-module.exports = { sequelize, Raffle, Order, Course, Pack, Promo, Chance, FreeEntry, OrderEvent, Draw, AuditLog };
+module.exports = { sequelize, Raffle, Order, Course, Pack, Promo, Chance, FreeEntry, OrderEvent, Draw, AuditLog, Withdrawal };

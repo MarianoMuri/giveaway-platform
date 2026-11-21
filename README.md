@@ -125,6 +125,7 @@ Para probar pagos se usan las **credenciales y usuarios de prueba** de Mercado P
 | POST | `/api/orders/:id/download-link` | Link de descarga nuevo del curso de una compra pagada |
 | POST | `/api/my-purchases/by-dni` | Devuelve los números de un DNI (solo lectura, nombre abreviado; límite por IP y DNI, captcha) |
 | POST | `/api/my-purchases/download` | Link de descarga del curso: exige DNI + email de esa compra |
+| POST | `/api/withdrawals` | Pedido de arrepentimiento con DNI y email (responde igual exista o no la compra) |
 | POST | `/api/my-purchases/link` | Envía por email el link de acceso a "Mis números" (responde igual exista o no el email) |
 | GET | `/api/my-purchases` | Compras acreditadas del dueño del link (header `Authorization: Bearer <token>`) |
 | POST | `/api/raffles/:id/free-entries` | Pide participar gratis (nombre, DNI, email, captcha); manda el link de confirmación |
