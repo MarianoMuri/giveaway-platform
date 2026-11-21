@@ -6,7 +6,7 @@
 ![PostgreSQL](https://img.shields.io/badge/postgresql-16-4169E1?logo=postgresql&logoColor=white)
 ![Mercado Pago](https://img.shields.io/badge/pagos-Mercado%20Pago-00B1EA)
 
-Plataforma web para organizar **sorteos en vivo de autos 0km** con un modelo de **venta de cursos digitales**: el participante compra un curso y recibe chances de regalo para el sorteo. Paga con **Mercado Pago**, recibe sus números automáticamente al acreditarse el pago y sigue el sorteo por YouTube. El organizador administra todo desde un panel: cursos, packs de chances, ventas, ventas manuales, número ganador y exportación de compradores.
+Plataforma web para organizar **sorteos en vivo de vehículos** con un modelo de **venta de cursos digitales**: el participante compra un curso y recibe chances de regalo para el sorteo. Paga con **Mercado Pago**, recibe sus números automáticamente al acreditarse el pago y sigue el sorteo por YouTube. El organizador administra todo desde un panel: cursos, packs de chances, ventas, ventas manuales, número ganador y exportación de compradores.
 
 Desarrollada para una concesionaria y publicada como versión **white-label**: la marca de cada cliente (nombre, logo, colores, redes) se configura en un solo archivo y queda fuera del repositorio.
 

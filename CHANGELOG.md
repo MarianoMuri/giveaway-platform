@@ -4,6 +4,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Unreleased]
 
+### Changed
+- Textos de la portada y de las preguntas frecuentes: el sorteo es "en vivo por redes sociales" y ya no se nombra solo a los 0km ("vehículo").
+
 ### Added
 - **Portada más completa**: franja de beneficios (números al instante, sorteo en vivo, curso por email), lista de los cursos disponibles y preguntas frecuentes al pie (lo de participar gratis solo aparece si está habilitado). La página de compra tiene la cuenta regresiva hasta el cierre de la venta.
 

@@ -8,10 +8,10 @@ const env = (name, fallback) => (process.env[`REACT_APP_BRAND_${name}`] || '').t
 
 const brand = {
   name: env('NAME', 'AUTO SORTEOS'),
-  tagline: env('TAGLINE', 'Sorteos en vivo por YouTube · Autos 0km'),
+  tagline: env('TAGLINE', 'Sorteos en vivo por redes sociales'),
   description: env(
     'DESCRIPTION',
-    'Comprá un curso digital y llevate chances para ganar un 0km. Pagás con Mercado Pago y seguís el sorteo en vivo.'
+    'Comprá un curso digital y llevate chances para ganar un vehículo. Pagás con Mercado Pago y seguís el sorteo en vivo.'
   ),
   logoUrl: env('LOGO_URL', logo), // link al logo del cliente (o reemplazá src/assets/logo.jpg)
   heroUrl: env('HERO_URL', ''), // imagen opcional debajo del título de la portada (link público); vacía = no se muestra
