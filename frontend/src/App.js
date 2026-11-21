@@ -39,7 +39,7 @@ function Header() {
         <span>{brand.name}</span>
         {isAdmin && <span className="badge">Admin</span>}
       </Link>
-      {!isAdmin && <Link to="/mis-compras" className="header-link">Mis números</Link>}
+      {!isAdmin && <Link to="/mis-numeros" className="header-link">Mis números</Link>}
       {!isAdmin && <div className="header-social"><Social size="sm" /></div>}
     </header>
   );
@@ -86,7 +86,8 @@ export default function App() {
           <Route path="/sorteo/:id" element={<RafflePage />} />
           <Route path="/sorteo/:id/bases" element={<Terms />} />
           <Route path="/compra/:id" element={<OrderStatus />} />
-          <Route path="/mis-compras" element={<MisCompras />} />
+          <Route path="/mis-numeros" element={<MisCompras />} />
+          <Route path="/mis-compras" element={<Navigate to={`/mis-numeros${window.location.search}`} replace />} />
           <Route path="/sorteo/:id/participar-gratis" element={<FreeEntry />} />
           <Route path="/participar-gratis/confirmar" element={<FreeEntryConfirm />} />
           {DEMO && <Route path="/demo-pago/:id" element={<DemoPayment />} />}

@@ -6,7 +6,7 @@
 [build.environment]
   NODE_VERSION = "22"
 
-# La app es de una sola página: toda ruta (/sorteo, /admin, /mis-compras...) la resuelve React Router
+# La app es de una sola página: toda ruta (/sorteo, /admin, /mis-numeros...) la resuelve React Router
 [[redirects]]
   from = "/*"
   to = "/index.html"

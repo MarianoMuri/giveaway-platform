@@ -8,7 +8,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - **Página de compra más completa**: franja de beneficios (números al instante, sorteo en vivo, curso por email), cuenta regresiva hasta el cierre de la venta, lista de los cursos disponibles a la vista y preguntas frecuentes al pie (lo de participar gratis solo aparece si está habilitado).
 
 ### Changed
-- "Mis compras" ahora se llama **"Mis números"** en el menú y en la página.
+- "Mis compras" ahora se llama **"Mis números"** en todos lados: menú, página, emails y dirección (`/mis-numeros`). Los links viejos (`/mis-compras`) siguen funcionando.
 
 ### Changed
 - **Botones de redes con los colores originales** (Instagram degradé, YouTube rojo, Facebook azul, TikTok negro, WhatsApp verde), arriba, en el pie y en la página de links, donde cada red es un botón de su color. El WhatsApp de contacto (`REACT_APP_BRAND_WHATSAPP_CONTACT`) ahora también sale como ícono de red.

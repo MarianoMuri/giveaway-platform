@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, money, dateTime, goTo, numbersLabel, DEMO } from '../api';
 import Turnstile from '../components/Turnstile';
 
-// "Mis compras" sin contraseña: el comprador pide un link por email y con él ve sus compras.
+// "Mis números" sin contraseña: el comprador pide un link por email y con él ve sus compras.
 export default function MisCompras() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -14,7 +14,7 @@ export default function MisCompras() {
 
   // El token sale de la URL apenas se lee: no queda en el historial ni se comparte sin querer
   useEffect(() => {
-    if (params.get('token')) navigate('/mis-compras', { replace: true });
+    if (params.get('token')) navigate('/mis-numeros', { replace: true });
   }, [params, navigate]);
 
   useEffect(() => {

@@ -70,7 +70,7 @@ test('con compras pagas se envía el link y con él se listan las compras', asyn
   assert.equal(res.status, 202);
   await waitFor(() => sent.length === 1);
   assert.equal(sent[0].to, 'ana@test.com');
-  assert.match(sent[0].html, /Ver mis compras/);
+  assert.match(sent[0].html, /Ver mis números/);
   assert.match(sent[0].text, /2 compras/);
 
   const list = await request(app).get('/api/my-purchases').set('Authorization', `Bearer ${tokenFromMail(sent[0])}`);
@@ -117,7 +117,7 @@ test('un segundo pedido del mismo email en el minuto no manda otro mail', async 
   assert.equal(sent.length, 1);
 });
 
-test('el token sirve solo para "Mis compras": vencido, adulterado o de otro propósito dan 401', async () => {
+test('el token sirve solo para "Mis números": vencido, adulterado o de otro propósito dan 401', async () => {
   await paidOrder('ana@test.com');
   const get = (t) => request(app).get('/api/my-purchases').set('Authorization', `Bearer ${t}`);
   assert.equal((await request(app).get('/api/my-purchases')).status, 401);
@@ -146,8 +146,8 @@ test('desde la lista se puede volver a descargar el curso', async () => {
 });
 
 test('el email del link escapa los datos y no incluye nada de las compras', () => {
-  const { html, text, subject } = accessLink({ brand: { name: '<b>X</b>', color: 'rojo', logoUrl: '' }, url: 'http://web.test/mis-compras?token=a"b', minutes: 30, count: 1 });
-  assert.equal(subject, 'Tu link para ver tus compras');
+  const { html, text, subject } = accessLink({ brand: { name: '<b>X</b>', color: 'rojo', logoUrl: '' }, url: 'http://web.test/mis-numeros?token=a"b', minutes: 30, count: 1 });
+  assert.equal(subject, 'Tu link para ver tus números');
   assert.ok(!html.includes('<b>X</b>'));
   assert.ok(html.includes('&lt;b&gt;X&lt;/b&gt;'));
   assert.ok(html.includes('token=a&quot;b'));

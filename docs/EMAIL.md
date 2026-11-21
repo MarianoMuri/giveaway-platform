@@ -30,7 +30,7 @@ funciona en cualquier plan. El SMTP (`SMTP_URL`) sigue disponible como alternati
 
 Con el plan gratis, el día de lanzamiento los mails pasan de 100 y quedan en la cola reintentándose: **para vender de
 verdad hay que contratar Pro**. Si el proveedor responde 429 (límite) o 5xx (caída), el envío falla y la cola lo
-reintenta sola. Los clientes no dependen del mail para ver sus números: en "Mis compras" entran con el DNI.
+reintenta sola. Los clientes no dependen del mail para ver sus números: en "Mis números" entran con el DNI.
 
 ### Variables
 
@@ -95,7 +95,7 @@ Si en alguna etapa suben los rebotes o las quejas, **no subir el volumen**: volv
 ### Si algo sale mal
 
 - **Muchos mails en spam:** frenar la difusión, revisar SPF/DKIM/DMARC y pedirles a los compradores que busquen en spam y
-  marquen "no es spam". La página de la compra y "Mis compras" siempre permiten ver los números y descargar el curso aunque
+  marquen "no es spam". La página de la compra y "Mis números" siempre permiten ver los números y descargar el curso aunque
   el mail no llegue.
 - **El proveedor suspende la cuenta o frena el envío:** los mails quedan en cola y no se pierden; al normalizarse se envían
   solos. Si pasaron los reintentos, usar "Reenviar todos los fallidos".

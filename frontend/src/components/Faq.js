@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 export default function Faq({ raffle }) {
   const items = [
     ['¿Cómo recibo mis números?', 'Apenas Mercado Pago confirma el pago, el sistema te asigna los números solo y te los mostramos en pantalla. También te llegan por email junto con el curso.'],
-    ['¿Dónde veo mis números después?', <>Entrá a <Link to="/mis-compras">Mis números</Link> con tu DNI: ahí están todos los que tenés.</>],
+    ['¿Dónde veo mis números después?', <>Entrá a <Link to="/mis-numeros">Mis números</Link> con tu DNI: ahí están todos los que tenés.</>],
     ['¿Puedo elegir mis números?', 'No. Se asignan automáticamente y en orden, para que todos tengan las mismas posibilidades.'],
     ['¿Cuándo y cómo es el sorteo?', 'En vivo por YouTube, en la fecha y hora que figuran arriba. Cualquiera lo puede mirar.'],
     ['¿Cómo me entero si gané?', 'Te avisamos por email y por teléfono con los datos que cargaste al comprar. Por eso es importante que estén bien.'],
