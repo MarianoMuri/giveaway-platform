@@ -11,7 +11,6 @@ export default function Faq({ raffle }) {
     ['¿Cuándo y cómo es el sorteo?', 'En vivo por nuestras redes sociales, en la fecha y hora que se informan en cada sorteo. Cualquiera lo puede mirar.'],
     ['¿Cómo me entero si gané?', 'Te avisamos por email y por teléfono con los datos que cargaste al comprar. Por eso es importante que estén bien.'],
     ['¿Qué pasa si mi pago se rechaza?', 'No se te cobra ni se asignan números. Podés volver a intentar con otro medio de pago.'],
-    ['¿Puedo arrepentirme de la compra?', 'Sí. Tenés 10 días corridos para usar el botón de arrepentimiento, según la ley. Si se anula la compra, se anulan también sus chances.'],
     ...(free ? [['¿Puedo participar sin comprar?', <>Sí. Tenés 1 número gratis por DNI: <Link to={`/sorteo/${raffle.id}/participar-gratis`}>participá acá</Link>.</>]] : []),
     ['¿Quiénes pueden participar?', 'Mayores de 18 años con DNI argentino. Los detalles están en las bases y condiciones de cada sorteo.'],
   ];
