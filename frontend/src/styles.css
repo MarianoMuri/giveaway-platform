@@ -337,3 +337,15 @@ th { color: var(--muted); font-weight: 500; font-size: .78rem; text-transform: u
 /* Link del arrepentimiento: solo una palabra, sin llamar la atención */
 .subtle-link { display: inline-block; margin-top: .75rem; font-size: .68rem; color: var(--muted); opacity: .55; text-decoration: none; }
 .subtle-link:hover { opacity: .9; text-decoration: underline; }
+
+/* ¿Cómo funciona? */
+.how { text-align: center; }
+.how h2 { margin-bottom: .25rem; }
+.how-steps { list-style: none; padding: 0; margin: 1.5rem 0 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; counter-reset: none; }
+.how-step { position: relative; background: var(--surface); border: 1px solid #ffffff14; border-top: 3px solid var(--primary); border-radius: 14px; padding: 1.5rem 1rem 1.25rem; overflow: hidden; }
+.how-n { position: absolute; top: -.35rem; right: .6rem; font-size: 3.6rem; font-weight: 800; line-height: 1; color: #ffffff0d; }
+.how-icon { display: inline-flex; align-items: center; justify-content: center; width: 3.2rem; height: 3.2rem; border-radius: 50%; background: #ffffff0f; font-size: 1.5rem; margin-bottom: .75rem; }
+.how-step h3 { font-size: 1rem; margin: 0 0 .4rem; }
+.how-step p { margin: 0; color: var(--muted); font-size: .86rem; }
+@media (max-width: 900px) { .how-steps { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .how-steps { grid-template-columns: 1fr; } }

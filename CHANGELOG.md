@@ -5,6 +5,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ## [Unreleased]
 
 ### Added
+- **¿Cómo funciona?** en la portada: 4 pasos (elegir curso y chances, pagar con Mercado Pago, recibir los números, mirar el sorteo en vivo).
+
+### Added
 - **Arrepentimiento (Res. 424/2020)**: enlace discreto "Arrepentimiento" al pie del sitio. El comprador pone DNI y email, la respuesta es siempre la misma (no revela quién compró) y, si coincide con una compra, recibe la constancia por email; el administrador recibe un aviso. En el panel, sección **Arrepentimientos**: "Aprobar y devolver" pide la devolución a Mercado Pago, anula los números y avisa al comprador (si Mercado Pago falla no se cambia nada); "Rechazar" pide un motivo. Las compras cargadas a mano se anulan igual y el panel avisa que la plata se devuelve a mano. Migración nueva: tabla `Withdrawals`. La devolución por Mercado Pago no se pudo probar con credenciales de prueba: se verifica con una compra real chica.
 
 ### Changed

@@ -4,6 +4,7 @@ import { useApi } from '../hooks';
 import { money, dateShort } from '../api';
 import Social from '../components/Social';
 import Faq from '../components/Faq';
+import HowItWorks from '../components/HowItWorks';
 
 export default function Home() {
   const { data: raffles, loading, error } = useApi('/raffles');
@@ -89,6 +90,8 @@ export default function Home() {
         )}
         </div>
         </div>
+
+        <HowItWorks />
 
         {courses && courses.length > 0 && (
           <section className="mt-lg home-courses">
