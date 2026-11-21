@@ -4,7 +4,7 @@ import { api, money, dateTime, goTo, numbersLabel, DEMO } from '../api';
 import Turnstile from '../components/Turnstile';
 
 // "Mis números" sin contraseña: el comprador pide un link por email y con él ve sus compras.
-export default function MisCompras() {
+export default function MisNumeros() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const [token, setToken] = useState(params.get('token'));

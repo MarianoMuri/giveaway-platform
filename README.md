@@ -17,7 +17,7 @@ Desarrollada para una concesionaria y publicada como versión **white-label**: l
   &nbsp;
   <img src="docs/screenshots/confirmacion-mobile.png" width="170" alt="Confirmación con los números asignados" />
   &nbsp;
-  <img src="docs/screenshots/mis-compras-mobile.png" width="170" alt="Mis números con acceso por link" />
+  <img src="docs/screenshots/mis-numeros-mobile.png" width="170" alt="Mis números con acceso por link" />
 </p>
 
 <p align="center">

@@ -8,7 +8,7 @@ import RafflePage from './pages/RafflePage';
 import OrderStatus from './pages/OrderStatus';
 import Terms from './pages/Terms';
 import Links from './pages/Links';
-import MisCompras from './pages/MisCompras';
+import MisNumeros from './pages/MisNumeros';
 import FreeEntry from './pages/FreeEntry';
 import FreeEntryConfirm from './pages/FreeEntryConfirm';
 import Login from './pages/admin/Login';
@@ -86,7 +86,7 @@ export default function App() {
           <Route path="/sorteo/:id" element={<RafflePage />} />
           <Route path="/sorteo/:id/bases" element={<Terms />} />
           <Route path="/compra/:id" element={<OrderStatus />} />
-          <Route path="/mis-numeros" element={<MisCompras />} />
+          <Route path="/mis-numeros" element={<MisNumeros />} />
           <Route path="/mis-compras" element={<Navigate to={`/mis-numeros${window.location.search}`} replace />} />
           <Route path="/sorteo/:id/participar-gratis" element={<FreeEntry />} />
           <Route path="/participar-gratis/confirmar" element={<FreeEntryConfirm />} />
