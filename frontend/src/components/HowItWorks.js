@@ -20,9 +20,9 @@ export default function HowItWorks() {
           <path d="M100 73 C200 73,200 27,300 27 C400 27,400 73,500 73 C600 73,600 27,700 27 C800 27,800 73,900 73" vectorEffect="non-scaling-stroke" />
         </svg>
         <ol className="how-steps">
-          {STEPS.map((s, i) => (
+          {STEPS.map((s) => (
             <li key={s.title} className={`how-step${s.last ? ' last' : ''}`}>
-              <span className="how-node">{s.icon}<b>{i + 1}</b></span>
+              <span className="how-node">{s.icon}</span>
               <h3>{s.title}</h3>
               <p>{s.sub}</p>
             </li>
