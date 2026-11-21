@@ -11,7 +11,7 @@ const brand = {
   tagline: env('TAGLINE', 'Sorteos en vivo por redes sociales'),
   description: env(
     'DESCRIPTION',
-    'Comprá un curso digital y llevate chances para ganar un vehículo. Pagás con Mercado Pago y seguís el sorteo en vivo.'
+    'Comprá un curso digital y llevate chances para participar del sorteo. Pagás con Mercado Pago y seguís el sorteo en vivo.'
   ),
   logoUrl: env('LOGO_URL', logo), // link al logo del cliente (o reemplazá src/assets/logo.jpg)
   heroUrl: env('HERO_URL', ''), // imagen opcional debajo del título de la portada (link público); vacía = no se muestra
