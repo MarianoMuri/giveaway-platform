@@ -38,7 +38,6 @@ export default function Terms() {
         )}
         {brand.location && <li>Las compras se realizan en {brand.location}, lugar habilitado para este sorteo.</li>}
         <li>Fecha del sorteo: {dateTime(r.drawDate)}</li>
-        {r.permitNumber && <li>Autorización N° {r.permitNumber}</li>}
       </ul>
       <div className="terms">{r.terms || 'Las bases y condiciones completas se publicarán antes del inicio de la venta.'}</div>
     </div>

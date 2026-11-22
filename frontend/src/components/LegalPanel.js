@@ -3,16 +3,15 @@ import { useApi } from '../hooks';
 import { api } from '../api';
 import { MIN_TERMS_CHARS, missingBeforeOpening } from '../legal';
 
-// Requisitos legales del sorteo: N° de autorización, bases y condiciones y provincias donde no se ofrece.
+// Requisitos legales del sorteo: bases y condiciones y provincias donde no se ofrece.
 // El texto lo redacta y aprueba el abogado del cliente; el sistema solo exige que esté cargado antes de vender.
 export default function LegalPanel({ raffle, run }) {
   const { data: provinces } = useApi('/provinces');
-  const [permit, setPermit] = useState(raffle.permitNumber || '');
   const [terms, setTerms] = useState(raffle.terms || '');
   const [excluded, setExcluded] = useState(raffle.excludedProvinces || []);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null); // aviso junto al botón: el general sale arriba de la página, fuera de la vista
-  const missing = missingBeforeOpening({ permitNumber: permit, terms });
+  const missing = missingBeforeOpening({ terms });
 
   const toggle = (code) => setExcluded((list) => (list.includes(code) ? list.filter((c) => c !== code) : [...list, code]));
   const save = async (e) => {
@@ -20,7 +19,7 @@ export default function LegalPanel({ raffle, run }) {
     setBusy(true);
     setResult(null);
     const ok = await run(
-      () => api(`/admin/raffles/${raffle.id}`, { method: 'PATCH', auth: true, body: { permitNumber: permit.trim(), terms, excludedProvinces: excluded } }),
+      () => api(`/admin/raffles/${raffle.id}`, { method: 'PATCH', auth: true, body: { terms, excludedProvinces: excluded } }),
       'Requisitos legales guardados'
     );
     setResult(ok ? { type: 'ok', text: '✓ Guardado' } : { type: 'alert', text: 'No se pudo guardar. Mirá el aviso al principio de la página.' });
@@ -31,9 +30,6 @@ export default function LegalPanel({ raffle, run }) {
     <details className="card legal" open={raffle.status === 'draft' || missingBeforeOpening(raffle).length > 0}>
       <summary><strong>Requisitos legales y provincias</strong>{missing.length > 0 && <span className="alert small"> · Falta cargar {missing.join(' y ')}</span>}</summary>
       <form onSubmit={save} className="mt-sm">
-        <label>N° de autorización
-          <input value={permit} onChange={(e) => setPermit(e.target.value)} placeholder="Número de expediente o resolución que autoriza el sorteo" />
-        </label>
         <label>Bases y condiciones
           <textarea rows="10" value={terms} onChange={(e) => setTerms(e.target.value)} />
         </label>

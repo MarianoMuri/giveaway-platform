@@ -74,9 +74,8 @@ const cleanExcluded = (v) => {
 };
 db.raffles.forEach((r) => { r.excludedProvinces = [...DEFAULT_EXCLUDED]; });
 
-// Antes de abrir la venta: autorización y bases cargadas (mismas reglas que backend/src/services/sales.js)
+// Antes de abrir la venta: bases cargadas (mismas reglas que backend/src/services/sales.js)
 const missingBeforeOpening = (r) => [
-  ...(String(r.permitNumber || '').trim() ? [] : ['el N° de autorización']),
   ...(String(r.terms || '').trim().length >= 100 ? [] : ['las bases y condiciones']),
 ];
 const raffleOr404 = (id) => { const r = db.raffles.find((x) => String(x.id) === String(id)); if (!r) throw new Err(404, { error: 'Sorteo no encontrado' }); return r; };

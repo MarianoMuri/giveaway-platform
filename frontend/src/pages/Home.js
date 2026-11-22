@@ -70,7 +70,6 @@ export default function Home() {
                 </>
               )}
               <div className="small muted mt">
-                {r.permitNumber && <>Autorización N° {r.permitNumber} · </>}
                 <Link to={`/sorteo/${r.id}/bases`}>Bases y condiciones</Link>
               </div>
             </div>

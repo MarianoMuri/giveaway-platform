@@ -91,7 +91,7 @@ test('al aprobarse el pago se envía el email con números, curso, monto y códi
   const [mail] = sent;
   assert.equal(mail.to, 'ana@test.com');
   assert.equal(mail.subject, 'Tus números para el sorteo: 100000 al 100039');
-  for (const s of ['100000 al 100039', '40 chances', 'Cocina básica', '$ 65.000', order.id.slice(0, 8).toUpperCase(), 'ZONA NORTE', 'LOT-9', 'http://web.test/compra/']) {
+  for (const s of ['100000 al 100039', '40 chances', 'Cocina básica', '$ 65.000', order.id.slice(0, 8).toUpperCase(), 'ZONA NORTE', 'http://web.test/compra/']) {
     assert.ok(mail.html.includes(s), `falta en el HTML: ${s}`);
   }
   assert.match(mail.text, /Tus números: 100000 al 100039/);

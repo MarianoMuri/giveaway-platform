@@ -129,25 +129,22 @@ test('crear un sorteo permite indicar las provincias excluidas y las valida', as
   assert.deepEqual(r.body.excludedProvinces, ['C']);
 });
 
-test('no se puede abrir la venta sin autorización ni bases (y el sorteo sigue en borrador)', async () => {
+test('no se puede abrir la venta sin bases (y el sorteo sigue en borrador)', async () => {
   const id = (await request(app).post('/api/admin/raffles').set(auth).send({ title: 'Sin papeles', prize: 'Auto' })).body.id;
   const open = (extra) => request(app).patch(`/api/admin/raffles/${id}`).set(auth).send({ status: 'active', ...extra });
 
   const none = await open({});
   assert.equal(none.status, 409);
   assert.equal(none.body.code, 'legal_missing');
-  assert.deepEqual(none.body.missing, ['el N° de autorización', 'las bases y condiciones']);
+  assert.deepEqual(none.body.missing, ['las bases y condiciones']);
   assert.equal((await Raffle.findByPk(id)).status, 'draft');
 
-  const short = await open({ permitNumber: 'LOT-5', terms: 'Bases cortas' });
+  const short = await open({ terms: 'Bases cortas' });
   assert.equal(short.status, 409);
   assert.deepEqual(short.body.missing, ['las bases y condiciones']);
-  assert.equal((await Raffle.findByPk(id)).permitNumber, null); // el pedido falló entero: no cargó nada
+  assert.equal((await Raffle.findByPk(id)).terms || null, null); // el pedido falló entero: no cargó nada
 
-  const spaces = await open({ permitNumber: '   ', terms: BASES });
-  assert.deepEqual(spaces.body.missing, ['el N° de autorización']);
-
-  const ok = await open({ permitNumber: 'LOT-5', terms: BASES });
+  const ok = await open({ terms: BASES });
   assert.equal(ok.status, 200);
   assert.equal(ok.body.status, 'active');
 });
@@ -155,7 +152,7 @@ test('no se puede abrir la venta sin autorización ni bases (y el sorteo sigue e
 test('cargar los datos primero y abrir después también funciona; reabrir una venta cerrada exige lo mismo', async () => {
   const id = (await request(app).post('/api/admin/raffles').set(auth).send({ title: 'Paso a paso', prize: 'Auto' })).body.id;
   const patch = (b) => request(app).patch(`/api/admin/raffles/${id}`).set(auth).send(b);
-  assert.equal((await patch({ permitNumber: 'LOT-7' })).status, 200); // guardar sin abrir no pide nada
+  assert.equal((await patch({ title: 'Paso a paso 2' })).status, 200); // guardar sin abrir no pide nada
   assert.equal((await patch({ status: 'active' })).status, 409);
   assert.equal((await patch({ terms: BASES })).status, 200);
   assert.equal((await patch({ status: 'active' })).status, 200);
