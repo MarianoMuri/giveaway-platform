@@ -120,7 +120,7 @@ export default function RaffleAdmin() {
   const setStatus = (status) =>
     run(() => api(`/admin/raffles/${id}`, { method: 'PATCH', auth: true, body: { status } }), status === 'closed' ? 'Venta deshabilitada' : 'Estado actualizado');
 
-  // Sin autorización y bases cargadas no se puede abrir la venta (el backend lo valida igual)
+  // Sin las bases cargadas no se puede abrir la venta (el backend lo valida igual)
   const legalMissing = missingBeforeOpening(raffle);
 
   // La fecha de cierre ya pasó: para volver a vender hay que quitarla (o poner una nueva)

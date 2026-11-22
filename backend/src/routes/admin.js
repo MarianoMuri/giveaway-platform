@@ -132,8 +132,8 @@ router.patch('/raffles/:id', wrap(async (req, res) => {
     throw new HttpError(400, 'Estado inválido'); // "drawn" solo se pone al cargar el ganador
   }
   if (changes.status && raffle.status === 'drawn') throw new HttpError(409, 'El sorteo ya se realizó: no se puede cambiar el estado de la venta');
-  // Para abrir (o reabrir) la venta, el sorteo ya tiene que tener autorización y bases, con los cambios de este mismo pedido
-  if (changes.status === 'active') sales.assertCanOpen({ permitNumber: raffle.permitNumber, terms: raffle.terms, ...changes });
+  // Para abrir (o reabrir) la venta, el sorteo ya tiene que tener bases, con los cambios de este mismo pedido
+  if (changes.status === 'active') sales.assertCanOpen({ terms: raffle.terms, ...changes });
   res.json(await raffle.update(changes));
 }));
 

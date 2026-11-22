@@ -45,7 +45,7 @@ Desarrollada para una concesionaria y publicada como versión **white-label**: l
 - **Cierre de ventas** con fecha y botón "Consultar" para saber si están todos los clientes cargados antes de sortear.
 - **Reintegros y contracargos**: la compra pasa a anulada, sus números quedan anulados con fecha y motivo y se ve el historial de estados.
 - **Participación gratuita** (sin obligación de compra): lista de participantes, anulación y activación por sorteo.
-- **Requisitos legales y provincias**: N° de autorización, bases y condiciones y provincias excluidas; sin los dos primeros no se abre la venta.
+- **Requisitos legales y provincias**: bases y condiciones y provincias excluidas; sin las bases no se abre la venta.
 - Estado del email de cada compra (enviado, pendiente, falló) y reenvío, incluso a una dirección corregida.
 - Carga del número ganador con los datos del comprador.
 - Exportación de compradores a CSV (Excel).

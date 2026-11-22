@@ -13,13 +13,12 @@ function assertOpen(raffle, message) {
   throw new HttpError(409, message);
 }
 
-// Antes de abrir la venta el sorteo debe tener su autorización y sus bases cargadas: sin eso no se puede
+// Antes de abrir la venta el sorteo debe tener sus bases cargadas: sin eso no se puede
 // vender. El texto lo redacta y aprueba el abogado del cliente; acá solo se exige que exista.
 const MIN_TERMS_CHARS = 100;
 
-function missingBeforeOpening({ permitNumber, terms }) {
+function missingBeforeOpening({ terms }) {
   const missing = [];
-  if (!String(permitNumber || '').trim()) missing.push('el N° de autorización');
   if (String(terms || '').trim().length < MIN_TERMS_CHARS) missing.push('las bases y condiciones');
   return missing;
 }

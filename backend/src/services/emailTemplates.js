@@ -73,7 +73,7 @@ function purchaseConfirmation({ order, raffle, brand, downloadUrl, orderUrl, lin
     <p style="margin:0;font-size:14px"><a href="${esc(orderUrl)}" style="color:${color}">Ver mi compra</a>${brand.whatsapp ? ` · <a href="${esc(brand.whatsapp)}" style="color:${color}">¿Dudas? Escribinos</a>` : ''}</p>
   </td></tr>
   <tr><td style="background:#fafafa;padding:16px 24px;text-align:center;font-size:12px;color:#a1a1aa">
-    Guardá este email: es tu comprobante. ${esc(brand.name)}${raffle.permitNumber ? ` · Autorización N° ${esc(raffle.permitNumber)}` : ''}
+    Guardá este email: es tu comprobante. ${esc(brand.name)}
   </td></tr>
 </table>
 </td></tr></table>

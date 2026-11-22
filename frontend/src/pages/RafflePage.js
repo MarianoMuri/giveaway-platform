@@ -237,7 +237,7 @@ export default function RafflePage() {
 
             {brand.location && (
               <p className="small">
-                Esta compra se realiza en <strong>{brand.location}</strong>, lugar habilitado para este sorteo{raffle.permitNumber ? <> (autorización N° {raffle.permitNumber})</> : null}.
+                Esta compra se realiza en <strong>{brand.location}</strong>, lugar habilitado para este sorteo.
               </p>
             )}
 
