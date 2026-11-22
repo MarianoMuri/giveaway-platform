@@ -6,18 +6,20 @@
 ![PostgreSQL](https://img.shields.io/badge/postgresql-16-4169E1?logo=postgresql&logoColor=white)
 ![Mercado Pago](https://img.shields.io/badge/pagos-Mercado%20Pago-00B1EA)
 
-Plataforma web para organizar **sorteos en vivo de autos 0km** con un modelo de **venta de cursos digitales**: el participante compra un curso y recibe chances de regalo para el sorteo. Paga con **Mercado Pago**, recibe sus números automáticamente al acreditarse el pago y sigue el sorteo por YouTube. El organizador administra todo desde un panel: cursos, packs de chances, ventas, ventas manuales, número ganador y exportación de compradores.
+Plataforma web para organizar **sorteos en vivo** con un modelo de **venta de cursos digitales**: el participante compra un curso y recibe chances de regalo para el sorteo. Paga con **Mercado Pago**, recibe sus números automáticamente al acreditarse el pago y sigue el sorteo por YouTube. El organizador administra todo desde un panel: cursos, packs de chances, ventas, ventas manuales, número ganador y exportación de compradores.
 
 Desarrollada para una concesionaria y publicada como versión **white-label**: la marca de cada cliente (nombre, logo, colores, redes) se configura en un solo archivo y queda fuera del repositorio.
 
 <p align="center">
   <img src="docs/screenshots/home-mobile.png" width="170" alt="Landing en celular" />
   &nbsp;
+  <img src="docs/screenshots/como-funciona-mobile.png" width="170" alt="Sección ¿Cómo funciona? y botón Ver mis números" />
+  &nbsp;
   <img src="docs/screenshots/compra-mobile.png" width="170" alt="Elección de pack y oferta Duplicá" />
   &nbsp;
   <img src="docs/screenshots/confirmacion-mobile.png" width="170" alt="Confirmación con los números asignados" />
   &nbsp;
-  <img src="docs/screenshots/mis-compras-mobile.png" width="170" alt="Mis compras con acceso por link" />
+  <img src="docs/screenshots/mis-numeros-mobile.png" width="170" alt="Mis números con acceso por link" />
 </p>
 
 <p align="center">
@@ -31,7 +33,7 @@ Desarrollada para una concesionaria y publicada como versión **white-label**: l
 - Oferta **"Duplicá tus chances"**: el doble de chances pagando un extra por chance.
 - Paga con Mercado Pago Checkout Pro (también en efectivo, porque no hay reserva que pueda vencer).
 - Recibe sus números **consecutivos** (desde el 100000) apenas se acredita el pago, en una página que funciona como comprobante.
-- Le llega un **email de confirmación** con sus números, el botón para descargar el curso y los datos del sorteo. Desde su compra, o desde **Mis compras** (con un link que le llega por email, sin contraseña), puede volver a ver sus números y descargar el curso cuando quiera.
+- Le llega un **email de confirmación** con sus números, el botón para descargar el curso y los datos del sorteo. Desde su compra, o desde **Mis números** (con solo su DNI, sin contraseña ni mail; el curso se baja con DNI y el email de la compra), puede volver a ver sus números y descargar el curso cuando quiera.
 - Barra de progreso de chances vendidas y bases y condiciones con los precios de cada pack.
 - Página de links para la bio de Instagram, con el sorteo activo y las redes.
 
@@ -45,6 +47,7 @@ Desarrollada para una concesionaria y publicada como versión **white-label**: l
 - **Cierre de ventas** con fecha y botón "Consultar" para saber si están todos los clientes cargados antes de sortear.
 - **Reintegros y contracargos**: la compra pasa a anulada, sus números quedan anulados con fecha y motivo y se ve el historial de estados.
 - **Participación gratuita** (sin obligación de compra): lista de participantes, anulación y activación por sorteo.
+- **Requisitos legales y provincias**: bases y condiciones y provincias excluidas; sin las bases no se abre la venta.
 - Estado del email de cada compra (enviado, pendiente, falló) y reenvío, incluso a una dirección corregida.
 - Carga del número ganador con los datos del comprador.
 - Exportación de compradores a CSV (Excel).
@@ -65,8 +68,8 @@ Más detalle en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 | Capa | Tecnologías |
 |---|---|
 | Backend | Node.js 22, Express 5, Sequelize, PostgreSQL, JWT, bcrypt, Helmet, rate limiting |
-| Pagos | Mercado Pago Checkout Pro + Webhooks |
-| Email | Nodemailer (SMTP: Resend, Brevo, etc.) |
+| Pagos | Mercado Pago Checkout Pro (API de Orders) + Webhooks |
+| Email | API HTTPS de Resend (o SMTP con Nodemailer: Brevo, etc.) |
 | Frontend | React 18 (Create React App), React Router |
 | Tests | `node:test` + Supertest, con SQLite en memoria y PostgreSQL 16 en el CI |
 | Infra | Docker, Docker Compose, GitHub Actions |
@@ -122,7 +125,10 @@ Para probar pagos se usan las **credenciales y usuarios de prueba** de Mercado P
 | POST | `/api/raffles/:id/purchases` | Compra de curso + pack (`courseId`, `packId`, `double`, `buyer`): devuelve el link de pago |
 | GET | `/api/orders/:id` | Estado de una compra y números asignados |
 | POST | `/api/orders/:id/download-link` | Link de descarga nuevo del curso de una compra pagada |
-| POST | `/api/my-purchases/link` | Envía por email el link de acceso a "Mis compras" (responde igual exista o no el email) |
+| POST | `/api/my-purchases/by-dni` | Devuelve los números de un DNI (solo lectura, nombre abreviado; límite por IP y DNI, captcha) |
+| POST | `/api/my-purchases/download` | Link de descarga del curso: exige DNI + email de esa compra |
+| POST | `/api/withdrawals` | Pedido de arrepentimiento con DNI y email (responde igual exista o no la compra) |
+| POST | `/api/my-purchases/link` | Envía por email el link de acceso a "Mis números" (responde igual exista o no el email) |
 | GET | `/api/my-purchases` | Compras acreditadas del dueño del link (header `Authorization: Bearer <token>`) |
 | POST | `/api/raffles/:id/free-entries` | Pide participar gratis (nombre, DNI, email, captcha); manda el link de confirmación |
 | POST | `/api/free-entries/confirm` | Confirma el email con el link y asigna el número |
@@ -135,6 +141,7 @@ Para probar pagos se usan las **credenciales y usuarios de prueba** de Mercado P
 | GET | `/api/admin/raffles/:id/free-entries` | Participaciones gratuitas del sorteo |
 | POST | `/api/admin/free-entries/:id/void` | Anula una participación gratuita |
 | POST | `/api/admin/orders/manual` | Venta manual: asigna los números en el acto |
+| GET | `/api/admin/raffles/:id/winner` | Ganador ya cargado (solo lectura), para revelarlo en la pantalla del vivo |
 | POST | `/api/admin/raffles/:id/draw` | Sorteo en vivo: elige al azar entre los números válidos (repetir exige `reason`) |
 | GET | `/api/admin/raffles/:id/draws` | Historial de sorteos del sorteo |
 | GET | `/api/admin/audit?raffleId=&limit=` | Registro de auditoría (solo lectura) |
@@ -151,7 +158,7 @@ Sprints semanales con milestones e issues en GitHub, ramas `feature/*` hacia `de
 
 ## Aviso
 
-Este software es una herramienta técnica. La mecánica comercial y legal de cada sorteo (autorizaciones, bases y condiciones, modalidad "sin obligación de compra") es responsabilidad del organizador según la normativa de su jurisdicción.
+Este software es una herramienta técnica. La mecánica comercial y legal de cada sorteo (autorizaciones, bases y condiciones, modalidad "sin obligación de compra") es responsabilidad del organizador según la normativa de su jurisdicción. En [docs/LEGAL.md](docs/LEGAL.md) hay un resumen de lo que conviene revisar con un abogado antes de vender y un borrador de bases.
 
 ## Autor
 

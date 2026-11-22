@@ -73,7 +73,7 @@ function purchaseConfirmation({ order, raffle, brand, downloadUrl, orderUrl, lin
     <p style="margin:0;font-size:14px"><a href="${esc(orderUrl)}" style="color:${color}">Ver mi compra</a>${brand.whatsapp ? ` · <a href="${esc(brand.whatsapp)}" style="color:${color}">¿Dudas? Escribinos</a>` : ''}</p>
   </td></tr>
   <tr><td style="background:#fafafa;padding:16px 24px;text-align:center;font-size:12px;color:#a1a1aa">
-    Guardá este email: es tu comprobante. ${esc(brand.name)}${raffle.permitNumber ? ` · Autorización N° ${esc(raffle.permitNumber)}` : ''}
+    Guardá este email: es tu comprobante. ${esc(brand.name)}
   </td></tr>
 </table>
 </td></tr></table>
@@ -99,12 +99,12 @@ function purchaseConfirmation({ order, raffle, brand, downloadUrl, orderUrl, lin
 }
 
 /**
- * Email con el link mágico de "Mis compras".
+ * Email con el link mágico de "Mis números".
  * @returns {{ subject: string, html: string, text: string }}
  */
 function accessLink({ brand, url, minutes, count }) {
   const color = /^#[0-9a-f]{3,8}$/i.test(brand.color) ? brand.color : '#e3262f';
-  const subject = 'Tu link para ver tus compras';
+  const subject = 'Tu link para ver tus números';
   const plural = count === 1 ? '1 compra' : `${count} compras`;
 
   const html = `<!DOCTYPE html>
@@ -116,17 +116,17 @@ function accessLink({ brand, url, minutes, count }) {
     ${brand.logoUrl ? `<img src="${esc(brand.logoUrl)}" alt="${esc(brand.name)}" height="48" style="height:48px;border:0">` : `<span style="color:#ffffff;font-size:20px;font-weight:800;letter-spacing:2px">${esc(brand.name)}</span>`}
   </td></tr>
   <tr><td style="padding:28px 24px;text-align:center">
-    <h1 style="margin:0 0 8px;font-size:22px;color:#18181b">Entrá a tus compras</h1>
+    <h1 style="margin:0 0 8px;font-size:22px;color:#18181b">Entrá a tus números</h1>
     <p style="margin:0 0 12px;color:#52525b;font-size:15px">Encontramos ${esc(plural)} con este email. Tocá el botón para ver tus números y descargar tus cursos.</p>
-    ${button(url, 'Ver mis compras', color)}
-    <p style="margin:12px 0 0;font-size:12px;color:#71717a">El link vence en ${esc(minutes)} minutos. Si no lo pediste vos, ignorá este email: nadie puede ver tus compras sin este link.</p>
+    ${button(url, 'Ver mis números', color)}
+    <p style="margin:12px 0 0;font-size:12px;color:#71717a">El link vence en ${esc(minutes)} minutos. Si no lo pediste vos, ignorá este email: nadie puede ver tus números sin este link.</p>
   </td></tr>
 </table>
 </td></tr></table>
 </body></html>`;
 
   const text = [
-    'Entrá a tus compras',
+    'Entrá a tus números',
     '',
     `Encontramos ${plural} con este email. Abrí este link para ver tus números y descargar tus cursos:`,
     url,
@@ -207,6 +207,34 @@ function freeEntryNumber({ brand, entry, raffle }) {
 }
 
 /**
+ * Emails del arrepentimiento: constancia al comprador, resolución (devuelto o rechazado) y aviso al administrador.
+ * kind: received | approved | rejected | admin
+ * @returns {{ subject: string, html: string, text: string }}
+ */
+function withdrawalMail({ brand, kind, code, courseTitle, note, panelUrl }) {
+  const color = safeColor(brand.color);
+  const titles = {
+    received: 'Recibimos tu solicitud de arrepentimiento',
+    approved: 'Tu arrepentimiento fue aceptado',
+    rejected: 'Respuesta a tu solicitud de arrepentimiento',
+    admin: 'Nueva solicitud de arrepentimiento',
+  };
+  const bodies = {
+    received: [`Registramos tu solicitud ${code} sobre la compra del curso "${courseTitle}". La revisamos y te respondemos por este medio.`, 'Guardá este email: es tu constancia.'],
+    approved: [`Aceptamos tu solicitud ${code}. Te devolvemos el importe por el mismo medio de pago que usaste; el plazo depende de tu banco o tarjeta.`, 'Tus chances de esa compra quedaron anuladas.'],
+    rejected: [`No pudimos aceptar tu solicitud ${code}.`, note ? `Motivo: ${note}` : null],
+    admin: [`Solicitud ${code} sobre el curso "${courseTitle}".`, 'Revisala en el panel para devolver el dinero o responder.'],
+  };
+  const lines = bodies[kind].filter(Boolean);
+  const subject = `${titles[kind]} (${code})`;
+  const inner = `<h1 style="margin:0 0 8px;font-size:22px;color:#18181b">${esc(titles[kind])}</h1>
+    ${lines.map((l) => `<p style="margin:0 0 10px;color:#52525b;font-size:15px">${esc(l)}</p>`).join('')}
+    ${kind === 'admin' && panelUrl ? button(panelUrl, 'Abrir el panel', color) : ''}`;
+  const text = [titles[kind], '', ...lines, kind === 'admin' && panelUrl ? `\nPanel: ${panelUrl}` : null].filter((l) => l !== null).join('\n');
+  return { subject, html: shell({ brand, color, subject, inner }), text };
+}
+
+/**
  * Aviso interno al administrador: la conexión con Mercado Pago se cayó, sigue caída o se recuperó.
  * @returns {{ subject: string, html: string, text: string }}
  */
@@ -234,4 +262,4 @@ function mpAlert({ brand, kind, reason, since, panelUrl }) {
   return { subject, html: shell({ brand, color, subject, inner }), text };
 }
 
-module.exports = { purchaseConfirmation, accessLink, freeEntryConfirm, freeEntryNumber, mpAlert, esc };
+module.exports = { purchaseConfirmation, accessLink, freeEntryConfirm, freeEntryNumber, mpAlert, withdrawalMail, esc };

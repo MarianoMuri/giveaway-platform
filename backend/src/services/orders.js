@@ -7,6 +7,8 @@ const numbers = require('./numbers');
 const { confirmPackOrder } = require('./purchases');
 const emails = require('./emails');
 const sales = require('./sales');
+const { cleanExcluded, cleanProvince } = require('./provinces');
+const { cleanProfile } = require('./profile');
 
 function cleanGoal(v) {
   if (v === undefined) return undefined;
@@ -32,6 +34,7 @@ async function createRaffle(data) {
         youtubeUrl: data.youtubeUrl,
         permitNumber: data.permitNumber,
         terms: data.terms,
+        ...(data.excludedProvinces !== undefined && { excludedProvinces: cleanExcluded(data.excludedProvinces) }),
         chancesGoal: cleanGoal(data.chancesGoal) ?? null,
         status: 'draft',
       },
@@ -70,6 +73,12 @@ async function manualSale({ raffleId, chances, courseId, amount, buyer }) {
   const dni = String(b.dni || '').replace(/\D/g, '');
   if (name.length < 3) throw new HttpError(400, 'Falta el nombre del comprador');
   if (dni.length < 7 || dni.length > 8) throw new HttpError(400, 'El DNI no es válido');
+  // Mismos datos obligatorios que en la compra online: hacen falta para contactar y verificar al ganador
+  const email = String(b.email || '').trim().toLowerCase();
+  const phone = String(b.phone || '').replace(/[^\d+]/g, '');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new HttpError(400, 'Falta un email válido del comprador');
+  if (phone.replace(/\D/g, '').length < 8) throw new HttpError(400, 'Falta un teléfono válido del comprador');
+  if (!b.province) throw new HttpError(400, 'Falta la provincia del comprador');
 
   const order = await sequelize.transaction(async (transaction) => {
     const raffle = await Raffle.findByPk(raffleId, { transaction });
@@ -81,9 +90,11 @@ async function manualSale({ raffleId, chances, courseId, amount, buyer }) {
       {
         RaffleId: raffle.id,
         buyerName: name,
-        buyerEmail: String(b.email || '-').trim().toLowerCase() || '-',
-        buyerPhone: String(b.phone || '-').trim() || '-',
+        buyerEmail: email,
+        buyerPhone: phone,
         buyerDni: dni,
+        buyerProvince: cleanProvince(b.province),
+        locality: cleanProfile(b).locality,
         chances: n,
         amount: total.toFixed(2),
         CourseId: course.id,
@@ -153,6 +164,18 @@ async function drawWinner(raffleId, value, { redraw = false, expect = null } = {
   return { number, winner: { name: o.buyerName, phone: o.buyerPhone, email: o.buyerEmail, dni: o.buyerDni, orderId: o.id, source: 'purchase' } };
 }
 
+// Ganador ya cargado (a mano o sorteado), solo lectura: para volver a mostrarlo en la pantalla del vivo
+async function currentWinner(raffleId) {
+  const raffle = await Raffle.findByPk(raffleId);
+  if (!raffle) throw new HttpError(404, 'Sorteo inexistente');
+  if (raffle.status !== 'drawn' || raffle.winnerNumber == null) throw new HttpError(409, 'Todavía no hay un ganador cargado');
+  const chance = await Chance.findOne({ where: { RaffleId: raffle.id, number: raffle.winnerNumber }, include: [Order, FreeEntry] });
+  if (!chance) throw new HttpError(409, 'El número ganador no existe en este sorteo');
+  if (chance.status === 'void') throw new HttpError(409, 'El número ganador quedó anulado: hay que sortear de nuevo');
+  if (chance.FreeEntry) return { number: chance.number, winner: { name: chance.FreeEntry.name, dni: chance.FreeEntry.dni, source: 'free' } };
+  return { number: chance.number, winner: { name: chance.Order.buyerName, dni: chance.Order.buyerDni, source: 'purchase' } };
+}
+
 async function raffleStats(raffleId) {
   const sold = ['approved', 'manual'];
   const [chancesSold, purchases, pending, review, revenue, freeEntries, reversed, raffle, emailsPending, emailsFailed] = await Promise.all([
@@ -177,4 +200,4 @@ async function raffleStats(raffleId) {
   return { chancesSold, purchases, pending, review, revenue: Number(revenue || 0), freeEntries, reversed, winnerVoided, emailsPending, emailsFailed };
 }
 
-module.exports = { HttpError, createRaffle, handlePayment, manualSale, drawWinner, assertClosedForDraw, raffleStats, cleanGoal };
+module.exports = { HttpError, createRaffle, handlePayment, manualSale, drawWinner, currentWinner, assertClosedForDraw, raffleStats, cleanGoal };

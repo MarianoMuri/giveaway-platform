@@ -4,9 +4,11 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 const requireAdmin = require('../middleware/auth');
+const liveOperator = require('../middleware/liveOperator');
 const { Raffle, Order, Chance, OrderEvent, FreeEntry } = require('../db');
-const { createRaffle, manualSale, raffleStats, cleanGoal, HttpError } = require('../services/orders');
+const { createRaffle, manualSale, raffleStats, cleanGoal, currentWinner, HttpError } = require('../services/orders');
 const packs = require('../services/packs');
+const promos = require('../services/promos');
 const emails = require('../services/emails');
 const readiness = require('../services/readiness');
 const freeEntries = require('../services/freeEntries');
@@ -15,25 +17,54 @@ const audit = require('../services/audit');
 const { streamRaffleCsv } = require('../services/export');
 const mpHealth = require('../services/mpHealth');
 const draw = require('../services/draw');
+const withdrawals = require('../services/withdrawals');
+const winnerAlert = require('../services/winnerAlert');
+const { segmentSales } = require('../services/segments');
+const sales = require('../services/sales');
+const { cleanExcluded } = require('../services/provinces');
 const { AuditLog } = require('../db');
+const totp = require('../services/totp');
 
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10 });
+// Solo cuentan los intentos fallidos (los ingresos correctos no suman) y la espera es corta.
+const loginLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  limit: 10,
+  skipSuccessfulRequests: true,
+  message: { error: 'Demasiados intentos fallidos. Probá de nuevo en 5 minutos.' },
+});
 
 router.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body || {};
-  const valid =
-    email === config.admin.email &&
-    config.admin.passwordHash &&
-    (await bcrypt.compare(String(password || ''), config.admin.passwordHash));
-  if (!valid) {
+  const matches = async (u) => u.email && u.passwordHash && String(email || '').trim().toLowerCase() === u.email.trim().toLowerCase() && (await bcrypt.compare(String(password || ''), u.passwordHash));
+  // El administrador tiene prioridad: si los dos mails fueran iguales, entra como administrador
+  const role = (await matches(config.admin)) ? 'admin' : (await matches(config.liveOperator)) ? 'live' : null;
+  if (!role) {
     await audit.record({ actor: String(email || '').slice(0, 100) || 'desconocido', action: 'login.failed', ip: req.ip });
     return res.status(401).json({ error: 'Credenciales inválidas' });
   }
-  await audit.record({ actor: email, action: 'login.ok', ip: req.ip });
-  res.json({ token: jwt.sign({ email }, config.jwtSecret, { expiresIn: '12h' }) });
+  // Doble verificación: solo para el administrador, y solo si está activada (ADMIN_TOTP_SECRET)
+  if (role === 'admin' && config.admin.totpSecret) {
+    const code = String((req.body || {}).code || '').trim();
+    if (!code) return res.status(401).json({ error: 'Ingresá el código de 6 números de tu app de autenticación', needsCode: true });
+    let valid;
+    try {
+      valid = totp.verify(config.admin.totpSecret, code);
+    } catch (err) {
+      // La clave cargada en ADMIN_TOTP_SECRET tiene caracteres que no son válidos: no se puede verificar nada
+      console.error('ADMIN_TOTP_SECRET inválida:', err.message);
+      return res.status(500).json({ error: 'La doble verificación está mal configurada: revisá la variable ADMIN_TOTP_SECRET en Railway (32 letras y números del 2 al 7, sin comillas ni espacios).' });
+    }
+    if (!valid) {
+      await audit.record({ actor: String(email || '').slice(0, 100), action: 'login.failed.2fa', ip: req.ip });
+      return res.status(401).json({ error: 'Código incorrecto o vencido. Probá con el que se muestra ahora.', needsCode: true });
+    }
+  }
+  await audit.record({ actor: email, action: role === 'live' ? 'login.ok.live' : 'login.ok', ip: req.ip });
+  res.json({ role, token: jwt.sign({ email, role }, config.jwtSecret, { expiresIn: '12h' }) });
 });
 
-router.use(requireAdmin);
+router.use(requireAdmin.orLive);
+router.use(liveOperator);
 router.use(audit.trail);
 
 const wrap = (fn) => (req, res, next) => fn(req, res).catch(next);
@@ -58,33 +89,75 @@ router.put('/raffles/:id/packs', wrap(async (req, res) => {
   res.json(adminPacksView(await packs.saveConfig(req.params.id, req.body)));
 }));
 
+// Promos del sorteo: descuento o chances de regalo, con código o automáticas, que se prenden y apagan
+router.get('/raffles/:id/promos', wrap(async (req, res) => {
+  if (!(await Raffle.findByPk(req.params.id))) throw new HttpError(404, 'Sorteo inexistente');
+  res.json(await promos.listForRaffle(req.params.id));
+}));
+router.post('/raffles/:id/promos', wrap(async (req, res) => {
+  if (!(await Raffle.findByPk(req.params.id))) throw new HttpError(404, 'Sorteo inexistente');
+  res.status(201).json(await promos.create(req.params.id, req.body));
+}));
+router.put('/raffles/:id/promos/:promoId', wrap(async (req, res) => {
+  res.json(await promos.update(req.params.id, req.params.promoId, req.body));
+}));
+router.delete('/raffles/:id/promos/:promoId', wrap(async (req, res) => {
+  await promos.remove(req.params.id, req.params.promoId);
+  res.status(204).end();
+}));
+
 router.patch('/raffles/:id', wrap(async (req, res) => {
   const raffle = await Raffle.findByPk(req.params.id);
   if (!raffle) throw new HttpError(404, 'Sorteo inexistente');
-  const allowed = ['title', 'description', 'prize', 'imageUrl', 'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'chancesGoal', 'freeEntryEnabled', 'salesCloseAt'];
+  const allowed = ['title', 'description', 'prize', 'imageUrl', 'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'chancesGoal', 'freeEntryEnabled', 'salesCloseAt', 'excludedProvinces', 'liveEnabled', 'liveHidden', 'publicHidden', 'promoMode'];
   const changes = Object.fromEntries(Object.entries(req.body || {}).filter(([k]) => allowed.includes(k)));
+  for (const k of ['title', 'prize']) {
+    if (k in changes) {
+      changes[k] = String(changes[k] ?? '').trim();
+      if (!changes[k]) throw new HttpError(400, k === 'title' ? 'El nombre del sorteo no puede quedar vacío' : 'El premio no puede quedar vacío');
+      if (changes[k].length > 200) throw new HttpError(400, 'Es demasiado largo (máximo 200 letras)');
+    }
+  }
+  for (const k of ['liveEnabled', 'liveHidden', 'publicHidden']) {
+    if (k in changes && typeof changes[k] !== 'boolean') throw new HttpError(400, 'Valor inválido');
+  }
+  if ('promoMode' in changes && !['best', 'sum'].includes(changes.promoMode)) throw new HttpError(400, 'Elegí aplicar la mayor promo o sumarlas');
   if ('chancesGoal' in changes) changes.chancesGoal = cleanGoal(changes.chancesGoal);
   if ('salesCloseAt' in changes) {
     if (changes.salesCloseAt === '' || changes.salesCloseAt === null) changes.salesCloseAt = null;
     else if (Number.isNaN(new Date(changes.salesCloseAt).getTime())) throw new HttpError(400, 'La fecha de cierre no es válida');
   }
+  if ('excludedProvinces' in changes) changes.excludedProvinces = cleanExcluded(changes.excludedProvinces);
   if (changes.status && !['draft', 'active', 'closed'].includes(changes.status)) {
     throw new HttpError(400, 'Estado inválido'); // "drawn" solo se pone al cargar el ganador
   }
   if (changes.status && raffle.status === 'drawn') throw new HttpError(409, 'El sorteo ya se realizó: no se puede cambiar el estado de la venta');
+  // Para abrir (o reabrir) la venta, el sorteo ya tiene que tener bases, con los cambios de este mismo pedido
+  if (changes.status === 'active') sales.assertCanOpen({ terms: raffle.terms, ...changes });
   res.json(await raffle.update(changes));
 }));
 
 // Cargar el número ganador del sorteo en vivo
 router.post('/raffles/:id/winner', wrap(async (req, res) => {
   res.locals.audited = true; // lo registra el servicio, con el detalle del sorteo
-  res.json(await draw.loadManual(req.params.id, req.body?.number, { ...audit.who(req), reason: req.body?.reason }));
+  const result = await draw.loadManual(req.params.id, req.body?.number, { ...audit.who(req), reason: req.body?.reason });
+  winnerAlert.deliverSoon(result.draw.id); // sin esperar: no demora ni hace fallar la respuesta
+  res.json(result);
+}));
+
+// Ganador ya cargado, para mostrarlo en la pantalla del vivo (no cambia nada)
+router.get('/raffles/:id/winner', wrap(async (req, res) => {
+  const out = await currentWinner(req.params.id);
+  await audit.record({ ...audit.who(req), raffleId: Number(req.params.id), action: 'winner.reveal', detail: `number=${out.number}` });
+  res.json(out);
 }));
 
 // Sorteo en vivo: el servidor elige el ganador al azar entre los números válidos
 router.post('/raffles/:id/draw', wrap(async (req, res) => {
   res.locals.audited = true;
-  res.json(await draw.drawRandom(req.params.id, { ...audit.who(req), reason: req.body?.reason }));
+  const result = await draw.drawRandom(req.params.id, { ...audit.who(req), reason: req.body?.reason });
+  winnerAlert.deliverSoon(result.draw.id); // sin esperar: no demora ni hace fallar la respuesta
+  res.json(result);
 }));
 
 router.get('/raffles/:id/draws', wrap(async (req, res) => {
@@ -115,6 +188,13 @@ router.get('/audit', wrap(async (req, res) => {
 // Control previo al sorteo: carga los pagos que faltaban (consulta a Mercado Pago) y resume el estado
 router.post('/raffles/:id/readiness', wrap(async (req, res) => {
   res.json(await readiness.check(req.params.id));
+}));
+
+// "Dónde compran y quiénes": ventas por provincia, localidad, edad, género u ocupación (?by=...)
+router.get('/raffles/:id/segments', wrap(async (req, res) => {
+  const result = await segmentSales(req.params.id, String(req.query.by || 'province'));
+  if (!result) throw new HttpError(400, 'Segmento inválido');
+  res.json(result);
 }));
 
 router.get('/raffles/:id/stats', wrap(async (req, res) => {
@@ -150,6 +230,17 @@ router.get('/orders/:id/history', wrap(async (req, res) => {
   const events = await OrderEvent.findAll({ where: { OrderId: order.id }, order: [['createdAt', 'ASC'], ['id', 'ASC']] });
   const voided = await Chance.count({ where: { OrderId: order.id, status: 'void' } });
   res.json({ status: order.status, voidedAt: order.voidedAt, voidReason: order.voidReason, voidedNumbers: voided, events });
+}));
+
+// Arrepentimientos: lista, aprobar (devuelve el dinero por Mercado Pago y anula los números) y rechazar
+router.get('/withdrawals', wrap(async (req, res) => {
+  res.json(await withdrawals.list(req.query.status));
+}));
+router.post('/withdrawals/:id/approve', wrap(async (req, res) => {
+  res.json(await withdrawals.approve(Number(req.params.id)));
+}));
+router.post('/withdrawals/:id/reject', wrap(async (req, res) => {
+  res.json(await withdrawals.reject(Number(req.params.id), req.body?.note));
 }));
 
 router.post('/orders/manual', wrap(async (req, res) => {

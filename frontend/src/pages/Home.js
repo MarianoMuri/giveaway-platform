@@ -1,12 +1,14 @@
 import { Link } from 'react-router-dom';
-import Social from '../components/Social';
 import brand from '../brand';
 import { useApi } from '../hooks';
 import { money, dateShort } from '../api';
-import SalesProgress from '../components/SalesProgress';
+import Social from '../components/Social';
+import Faq from '../components/Faq';
+import HowItWorks from '../components/HowItWorks';
 
 export default function Home() {
   const { data: raffles, loading, error } = useApi('/raffles');
+  const { data: courses } = useApi('/courses');
   const active = (raffles || []).filter((r) => r.status === 'active');
   const past = (raffles || []).filter((r) => r.status === 'drawn');
 
@@ -19,12 +21,27 @@ export default function Home() {
             {brand.name.split(' ').slice(0, -1).join(' ')}{' '}
             <span className="accent">{brand.name.split(' ').slice(-1)}</span>
           </h1>
-          <Social size="lg" />
-          <p className="lead">{brand.description}</p>
+          {!brand.heroUrl && <p className="lead">{brand.description}</p>}
+          {/* En el celular el encabezado no tiene redes: se muestran acá */}
+          <ul className="perks">
+            <li>⚡ Números al instante</li>
+            <li>📺 Sorteo en vivo</li>
+            <li>📘 Curso en tu email</li>
+          </ul>
+          <div className="hero-social"><Social size="md" /></div>
         </div>
       </section>
 
       <div className="container">
+        {/* Con imagen destacada: logo a la izquierda y sorteo a la derecha (en el celular, una columna) */}
+        <div className={brand.heroUrl ? 'split' : undefined}>
+        {brand.heroUrl && (
+          <div className="split-side">
+            <img src={brand.heroUrl} alt={brand.name} className="hero-img" />
+            <p className="lead">{brand.description}</p>
+          </div>
+        )}
+        <div className="split-main">
         {loading && <p className="muted">Cargando sorteos…</p>}
         {error && <p className="alert">No pudimos cargar los sorteos. Probá de nuevo en un rato.</p>}
 
@@ -39,16 +56,20 @@ export default function Home() {
               <dl className="facts">
                 <div><dt>Desde</dt><dd>{r.fromPrice ? money(r.fromPrice) : '-'}</dd></div>
                 <div><dt>Sorteo</dt><dd>{dateShort(r.drawDate)}</dd></div>
-                <div><dt>Vendidas</dt><dd>{(r.chancesSold || 0).toLocaleString('es-AR')}</dd></div>
               </dl>
-              <SalesProgress raffle={r} compact />
               <p className="small muted">Comprás un curso digital y te regalamos chances para el sorteo.</p>
-              <Link to={`/sorteo/${r.id}`} className="btn btn-lg">Quiero participar</Link>
-              {r.freeEntryEnabled && (
-                <p className="small muted mt-sm">Sin obligación de compra: también podés <Link to={`/sorteo/${r.id}/participar-gratis`}>participar gratis</Link>.</p>
+              {r.salesOpen === false ? (
+                <p className="alert" role="status">La venta de este sorteo ya cerró. ¡Mucha suerte a todos los participantes!</p>
+              ) : (
+                <>
+                  {r.salesCloseAt && <p className="small muted">La venta cierra el {dateShort(r.salesCloseAt)} h</p>}
+                  <Link to={`/sorteo/${r.id}`} className="btn btn-lg">Quiero participar</Link>
+                  {r.freeEntryEnabled && (
+                    <p className="small muted mt-sm">Sin obligación de compra: también podés <Link to={`/sorteo/${r.id}/participar-gratis`}>participar gratis</Link>.</p>
+                  )}
+                </>
               )}
               <div className="small muted mt">
-                {r.permitNumber && <>Autorización N° {r.permitNumber} · </>}
                 <Link to={`/sorteo/${r.id}/bases`}>Bases y condiciones</Link>
               </div>
             </div>
@@ -63,11 +84,23 @@ export default function Home() {
           </div>
         )}
 
-        <section className="card center follow">
-          <h3>Seguí los sorteos en vivo</h3>
-          <p className="muted small">Transmitimos cada sorteo en directo y publicamos los ganadores en nuestras redes.</p>
-          <Social size="lg" />
-        </section>
+        {active.length > 0 && (
+          <p className="center"><Link to="/links" className="btn btn-ghost">Ver nuestras redes</Link></p>
+        )}
+        </div>
+        </div>
+
+        <HowItWorks />
+
+        {courses && courses.length > 0 && (
+          <section className="mt-lg home-courses">
+            <h3>Cursos disponibles ({courses.length})</h3>
+            <p className="muted small">Con cada compra elegís uno y te llevás chances para el sorteo.</p>
+            <ul className="course-chips">
+              {courses.map((c) => <li key={c.id}>{c.title}</li>)}
+            </ul>
+          </section>
+        )}
 
         {past.length > 0 && (
           <section className="mt-lg">
@@ -78,12 +111,19 @@ export default function Home() {
                   <div className="muted small">{r.title}</div>
                   <div className="prize">{r.prize}</div>
                   <div>Número ganador: <strong className="gold">{r.winnerNumber}</strong></div>
+                  {r.winnerName && <div>Ganó: <strong>{r.winnerName}</strong></div>}
                   {r.youtubeUrl && <a href={r.youtubeUrl} target="_blank" rel="noreferrer" className="small">Ver el sorteo ▶</a>}
                 </div>
               ))}
             </div>
           </section>
         )}
+
+        <Faq raffle={active[0]} />
+
+        <p className="center mt-lg">
+          <Link to="/bases" className="bases-link">Bases y condiciones</Link>
+        </p>
       </div>
     </>
   );

@@ -10,6 +10,7 @@ const linkLabels = {
   facebook: 'Facebook',
   whatsappChannel: 'Canal de WhatsApp · Novedades',
   tiktok: 'TikTok',
+  whatsappContact: 'Escribinos por WhatsApp',
 };
 
 export default function Links() {
@@ -39,9 +40,6 @@ export default function Links() {
             <SocialIcon name={s.key} /> {linkLabels[s.key]}
           </a>
         ))}
-        {brand.social.whatsappContact && (
-          <a href={brand.social.whatsappContact} className="link-btn" target="_blank" rel="noreferrer">💬 Escribinos por WhatsApp</a>
-        )}
         {brand.extraLinks.map((l) => (
           <a key={l.url} href={l.url} className="link-btn" target="_blank" rel="noreferrer">{l.label}</a>
         ))}

@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { sequelize, Raffle, Chance, Draw } = require('../db');
 const { HttpError, drawWinner, assertClosedForDraw } = require('./orders');
 const audit = require('./audit');
+const winnerAlert = require('./winnerAlert');
 
 const MAX_ATTEMPTS = 5;
 
@@ -9,14 +10,15 @@ function cleanReason(raffle, reason) {
   if (raffle.status !== 'drawn') return null;
   const r = String(reason || '').trim();
   if (!r) throw new HttpError(409, 'Ya hay un ganador. Para repetir el sorteo indicá el motivo.');
-  if (r.length < 10) throw new HttpError(400, 'El motivo es muy corto: explicá por qué se repite el sorteo');
+  if (r.length < 5) throw new HttpError(400, 'El motivo es muy corto: explicá por qué se repite el sorteo');
   return r.slice(0, 300);
 }
 
 async function saveDraw(raffleId, { number, method, validCount = null, position = null, actor, reason }) {
   const row = await sequelize.transaction(async (t) => {
     await Draw.update({ supersededAt: new Date() }, { where: { RaffleId: raffleId, supersededAt: null }, transaction: t });
-    return Draw.create({ RaffleId: raffleId, number, method, validCount, position, actor, reason }, { transaction: t });
+    // el aviso al administrador queda pendiente en la MISMA transacción: si el servidor se cae, no se pierde
+    return Draw.create({ RaffleId: raffleId, number, method, validCount, position, actor, reason, ...winnerAlert.pendingFields() }, { transaction: t });
   });
   return row;
 }

@@ -1,11 +1,13 @@
 import { useParams, Link } from 'react-router-dom';
 import { useApi } from '../hooks';
 import { money, dateTime } from '../api';
+import brand from '../brand';
 
 export default function Terms() {
   const { id } = useParams();
   const { data: r } = useApi(`/raffles/${id}`);
   const { data: offer } = useApi(`/raffles/${id}/packs`);
+  const { data: provinces } = useApi('/provinces');
   if (!r) return <div className="container"><p className="muted">Cargando…</p></div>;
   return (
     <div className="container narrow">
@@ -29,8 +31,13 @@ export default function Terms() {
           </li>
         )}
         <li>Los números se asignan de forma automática y consecutiva al acreditarse el pago, empezando por el 100000.</li>
+        {(r.excludedProvinces || []).length > 0 && provinces && (
+          <li>
+            Por el momento el sorteo no está disponible para residentes de: {provinces.filter((p) => r.excludedProvinces.includes(p.code)).map((p) => p.name).join(', ')}.
+          </li>
+        )}
+        {brand.location && <li>Las compras se realizan en {brand.location}, lugar habilitado para este sorteo.</li>}
         <li>Fecha del sorteo: {dateTime(r.drawDate)}</li>
-        {r.permitNumber && <li>Autorización N° {r.permitNumber}</li>}
       </ul>
       <div className="terms">{r.terms || 'Las bases y condiciones completas se publicarán antes del inicio de la venta.'}</div>
     </div>

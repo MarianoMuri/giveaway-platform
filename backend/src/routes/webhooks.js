@@ -5,7 +5,8 @@ const { handlePayment } = require('../services/orders');
 router.post('/mercadopago', async (req, res) => {
   const type = req.body?.type || req.query.type || req.query.topic;
   const dataId = req.query['data.id'] || req.body?.data?.id;
-  if (type !== 'payment' || !dataId) return res.sendStatus(200);
+  // 'order' = API de Orders (id ORD...); 'payment' = API anterior (id numérico)
+  if (!['payment', 'order'].includes(type) || !dataId) return res.sendStatus(200);
 
   const ok = verifySignature({
     signatureHeader: req.get('x-signature'),

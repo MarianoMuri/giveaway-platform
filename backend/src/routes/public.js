@@ -2,41 +2,54 @@ const router = require('express').Router();
 const config = require('../config');
 const rateLimit = require('express-rate-limit');
 const { Op, fn, col } = require('sequelize');
-const { Raffle, Order, Pack, Chance } = require('../db');
+const { Raffle, Order, Pack, Chance, FreeEntry } = require('../db');
 const packs = require('../services/packs');
 const { createPurchase } = require('../services/purchases');
 const courses = require('../services/courses');
 const myPurchases = require('../services/myPurchases');
+const withdrawals = require('../services/withdrawals');
 const freeEntries = require('../services/freeEntries');
 const sales = require('../services/sales');
+const { PROVINCES } = require('../services/provinces');
 
 const publicFields = [
   'id', 'title', 'description', 'prize', 'imageUrl', 'chancesGoal',
-  'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'winnerNumber', 'freeEntryEnabled', 'salesCloseAt',
+  'drawDate', 'youtubeUrl', 'permitNumber', 'terms', 'status', 'winnerNumber', 'freeEntryEnabled', 'salesCloseAt', 'excludedProvinces',
 ];
 
-// Agrega a cada sorteo las chances vendidas (barra de progreso) y el precio del pack más barato
-async function withSales(raffles) {
+// Agrega a cada sorteo el precio del pack más barato. Las chances vendidas NO se publican: solo las ve el administrador.
+async function withPrices(raffles) {
   const ids = raffles.map((r) => r.id);
   if (!ids.length) return [];
-  const [sold, prices] = await Promise.all([
-    Chance.findAll({ where: { RaffleId: ids, status: 'valid', OrderId: { [Op.ne]: null } }, attributes: ['RaffleId', [fn('COUNT', col('id')), 'n']], group: ['RaffleId'], raw: true }),
-    Pack.findAll({ where: { RaffleId: ids }, attributes: ['RaffleId', [fn('MIN', col('price')), 'min']], group: ['RaffleId'], raw: true }),
-  ]);
-  const soldBy = new Map(sold.map((r) => [r.RaffleId, Number(r.n)]));
+  const prices = await Pack.findAll({ where: { RaffleId: ids }, attributes: ['RaffleId', [fn('MIN', col('price')), 'min']], group: ['RaffleId'], raw: true });
   const priceBy = new Map(prices.map((r) => [r.RaffleId, Number(r.min)]));
-  return raffles.map((r) => ({ ...r.toJSON(), salesOpen: sales.isOpen(r), chancesSold: soldBy.get(r.id) || 0, fromPrice: priceBy.get(r.id) ?? null }));
+  const names = await winnerNames(raffles);
+  return raffles.map((r) => ({ ...r.toJSON(), salesOpen: sales.isOpen(r), fromPrice: priceBy.get(r.id) ?? null, winnerName: names.get(r.id) ?? null }));
 }
+
+// Nombre del ganador, para "Ganadores anteriores" (las Bases, cláusula 12, lo autorizan). Solo si el número sigue válido.
+async function winnerNames(raffles) {
+  const out = new Map();
+  for (const r of raffles.filter((x) => x.winnerNumber != null)) {
+    const c = await Chance.findOne({ where: { RaffleId: r.id, number: r.winnerNumber, status: 'valid' }, include: [{ model: Order, attributes: ['buyerName'] }, { model: FreeEntry, attributes: ['name'] }] });
+    const name = c?.Order?.buyerName || c?.FreeEntry?.name;
+    if (name) out.set(r.id, String(name).trim());
+  }
+  return out;
+}
+
+// Las 24 jurisdicciones, para el selector de provincia
+router.get('/provinces', (req, res) => res.json(PROVINCES));
 
 const wrap = (handler) => (req, res, next) => handler(req, res).catch(next);
 
 router.get('/raffles', wrap(async (req, res) => {
   const raffles = await Raffle.findAll({
-    where: { status: { [Op.ne]: 'draft' } },
+    where: { status: { [Op.ne]: 'draft' }, publicHidden: false }, // los ocultos no salen en la página de inicio (siguen andando con su link)
     attributes: publicFields,
     order: [['drawDate', 'DESC']],
   });
-  res.json(await withSales(raffles));
+  res.json(await withPrices(raffles));
 }));
 
 router.get('/raffles/:id', wrap(async (req, res) => {
@@ -45,7 +58,7 @@ router.get('/raffles/:id', wrap(async (req, res) => {
     attributes: publicFields,
   });
   if (!raffle) return res.status(404).json({ error: 'Sorteo no encontrado' });
-  res.json((await withSales([raffle]))[0]);
+  res.json((await withPrices([raffle]))[0]);
 }));
 const buyLimiter = rateLimit({ windowMs: 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false });
 const quoteLimiter = rateLimit({ windowMs: 60 * 1000, limit: 60 });
@@ -59,14 +72,16 @@ router.get('/raffles/:id/packs', wrap(async (req, res) => {
 
 // Compra de curso + pack: crea la orden y devuelve el link de pago
 router.post('/raffles/:id/purchases', buyLimiter, wrap(async (req, res) => {
-  const { packId, double, courseId, buyer } = req.body || {};
-  res.status(201).json(await createPurchase({ raffleId: req.params.id, packId, double: double === true, courseId, buyer }));
+  const { packId, double, courseId, buyer, code } = req.body || {};
+  res.status(201).json(await createPurchase({ raffleId: req.params.id, packId, double: double === true, courseId, buyer, code }));
 }));
 
 // Cotización de una compra: el frontend nunca calcula el total
-router.post('/raffles/:id/quote', quoteLimiter, wrap(async (req, res) => {
-  const { packId, double } = req.body || {};
-  res.json(await packs.quoteForRaffle(req.params.id, { packId, double }));
+// Los códigos de promo no se pueden adivinar a fuerza de probar: con código, el límite es más estricto
+const codeLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Probaste muchos códigos. Esperá unos minutos y reintentá.' } });
+router.post('/raffles/:id/quote', quoteLimiter, (req, res, next) => (req.body?.code ? codeLimiter(req, res, next) : next()), wrap(async (req, res) => {
+  const { packId, double, code } = req.body || {};
+  res.json(await packs.quoteForRaffle(req.params.id, { packId, double, code }));
 }));
 
 // Página de retorno: el comprador consulta el estado de su compra
@@ -90,15 +105,33 @@ router.post('/orders/:id/download-link', downloadLimiter, wrap(async (req, res) 
   res.json({ url: courses.downloadUrl(order.CourseId, 1) });
 }));
 
-// "Mis compras" con link mágico: el comprador pide un link por email y con él ve sus compras.
+// Arrepentimiento: pedido con DNI + email. Responde siempre igual (no revela quién compró).
+const withdrawalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 8, standardHeaders: true, legacyHeaders: false });
+router.post('/withdrawals', withdrawalLimiter, wrap(async (req, res) => {
+  const { dni, email } = req.body || {};
+  res.status(202).json(await withdrawals.request({ dni, email }));
+}));
+
+// "Mis números" con link mágico: el comprador pide un link por email y con él ve sus compras.
 // Responde siempre lo mismo exista o no el email (no se puede averiguar quién compró).
 const linkLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false });
 router.post('/my-purchases/link', linkLimiter, wrap(async (req, res) => {
   const pending = myPurchases.requestLink(req.body?.email);
   // Un email con formato inválido se rechaza al instante; el resto se resuelve sin esperar al proveedor de mail
   await Promise.race([pending, new Promise((r) => setTimeout(r, 0))]);
-  pending.catch((e) => { if (!e.status) console.error('[mis-compras] no se pudo enviar el link:', e.message); });
+  pending.catch((e) => { if (!e.status) console.error('[mis-numeros] no se pudo enviar el link:', e.message); });
   res.status(202).json({ ok: true });
+}));
+
+// "Mis números" con DNI: solo lectura de números. Límite por IP acá, por DNI y captcha en el servicio.
+const dniLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false });
+router.post('/my-purchases/by-dni', dniLimiter, wrap(async (req, res) => {
+  const { dni, captchaToken } = req.body || {};
+  res.json(await myPurchases.listByDni({ dni, captchaToken, ip: req.ip }));
+}));
+router.post('/my-purchases/download', dniLimiter, wrap(async (req, res) => {
+  const { dni, email, orderId } = req.body || {};
+  res.json(await myPurchases.downloadWithEmail({ dni, email, orderId, ip: req.ip }));
 }));
 
 router.get('/my-purchases', wrap(async (req, res) => {
@@ -110,8 +143,8 @@ router.get('/my-purchases', wrap(async (req, res) => {
 const freeLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: config.freeEntries.requestsPer15Min, standardHeaders: true, legacyHeaders: false });
 const confirmLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: config.freeEntries.requestsPer15Min, standardHeaders: true, legacyHeaders: false });
 router.post('/raffles/:id/free-entries', freeLimiter, wrap(async (req, res) => {
-  const { name, dni, email, captchaToken, deviceId } = req.body || {};
-  res.status(202).json(await freeEntries.request({ raffleId: req.params.id, name, dni, email, captchaToken, deviceId, ip: req.ip }));
+  const { name, dni, email, phone, province, locality, captchaToken, deviceId } = req.body || {};
+  res.status(202).json(await freeEntries.request({ raffleId: req.params.id, name, dni, email, phone, province, locality, captchaToken, deviceId, ip: req.ip }));
 }));
 
 router.post('/free-entries/confirm', confirmLimiter, wrap(async (req, res) => {

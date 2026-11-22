@@ -4,6 +4,9 @@ const { HttpError } = require('./errors');
 const packs = require('./packs');
 const numbers = require('./numbers');
 const emails = require('./emails');
+const provinces = require('./provinces');
+const { cleanProfile } = require('./profile');
+const promos = require('./promos');
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -14,6 +17,8 @@ function cleanBuyer(buyer) {
     email: String(b.email || '').trim().toLowerCase(),
     phone: String(b.phone || '').replace(/[^\d+]/g, ''),
     dni: String(b.dni || '').replace(/\D/g, ''),
+    province: provinces.cleanProvince(b.province),
+    ...cleanProfile(b),
   };
   if (out.name.length < 3) throw new HttpError(400, 'Ingresá tu nombre y apellido');
   if (!EMAIL.test(out.email)) throw new HttpError(400, 'El email no es válido');
@@ -28,37 +33,58 @@ function cleanBuyer(buyer) {
  * Por eso no hay reserva ni vencimiento: si el comprador no paga, la orden
  * queda pendiente y no le saca nada a nadie.
  */
-async function createPurchase({ raffleId, packId, double, courseId, buyer }) {
+async function createPurchase({ raffleId, packId, double, courseId, buyer, code }) {
   const b = cleanBuyer(buyer);
   const course = await Course.findOne({ where: { id: Number(courseId) || 0, active: true } });
   if (!course) throw new HttpError(400, 'Elegí un curso');
-  const quote = await packs.quoteForRaffle(raffleId, { packId, double }); // valida sorteo activo y pack
+  const quote = await packs.quoteForRaffle(raffleId, { packId, double, code }); // valida sorteo activo, pack y código de promo
   const raffle = await Raffle.findByPk(raffleId);
+  provinces.assertAvailable(raffle, b.province); // antes de crear nada: una provincia excluida no deja rastros
 
-  const order = await Order.create({
+  const capped = (quote.applied || []).filter((x) => x.maxUses);
+  const order = await sequelize.transaction(async (t) => {
+    // Promos con tope: se reserva el cupo con el sorteo bloqueado, así dos compras a la vez nunca se pasan del tope
+    if (capped.length) {
+      if (sequelize.getDialect() === 'postgres') await sequelize.query('SELECT pg_advisory_xact_lock(:key)', { replacements: { key: 7000000 + raffle.id }, transaction: t });
+      const used = await promos.usedByPromo(raffle.id, { transaction: t });
+      if (capped.some((x) => (used.get(x.id) || 0) >= x.maxUses)) {
+        throw new HttpError(409, 'Se agotaron los cupos de esta oferta justo ahora. Actualizá la página para ver los precios al día.');
+      }
+    }
+    return Order.create({
     RaffleId: raffle.id,
     buyerName: b.name,
     buyerEmail: b.email,
     buyerPhone: b.phone,
     buyerDni: b.dni,
+    buyerProvince: b.province,
+    locality: b.locality,
     PackId: quote.packId,
     double: quote.double,
-    chances: quote.chances,
+    chances: quote.chances, // ya incluye las chances de regalo de la promo
     amount: quote.total.toFixed(2),
+    PromoId: quote.promo?.id || null,
+    PromoIds: quote.applied?.length ? quote.applied.map((x) => x.id).join(',') : null,
+    promoName: quote.promo?.name ? quote.promo.name.slice(0, 80) : null,
+    promoCode: quote.promo?.code || null,
+    discount: (quote.discount || 0).toFixed(2),
+    bonusChances: quote.bonusChances || 0,
     CourseId: course.id,
     courseTitle: course.title,
+  }, { transaction: t });
   });
 
   try {
-    const pref = await mp.createPreference({
+    const checkout = await mp.createCheckout({
       order,
       raffle,
       title: `Curso "${course.title}" + ${quote.chances} chances - ${raffle.title}`,
+      expiresInMinutes: capped.length ? promos.RESERVE_MINUTES : undefined,
     });
-    await order.update({ mpPreferenceId: pref.id });
-    return { orderId: order.id, checkoutUrl: pref.initPoint, total: quote.total, chances: quote.chances };
+    await order.update({ mpPreferenceId: checkout.id });
+    return { orderId: order.id, checkoutUrl: checkout.initPoint, total: quote.total, chances: quote.chances };
   } catch (err) {
-    await order.update({ status: 'rejected', mpStatusDetail: 'error_preferencia' });
+    await order.update({ status: 'rejected', mpStatusDetail: 'error_checkout' });
     throw new HttpError(502, 'No se pudo iniciar el pago con Mercado Pago', { detail: err.message });
   }
 }
@@ -80,8 +106,8 @@ function addEvent(order, status, detail, mpPaymentId, transaction) {
 
 // Pago devuelto o desconocido: la compra y sus números quedan anulados (con fecha y motivo).
 // Solo cuenta si el aviso es del pago que acreditó la compra, no de un intento anterior.
-async function reverseOrder(order, payment, transaction) {
-  const reason = REVERSALS[payment.status];
+async function reverseOrder(order, payment, transaction, reasonOverride) {
+  const reason = reasonOverride || REVERSALS[payment.status];
   const voided = await numbers.voidNumbers(order.id, transaction, reason);
   await order.update(
     { status: payment.status, voidedAt: new Date(), voidReason: reason, mpStatusDetail: payment.statusDetail || payment.status },
@@ -118,4 +144,4 @@ async function confirmPackOrder(order, payment, transaction) {
   return { order };
 }
 
-module.exports = { createPurchase, confirmPackOrder, cleanBuyer };
+module.exports = { createPurchase, confirmPackOrder, reverseOrder, cleanBuyer };

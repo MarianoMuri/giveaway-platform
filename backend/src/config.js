@@ -16,15 +16,25 @@ module.exports = {
     email: required('ADMIN_EMAIL') || 'admin@local',
     // Hash bcrypt de la contraseña: node -e "console.log(require('bcryptjs').hashSync('tuClave',10))"
     passwordHash: required('ADMIN_PASSWORD_HASH') || '',
+    // (opcional) clave de la doble verificación. Si está, el administrador debe ingresar el código de su app (ver scripts/two-factor-setup.js)
+    totpSecret: (process.env.ADMIN_TOTP_SECRET || '').trim(),
+  },
+  // Usuario opcional que solo puede hacer el sorteo en vivo (ver middleware/liveOperator.js)
+  liveOperator: {
+    email: process.env.LIVE_EMAIL || '',
+    passwordHash: process.env.LIVE_PASSWORD_HASH || '',
   },
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
   publicApiUrl: process.env.PUBLIC_API_URL || 'http://localhost:4000',
   storageDir: process.env.STORAGE_DIR || './storage',
   maxPdfMb: Number(process.env.MAX_PDF_MB || 20),
   downloadLinkHours: Number(process.env.DOWNLOAD_LINK_HOURS || 72),
-  // Email transaccional. Sin SMTP_URL los mails se muestran en la consola (desarrollo).
-  // Ej: smtps://resend:API_KEY@smtp.resend.com:465 · smtp://usuario:clave@smtp-relay.brevo.com:587
+  // Email transaccional, en este orden de preferencia:
+  //  1) RESEND_API_KEY: API HTTPS de Resend (funciona en cualquier plan de hosting; Railway bloquea el SMTP fuera del plan Pro)
+  //  2) SMTP_URL: ej. smtps://resend:API_KEY@smtp.resend.com:465 · smtp://usuario:clave@smtp-relay.brevo.com:587
+  //  Sin ninguno, los mails se muestran en la consola (desarrollo).
   mail: {
+    resendApiKey: process.env.RESEND_API_KEY,
     smtpUrl: process.env.SMTP_URL,
     from: process.env.MAIL_FROM || 'Sorteos <no-responder@localhost>',
     replyTo: process.env.MAIL_REPLY_TO,
@@ -67,5 +77,8 @@ module.exports = {
   mp: {
     accessToken: required('MP_ACCESS_TOKEN'),
     webhookSecret: process.env.MP_WEBHOOK_SECRET, // "Clave secreta" del panel de Webhooks de MP
+    // API con la que se crea el checkout: 'orders' (la vigente) o 'preferences' (heredada, para volver atrás)
+    api: process.env.MP_API === 'preferences' ? 'preferences' : 'orders',
+    allowTest: process.env.ALLOW_MP_TEST === 'true', // solo en el entorno de pruebas (credenciales de prueba)
   },
 };

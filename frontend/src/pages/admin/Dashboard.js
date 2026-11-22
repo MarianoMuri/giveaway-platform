@@ -5,7 +5,7 @@ import { api, dateShort, setToken } from '../../api';
 import MpStatus from '../../components/MpStatus';
 
 const statusLabel = { draft: 'Borrador', active: 'A la venta', closed: 'Venta cerrada', drawn: 'Sorteado' };
-const empty = { title: '', prize: '', description: '', imageUrl: '', chancesGoal: '', drawDate: '', salesCloseAt: '', youtubeUrl: '', permitNumber: '', terms: '' };
+const empty = { title: '', prize: '', description: '', imageUrl: '', chancesGoal: '', drawDate: '', salesCloseAt: '', youtubeUrl: '', terms: '' };
 
 export default function Dashboard() {
   const nav = useNavigate();
@@ -43,7 +43,9 @@ export default function Dashboard() {
       <div className="row between">
         <h1>Sorteos</h1>
         <div className="row">
+          <Link to="/admin/en-vivo" target="_blank" rel="noopener" className="btn btn-ghost">Sorteo en vivo ↗</Link>
           <Link to="/admin/cursos" className="btn btn-ghost">Cursos</Link>
+          <Link to="/admin/arrepentimientos" className="btn btn-ghost">Arrepentimientos</Link>
           <button className="btn" onClick={() => setCreating(!creating)}>{creating ? 'Cancelar' : '+ Nuevo sorteo'}</button>
           <button className="btn btn-ghost" onClick={() => { setToken(null); nav('/admin/login'); }}>Salir</button>
         </div>
@@ -58,7 +60,6 @@ export default function Dashboard() {
           <label>Meta de chances (opcional, para la barra de progreso)<input type="number" min="1" value={form.chancesGoal} onChange={set('chancesGoal')} placeholder="10000" /></label>
           <label>Fecha y hora del sorteo<input type="datetime-local" value={form.drawDate} onChange={set('drawDate')} /></label>
           <label>Cierre de venta (opcional)<input type="datetime-local" value={form.salesCloseAt} onChange={set('salesCloseAt')} /></label>
-          <label>N° de autorización<input value={form.permitNumber} onChange={set('permitNumber')} /></label>
           <label>URL de la imagen del premio<input value={form.imageUrl} onChange={set('imageUrl')} /></label>
           <label>Link del vivo de YouTube<input value={form.youtubeUrl} onChange={set('youtubeUrl')} /></label>
           <label className="full">Descripción<textarea rows="2" value={form.description} onChange={set('description')} /></label>

@@ -4,6 +4,87 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Unreleased]
 
+### Added
+- **¿Cómo funciona?** en la portada: camino de 5 pasos (elegir curso y chances, pagar, recibir los números, recibir el curso por email, mirar el sorteo en vivo), con los colores del sitio.
+- **Pantalla del vivo:** se saca la leyenda "Ya hay un ganador: N", que mostraba el número antes de revelarlo.
+- **README:** capturas actualizadas (portada, ¿Cómo funciona? y panel).
+- **Arreglo en Postgres:** las promos con tope de usos y el listado de segmentos fallaban o dependían del orden de la base (las pruebas en Postgres estaban en rojo).
+- **Pantalla del vivo:** botón más redondeado; en un sorteo sin ganador el botón dice "REVELAR GANADOR" (busca el primero) y después queda "Repetir sorteo" para buscar los siguientes.
+- **Revelar ganador cargado:** si el ganador se carga a mano (sorteo hecho por otro medio), en la pantalla del vivo aparece el botón "REVELAR GANADOR": hace la misma animación (cuenta regresiva, números de a uno, nombre y papelitos) sin volver a sortear. Lo puede usar también el operador del vivo (ve el nombre abreviado). La duración del contador (en segundos) se puede elegir siempre, también cuando el ganador ya está cargado.
+- **Ver mis números:** botón flotante rojo, chico, abajo a la derecha que acompaña al bajar y lleva a la consulta con DNI; se saca "Mis números" del encabezado.
+- **Bases y condiciones:** queda un solo enlace (el rojo de la portada, con letra más chica) y se saca el del pie. La cláusula 4 aclara que los familiares de quienes desarrollan o administran el sitio pueden participar.
+- **Bases y condiciones en la portada:** enlace rojo al final de la portada y en el pie, que abre la página `/bases` con el texto general del sitio.
+- **Sin N° de autorización:** ya no se pide para abrir la venta ni se muestra en el sitio, en las bases ni en los emails. Para abrir la venta solo hacen falta las bases cargadas.
+- **Volver arriba:** botón flotante a la derecha que lleva al principio de la página (aparece al bajar).
+- **Ganadores anteriores:** ahora muestran el nombre del ganador (las Bases, cláusula 12, lo autorizan). Si el número ganador se anula, deja de mostrarse.
+- **Preguntas frecuentes:** nueva respuesta en "¿Cuándo y cómo es el sorteo?".
+
+### Added
+- **Arrepentimiento (Res. 424/2020)**: enlace discreto "Arrepentimiento" al pie del sitio. El comprador pone DNI y email, la respuesta es siempre la misma (no revela quién compró) y, si coincide con una compra, recibe la constancia por email; el administrador recibe un aviso. En el panel, sección **Arrepentimientos**: "Aprobar y devolver" pide la devolución a Mercado Pago, anula los números y avisa al comprador (si Mercado Pago falla no se cambia nada); "Rechazar" pide un motivo. Las compras cargadas a mano se anulan igual y el panel avisa que la plata se devuelve a mano. Migración nueva: tabla `Withdrawals`. La devolución por Mercado Pago no se pudo probar con credenciales de prueba: se verifica con una compra real chica.
+
+### Changed
+- Textos de la portada y de las preguntas frecuentes: el sorteo es "en vivo por redes sociales" y ya no se nombra solo a los 0km ("vehículo").
+
+### Added
+- **Portada más completa**: franja de beneficios (números al instante, sorteo en vivo, curso por email), lista de los cursos disponibles y preguntas frecuentes al pie (lo de participar gratis solo aparece si está habilitado). La página de compra tiene la cuenta regresiva hasta el cierre de la venta.
+
+### Changed
+- "Mis compras" ahora se llama **"Mis números"** en todos lados: menú, página, emails y dirección (`/mis-numeros`). Los links viejos (`/mis-compras`) siguen funcionando.
+
+### Changed
+- **Botones de redes con los colores originales** (Instagram degradé, YouTube rojo, Facebook azul, TikTok negro, WhatsApp verde), arriba, en el pie y en la página de links, donde cada red es un botón de su color. El WhatsApp de contacto (`REACT_APP_BRAND_WHATSAPP_CONTACT`) ahora también sale como ícono de red.
+- El logo de Zona Norte Automotores ahora se sirve desde el mismo sitio (`/zona-norte-logo.jpg`) en lugar de depender de un sitio de Netlify aparte. Para usarlo: `REACT_APP_BRAND_LOGO_URL`, `REACT_APP_BRAND_HERO_URL` y `REACT_APP_BRAND_SHARE_IMAGE` = `/zona-norte-logo.jpg`.
+
+### Added
+- **Promos y cupones por sorteo**: cada promo da una cosa —un descuento en % o chances de regalo "por cada X chances compradas" (así no es lo mismo comprar 3 que 50)— y se crean con tres botones: "+ Descuento %", "+ Chances de regalo" y "+ Código". Cada una tiene su propio interruptor, sus propias fechas, mínimo de chances y tope de usos (cuenta solo compras pagadas), y puede estar sola para todos o pedir un código que escribe el comprador. Pueden estar varias activas a la vez: un descuento y un regalo siempre se combinan, y si coinciden dos descuentos (o dos regalos) el administrador elige por sorteo si se aplica solo el mayor o se suman (el descuento total nunca pasa de 90%). Las automáticas se muestran en la página de compra; las que tienen código nunca se listan, y los intentos de probar códigos tienen un límite aparte. El total siempre lo calcula el servidor y la compra guarda una copia de las promos usadas, así editarlas o borrarlas después no cambia el historial. El tope de usos es firme: quien empieza a comprar con una oferta con tope reserva su cupo 5 minutos (el link de pago de Mercado Pago vence en ese tiempo) y, si no paga, el cupo se libera; así una oferta de 50 cupos nunca vende más de 50. La página muestra "¡Quedan N cupos!". Migraciones nuevas: tabla `Promos` y columnas en `Orders` y `Raffles`.
+- **Doble verificación del administrador** (opcional): si se carga `ADMIN_TOTP_SECRET` en Railway, además de la contraseña el panel pide el código de 6 números de una app como Google Authenticator. La clave se genera con `node scripts/two-factor-setup.js tu@mail.com`. No cambia nada para el operador del sorteo en vivo. Un código no se puede usar dos veces y los intentos fallidos quedan en el registro. Sin la variable, el ingreso sigue igual que antes. Si se pierde el celular, se borra la variable en Railway y se vuelve a generar.
+- **Vista previa al compartir el link** (Cloudflare Pages): al compartir la portada o `/sorteo/<id>` por WhatsApp, Instagram o Facebook sale título, descripción y foto. En el sorteo usa el título, el premio y la foto cargados en el panel; en el resto, la marca. Usa las variables `REACT_APP_API_URL`, `REACT_APP_BRAND_NAME`, `REACT_APP_BRAND_DESCRIPTION` y, opcional, `REACT_APP_BRAND_SHARE_IMAGE` (imagen 1200x630 para la portada). Si falla, el sitio se ve igual. En Netlify queda la vista previa genérica de `index.html`.
+- **Íconos de redes en el celular**: la portada los muestra bajo el título (antes en el celular no se veía ninguno) y todas las páginas los llevan en el pie.
+- **Medición con Meta Pixel y Google Analytics 4** (opcional): se activa con `REACT_APP_META_PIXEL_ID` y/o `REACT_APP_GA_ID`, solo después de que la persona acepta el aviso de cookies. Informa vista del sorteo, inicio de compra y compra confirmada (una vez por compra), sin datos personales (#102).
+- **Ocultar sorteos**: en la página de cada sorteo del panel hay una tarjeta "Dónde se ve este sorteo" con dos botones reversibles: ocultarlo de la lista de Angelo (el administrador lo sigue viendo, marcado, y el servidor tampoco deja sortearlo) y ocultarlo de la página de inicio pública (con el link directo sigue abriendo). No se borra nada. Migración nueva: agrega dos columnas.
+- **Habilitar o deshabilitar cada sorteo en vivo**: en "Sorteo en vivo" el administrador tiene un botón por sorteo. Los deshabilitados pasan al final de la lista, en gris y con el botón sin función, y el servidor tampoco deja sortearlos al operador. Los sorteos nuevos y los existentes arrancan habilitados (migración nueva, solo agrega una columna).
+- **Operador del sorteo en vivo**: un segundo usuario (`LIVE_EMAIL` / `LIVE_PASSWORD_HASH`, opcional) que solo puede abrir la pantalla del sorteo y sortear. No ve compradores, recaudación ni cursos, y del ganador recibe solo el nombre abreviado y los últimos 3 dígitos del DNI. Todo lo demás del panel le responde 403, y las rutas nuevas quedan cerradas para él por defecto. Sus acciones quedan en el registro con su email.
+- **Datos obligatorios para contactar al ganador**: la participación gratuita ahora pide celular (se guarda y sale en el mail de aviso del ganador) y la venta manual exige los mismos datos que la compra online (nombre, DNI, celular, email y provincia). Las participaciones anteriores quedan con el celular vacío.
+- **Segmentar compradores** (#106): campo opcional de localidad en la compra, la participación gratuita y la venta manual (migración nueva, solo agrega una columna). El cuadro del panel pasó a "Dónde compran", con selector por provincia o localidad. No se piden edad, género ni ocupación (Meta Ads ya los da). La localidad agrupa sin importar tildes ni mayúsculas. No se guarda la fecha de nacimiento. Ver docs/LEGAL.md (uso de datos).
+- **Cuadro "Dónde compran"** en la página de cada sorteo: compras, chances, recaudación, % de la plata y participaciones gratuitas por provincia. Solo cuentan compras acreditadas (#104).
+- **Entrada aparte para el sorteo en vivo** (`/admin/en-vivo`): lista los sorteos publicados sin mostrar recaudación ni datos de compradores, así se puede transmitir sin exponer el panel. El botón se abre en otra pestaña desde la lista de sorteos y salió de la página de administración de cada sorteo; "Salir" del vivo vuelve a esa entrada (#98).
+- **Editar nombre y premio del sorteo**: en la página del sorteo hay un cuadro para cambiarlos cuando quieras. No pueden quedar vacíos ni pasar de 200 letras (#96).
+- **Sorteo en vivo**: se puede elegir cuántos segundos tarda en aparecer el número completo (3 a 120, por defecto 20; se recuerda en ese navegador) y se ve una cuenta regresiva mientras gira. Ya no se muestra cuántas chances participan, y la pantalla se ajusta al alto sin scroll (#90).
+- **Sorteo en vivo más emotivo**: cuenta regresiva grande que late cada segundo (y se pone roja en los últimos 5), lluvia de papelitos de colores cuando sale el ganador, y junto al nombre abreviado se muestran los últimos 3 dígitos del DNI para que el ganador se reconozca en la transmisión (#92).
+- **Aviso del ganador al administrador**: al salir el ganador (sorteo en vivo o cargado a mano) llega un mail a `ADMIN_EMAIL` con todos los datos del formulario (nombre, DNI, email, teléfono, provincia, curso, chances y monto). Nunca frena el sorteo (#92).
+- **Portada en dos columnas con imagen destacada**: si hay imagen (`REACT_APP_BRAND_HERO_URL`), en pantallas anchas el logo queda a la izquierda y el sorteo activo (o "Se viene un nuevo sorteo") a la derecha, así se ve sin bajar. En el celular sigue en una columna (#72).
+- **Imagen destacada en la portada**: variable opcional `REACT_APP_BRAND_HERO_URL` que muestra una imagen (logo o foto) debajo del título. Sin la variable, la portada queda igual (#62).
+
+### Changed
+- **Aviso del ganador con cola**: el mail al administrador queda guardado como pendiente en la base en la misma operación que el sorteo y se reintenta (1, 5, 15, 60 y 360 minutos) si el proveedor falla o el servidor se reinicia. Requiere la migración nueva (Railway la corre sola al desplegar) (#100).
+- **Hosting del sitio**: se agrega `frontend/public/_headers` y la guía de Cloudflare Pages en `docs/DEPLOY.md`; el sitio de pruebas pasa a Cloudflare Pages porque Netlify pausó las publicaciones por créditos (#84).
+- Página de compra: los packs de chances van en una columna al costado del formulario en pantallas anchas (sin scroll propio, crece sola si se agregan más packs) y el aviso de "participar gratis" pasa al final de la página, más chico (#78, #80, #82).
+- **Elección de curso en lista desplegable**: la página de compra ya no muestra todos los cursos como tarjetas; ahora se elige de una lista que se despliega hacia abajo (con scroll), así queda prolija con muchos cursos (#52).
+- **Checkout con la API de Orders de Mercado Pago** (`POST /v1/orders`): reemplaza a la API de Preferences, que Mercado Pago marca como heredada y a la que ya no suma funciones. El aviso de pago es ahora el evento **Order** del panel de Webhooks; el servidor traduce el estado de la orden (acreditada, reintegrada, contracargo, rechazada) al que ya usaba, así que números, mails y anulaciones se comportan igual. Las compras anteriores (id de pago numérico) y los avisos de pagos se siguen entendiendo, y `MP_API=preferences` vuelve a la API anterior sin cambiar código. Requiere validar una compra de prueba en el sandbox (#16) (#48).
+
+### Fixed
+- **Repetir sorteo**: el motivo ahora pide 5 letras como mínimo (antes 10); sigue siendo obligatorio y queda registrado (#94).
+- Portada: cuando la venta cerró se muestra "La venta de este sorteo ya cerró" en lugar del botón y del link de participar gratis; mientras está abierta se ve la fecha de cierre (#88).
+- "Guardar fecha" (cierre de venta) ahora muestra "Guardando…" y "✓ Guardado" al lado del botón, igual que los requisitos legales. Además se puede cambiar la fecha y hora del sorteo desde el panel del sorteo (#86).
+- **Botón "Ver nuestras redes" con sorteo activo**: solo aparecía en el cartel "Se viene un nuevo sorteo" y desaparecía al haber un sorteo activo; ahora se muestra siempre en la portada, también en el celular (#76).
+- **Chances vendidas ocultas al público**: la portada y la página de compra ya no muestran cuántas chances se vendieron (contador y barra de progreso) y la API pública tampoco lo devuelve; el administrador lo sigue viendo en el panel. En la portada de dos columnas el logo es más grande y la tarjeta del sorteo más angosta (#74).
+- **Aviso al guardar los requisitos legales**: el botón "Guardar" guardaba, pero el mensaje salía arriba de la página y parecía que no hacía nada. Ahora el resultado ("✓ Guardado" o el error) aparece junto al botón (#70).
+- **Redes duplicadas en la portada**: se quitó la tarjeta intermedia "Seguí los sorteos en vivo", la fila del pie y la fila de bajo el título; las redes quedan arriba a la derecha (solo en pantallas anchas) y el botón "Ver nuestras redes" lleva a todas (#64, #66, #68).
+- **Guía de despliegue**: el servicio de mails también debe configurarse a mano en Railway (no aplica `railway.worker.json`), y los respaldos ahora tienen paso a paso: copias automáticas, un script de copia propia (`scripts/respaldo.sh`), cómo restaurar y cómo probar que sirven (#58).
+- **Nombres de PDF con tildes**: al subir un curso con un archivo como "Cómo empezar.pdf" el nombre se guardaba roto ("CÃ³mo") y se veía así en el panel y en la descarga. Ahora se guarda bien y los cursos ya cargados se leen corregidos (#54).
+- **Despliegue en Railway**: la guía decía que Railway toma `backend/railway.json`, pero no lo aplica en servicios nuevos. Ahora indica cargar el Pre-deploy Command `npm run migrate` en *Settings → Deploy* y se corrige el nombre del remitente de ejemplo a "Zona Norte Automotores" (#50).
+
+### Added
+- **Marca del cliente por variables de Netlify**: nombre, textos, color principal, redes y logo se pueden cargar con variables `REACT_APP_BRAND_*`, sin tocar el código ni subir datos del cliente al repositorio (#60).
+- **Control contra credenciales de prueba en producción**: las credenciales de prueba de Mercado Pago empiezan con `APP_USR-` igual que las reales, y el control de arranque solo reconocía `TEST-`. Ahora, al crear el checkout, si Mercado Pago devuelve una orden de prueba y `ALLOW_MP_TEST` no está en `true`, la compra se rechaza antes de mandar al comprador a pagar (#56).
+- **Email por API de Resend** (`RESEND_API_KEY`): los mails salen por HTTPS y funcionan en cualquier plan de hosting (Railway bloquea el SMTP fuera del plan Pro). El SMTP queda como alternativa; un 429 o 5xx del proveedor hace que la cola reintente (#46).
+- **Mis números con DNI**: el comprador ve sus números ingresando solo el DNI, sin contraseña ni mail (compras acreditadas y participación gratuita confirmada). Muestra el nombre abreviado; descargar el curso pide además el email de la compra. Límite por IP y por DNI, captcha y respuestas iguales exista o no el DNI (#44).
+- Provincias excluidas por sorteo (#42): al comprar y al participar gratis se pide la provincia (las 24 jurisdicciones) y quien está en una provincia excluida no puede hacerlo, con un mensaje claro y sin dejar rastro en la base. Por defecto quedan excluidas Mendoza, Formosa, Jujuy, Neuquén, Salta, Río Negro y Tierra del Fuego, que tienen reglas propias para sorteos promocionales, hasta que el abogado del cliente resuelva el trámite de cada una. Se edita desde el panel, y la página pública y las bases informan dónde no está disponible.
+- Requisitos legales antes de vender (#42): no se puede abrir (ni reabrir) la venta sin N° de autorización y sin bases y condiciones cargadas. El panel tiene una sección "Requisitos legales y provincias" para cargarlos, y el botón de publicar se deshabilita con el motivo.
+- Aviso en la compra y en las bases: "Esta compra se realiza en [lugar], lugar habilitado para este sorteo (autorización N° …)". Se muestra si el organizador completa `location` en `frontend/src/brand.js`; el texto lo tiene que confirmar el abogado del cliente.
+- `docs/LEGAL.md`: qué revisar antes de vender (reglas nacionales, provincias con régimen propio, lo que no se pudo confirmar, lista para el abogado) y un borrador de bases con campos para completar.
+- Migración `20260701000000-provincias-y-requisitos-legales`: agrega columnas, no modifica datos existentes.
+
 ## [0.4.0] - 2026-11-18
 
 Base lista para producción: migraciones, alertas, envío de emails y exportación que escalan, y guía de deploy.
@@ -74,7 +155,7 @@ El comprador elige un curso y un pack de chances; los números se asignan solos 
 - Envío con patrón outbox: reintentos con espera creciente y estado del envío en cada compra.
 - Reenvío del email desde el panel, opcionalmente a una dirección corregida.
 - Botón "Descargar el curso" en la página de la compra, que genera un link nuevo cada vez.
-- Página "Mis compras" con acceso por link mágico: el comprador pone su email, recibe un link que vence en 30 minutos y ve sus números, comprobantes y cursos (#8).
+- Página "Mis números" con acceso por link mágico: el comprador pone su email, recibe un link que vence en 30 minutos y ve sus números, comprobantes y cursos (#8).
 - `POST /api/my-purchases/link` y `GET /api/my-purchases`, con respuesta idéntica exista o no el email, límite por IP y por email, y token de propósito único.
 
 ### Changed

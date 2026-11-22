@@ -47,6 +47,37 @@ const db = {
 };
 
 class Err { constructor(status, body) { this.status = status; this.body = body; } }
+
+// ---- Provincias (demo): mismo comportamiento que backend/src/services/provinces.js ----
+const PROVINCES = [
+  ['A', 'Salta'], ['B', 'Buenos Aires'], ['C', 'Ciudad Autónoma de Buenos Aires'], ['D', 'San Luis'], ['E', 'Entre Ríos'], ['F', 'La Rioja'],
+  ['G', 'Santiago del Estero'], ['H', 'Chaco'], ['J', 'San Juan'], ['K', 'Catamarca'], ['L', 'La Pampa'], ['M', 'Mendoza'], ['N', 'Misiones'],
+  ['P', 'Formosa'], ['Q', 'Neuquén'], ['R', 'Río Negro'], ['S', 'Santa Fe'], ['T', 'Tucumán'], ['U', 'Chubut'], ['V', 'Tierra del Fuego'],
+  ['W', 'Corrientes'], ['X', 'Córdoba'], ['Y', 'Jujuy'], ['Z', 'Santa Cruz'],
+].map(([code, name]) => ({ code, name })).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+const DEFAULT_EXCLUDED = ['M', 'P', 'Y', 'Q', 'A', 'R', 'V'];
+const provinceName = (code) => PROVINCES.find((p) => p.code === code)?.name;
+const cleanProvince = (v) => {
+  const code = String(v || '').trim().toUpperCase();
+  if (!code) throw new Err(400, { error: 'Elegí tu provincia' });
+  if (!provinceName(code)) throw new Err(400, { error: 'La provincia no es válida' });
+  return code;
+};
+const assertProvince = (r, code) => {
+  if ((r.excludedProvinces || []).includes(code)) throw new Err(409, { error: `Por el momento este sorteo no está disponible en ${provinceName(code)}`, code: 'province_excluded' });
+};
+const cleanExcluded = (v) => {
+  const codes = [...new Set((Array.isArray(v) ? v : String(v || '').split(',')).map((c) => String(c).trim().toUpperCase()).filter(Boolean))];
+  const bad = codes.filter((c) => !provinceName(c));
+  if (bad.length) throw new Err(400, { error: `Provincia desconocida: ${bad.join(', ')}` });
+  return codes;
+};
+db.raffles.forEach((r) => { r.excludedProvinces = [...DEFAULT_EXCLUDED]; });
+
+// Antes de abrir la venta: bases cargadas (mismas reglas que backend/src/services/sales.js)
+const missingBeforeOpening = (r) => [
+  ...(String(r.terms || '').trim().length >= 100 ? [] : ['las bases y condiciones']),
+];
 const raffleOr404 = (id) => { const r = db.raffles.find((x) => String(x.id) === String(id)); if (!r) throw new Err(404, { error: 'Sorteo no encontrado' }); return r; };
 const orderOr404 = (id) => { const o = db.orders.find((x) => x.id === id); if (!o) throw new Err(404, { error: 'Compra no encontrada' }); return o; };
 
@@ -130,7 +161,7 @@ const chancesSold = (raffleId) => db.chances.filter((c) => c.raffleId === raffle
 const pub = (r) => {
   const { createdAt, nextNumber, ...rest } = r;
   const prices = packConfig(r.id).packs.map((p) => p.price);
-  return { ...rest, salesOpen: salesOpen(r), chancesSold: chancesSold(r.id), fromPrice: prices.length ? Math.min(...prices) : null };
+  return { ...rest, salesOpen: salesOpen(r), fromPrice: prices.length ? Math.min(...prices) : null };
 };
 
 // ---- Datos de ejemplo ----
@@ -191,7 +222,7 @@ function redrawReason(r, reason) {
   if (r.status !== 'drawn') return null;
   const t = String(reason || '').trim();
   if (!t) throw new Err(409, { error: 'Ya hay un ganador. Para repetir el sorteo indicá el motivo.' });
-  if (t.length < 10) throw new Err(400, { error: 'El motivo es muy corto: explicá por qué se repite el sorteo' });
+  if (t.length < 5) throw new Err(400, { error: 'El motivo es muy corto: explicá por qué se repite el sorteo' });
   return t;
 }
 function finishDraw(r, c, { method, reason, validCount = null, position = null }) {
@@ -209,7 +240,8 @@ function finishDraw(r, c, { method, reason, validCount = null, position = null }
 }
 
 const routes = [
-  ['GET', /^\/raffles$/, () => db.raffles.filter((r) => r.status !== 'draft').sort((a, b) => b.drawDate.localeCompare(a.drawDate)).map(pub)],
+  ['GET', /^\/provinces$/, () => PROVINCES],
+  ['GET', /^\/raffles$/, () => db.raffles.filter((r) => r.status !== 'draft' && !r.publicHidden).sort((a, b) => b.drawDate.localeCompare(a.drawDate)).map(pub)],
   ['GET', /^\/raffles\/(\d+)$/, ([id]) => { const r = raffleOr404(id); if (r.status === 'draft') throw new Err(404, { error: 'Sorteo no encontrado' }); return pub(r); }],
   ['GET', /^\/raffles\/(\d+)\/packs$/, ([id]) => {
     const r = raffleOr404(id);
@@ -225,11 +257,13 @@ const routes = [
     if (String(buyer.phone || '').replace(/\D/g, '').length < 8) throw new Err(400, { error: 'El teléfono no es válido' });
     const dni = String(buyer.dni || '').replace(/\D/g, '');
     if (dni.length < 7 || dni.length > 8) throw new Err(400, { error: 'El DNI no es válido' });
+    const province = cleanProvince(buyer.province);
     const course = db.courses.find((c) => c.id === Number(b.courseId) && c.active);
     if (!course) throw new Err(400, { error: 'Elegí un curso' });
     const q = quoteFor(id, b);
+    assertProvince(raffleOr404(id), province);
     const o = {
-      id: crypto.randomUUID(), RaffleId: Number(id), buyerName: buyer.name.trim(), buyerEmail: buyer.email.trim().toLowerCase(), buyerPhone: buyer.phone, buyerDni: dni,
+      id: crypto.randomUUID(), RaffleId: Number(id), buyerName: buyer.name.trim(), buyerEmail: buyer.email.trim().toLowerCase(), buyerPhone: buyer.phone, buyerDni: dni, buyerProvince: province,
       PackId: q.packId, double: q.double, chances: q.chances, amount: q.total.toFixed(2), CourseId: course.id, courseTitle: course.title,
       status: 'pending', firstNumber: null, lastNumber: null, emailStatus: 'none', createdAt: iso(),
     };
@@ -246,11 +280,42 @@ const routes = [
     if (!['approved', 'manual'].includes(o.status)) throw new Err(409, { error: 'La compra todavía no está acreditada' });
     throw new Err(400, { error: 'En la demo no hay archivos reales para descargar. En la versión real se descarga el PDF.' });
   }],
-  // "Mis compras": en la demo no se manda email, el link se abre desde la propia pantalla
+  // Arrepentimiento: en la demo solo responde que lo recibió
+  ['POST', /^\/withdrawals$/, (_, b) => {
+    const dni = String(b.dni || '').replace(/\D/g, '');
+    if (dni.length < 7 || dni.length > 8) throw new Err(400, { error: 'El DNI no es válido' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(b.email || '').trim())) throw new Err(400, { error: 'El email no es válido' });
+    return { ok: true };
+  }],
+  ['GET', /^\/admin\/withdrawals$/, () => []],
+  // "Mis números": en la demo no se manda email, el link se abre desde la propia pantalla
   ['POST', /^\/my-purchases\/link$/, (_, b) => {
     const email = String(b.email || '').trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new Err(400, { error: 'Ingresá un email válido' });
     return { ok: true, demoToken: `demo:${email}` };
+  }],
+  // "Mis números" con DNI: solo números; descargar pide además el email (en la demo no hay PDF real)
+  ['POST', /^\/my-purchases\/by-dni$/, (_, b) => {
+    const dni = String(b.dni || '').replace(/\D/g, '');
+    if (dni.length < 7 || dni.length > 8) throw new Err(400, { error: 'El DNI no es válido' });
+    const info = (r) => r && { id: r.id, title: r.title, prize: r.prize, drawDate: r.drawDate, youtubeUrl: r.youtubeUrl };
+    const orders = db.orders.filter((o) => ['approved', 'manual'].includes(o.status) && o.buyerDni === dni);
+    const free = db.freeEntries.filter((f) => f.dni === dni && f.status === 'confirmed');
+    const first = orders[0]?.buyerName || free[0]?.name || '';
+    const parts = first.trim().split(/\s+/).filter(Boolean);
+    return {
+      name: parts.length > 1 ? `${parts[0]} ${parts[1][0].toUpperCase()}.` : parts[0] || '',
+      purchases: orders.map((o) => ({
+        id: o.id, createdAt: o.createdAt, courseTitle: o.courseTitle, hasCourse: true, chances: o.chances, double: o.double,
+        firstNumber: o.firstNumber, lastNumber: o.lastNumber, amount: o.amount, raffle: info(raffleOr404(o.RaffleId)),
+      })),
+      freeEntries: free.map((f) => ({ id: f.id, number: f.number, createdAt: f.createdAt, raffle: info(raffleOr404(f.RaffleId)) })),
+    };
+  }],
+  ['POST', /^\/my-purchases\/download$/, (_, b) => {
+    const o = db.orders.find((x) => x.id === b.orderId && x.buyerDni === String(b.dni || '').replace(/\D/g, '') && String(x.buyerEmail).toLowerCase() === String(b.email || '').trim().toLowerCase());
+    if (!o) throw new Err(404, { error: 'No encontramos una compra con esos datos. Revisá el email con el que compraste.' });
+    throw new Err(400, { error: 'En la demo no hay archivos reales para descargar. En la versión real se descarga el PDF.' });
   }],
   ['GET', /^\/my-purchases$/, (_, __, ___, headers) => {
     const token = String(headers.Authorization || '').replace(/^Bearer /, '');
@@ -277,10 +342,13 @@ const routes = [
     if (String(b.name || '').trim().length < 3) throw new Err(400, { error: 'Ingresá tu nombre completo' });
     if (dni.length < 7 || dni.length > 8) throw new Err(400, { error: 'El DNI no es válido' });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(b.email || '').trim())) throw new Err(400, { error: 'Ingresá un email válido' });
+    if (String(b.phone || '').replace(/\D/g, '').length < 8) throw new Err(400, { error: 'El teléfono no es válido' });
+    const province = cleanProvince(b.province);
+    assertProvince(r, province);
     const existing = db.freeEntries.find((f) => f.RaffleId === r.id && f.dni === dni);
     if (existing && existing.status !== 'unconfirmed') throw new Err(409, { error: 'Ese DNI ya está participando en este sorteo' });
     const token = `demo-${Math.random().toString(36).slice(2)}`;
-    const fields = { name: String(b.name).trim(), dni, email: String(b.email).trim().toLowerCase(), token, status: 'unconfirmed' };
+    const fields = { name: String(b.name).trim(), dni, phone: String(b.phone).trim(), province, email: String(b.email).trim().toLowerCase(), token, status: 'unconfirmed' };
     if (existing) Object.assign(existing, fields);
     else db.freeEntries.unshift({ id: `fe-${db.freeEntries.length + 1}`, RaffleId: r.id, number: null, createdAt: iso(), ...fields });
     return { ok: true, demoToken: token };
@@ -371,7 +439,7 @@ const routes = [
   ['GET', /^\/admin\/raffles$/, () => [...db.raffles].sort((a, b) => b.createdAt.localeCompare(a.createdAt))],
   ['POST', /^\/admin\/raffles$/, (_, b) => {
     if (!String(b.title || '').trim() || !String(b.prize || '').trim()) throw new Err(400, { error: 'El título y el premio son obligatorios' });
-    const r = { ...b, id: nextRaffleId++, chancesGoal: b.chancesGoal || null, nextNumber: 100000, status: 'draft', winnerNumber: null, createdAt: iso() };
+    const r = { ...b, id: nextRaffleId++, chancesGoal: b.chancesGoal || null, nextNumber: 100000, status: 'draft', winnerNumber: null, createdAt: iso(), excludedProvinces: 'excludedProvinces' in b ? cleanExcluded(b.excludedProvinces) : [...DEFAULT_EXCLUDED] };
     db.raffles.push(r);
     packConfig(r.id);
     return r;
@@ -380,7 +448,12 @@ const routes = [
     if (b.status && !['draft', 'active', 'closed'].includes(b.status)) throw new Err(400, { error: 'Estado inválido' });
     if (b.status && raffleOr404(id).status === 'drawn') throw new Err(409, { error: 'El sorteo ya se realizó: no se puede cambiar el estado de la venta' });
     if (b.salesCloseAt && Number.isNaN(Date.parse(b.salesCloseAt))) throw new Err(400, { error: 'La fecha de cierre no es válida' });
-    const changed = Object.keys(b).filter((k) => ['status', 'salesCloseAt', 'freeEntryEnabled', 'drawDate', 'chancesGoal'].includes(k)).map((k) => `${k}=${b[k]}`).join(', ');
+    if ('excludedProvinces' in b) b = { ...b, excludedProvinces: cleanExcluded(b.excludedProvinces) };
+    if (b.status === 'active') {
+      const missing = missingBeforeOpening({ ...raffleOr404(id), ...b });
+      if (missing.length) throw new Err(409, { error: `Para abrir la venta falta cargar ${missing.join(' y ')}`, code: 'legal_missing', missing });
+    }
+    const changed = Object.keys(b).filter((k) => ['status', 'salesCloseAt', 'freeEntryEnabled', 'liveEnabled', 'liveHidden', 'publicHidden', 'drawDate', 'chancesGoal', 'permitNumber', 'excludedProvinces'].includes(k)).map((k) => `${k}=${b[k]}`).join(', ');
     logAudit('raffle.update', Number(id), changed || Object.keys(b).join(', '));
     return Object.assign(raffleOr404(id), b, 'salesCloseAt' in b ? { salesCloseAt: b.salesCloseAt || null } : {});
   }],
@@ -413,6 +486,14 @@ const routes = [
     if (!c) throw new Err(400, { error: 'Ese número no fue asignado en este sorteo' });
     if (c.status === 'void') throw new Err(409, { error: 'Ese número está anulado (compra reintegrada): sorteá de nuevo' });
     return finishDraw(r, c, { method: 'manual', reason: why });
+  }],
+  ['GET', /^\/admin\/raffles\/(\d+)\/winner$/, ([id]) => {
+    const r = raffleOr404(id);
+    const c = r.winnerNumber != null && db.chances.find((x) => x.raffleId === r.id && x.number === r.winnerNumber);
+    if (r.status !== 'drawn' || !c) throw new Err(409, { error: 'Todavía no hay un ganador cargado' });
+    if (c.freeEntryId) { const f = db.freeEntries.find((x) => x.id === c.freeEntryId); return { number: c.number, winner: { name: f.name, dni: f.dni, source: 'free' } }; }
+    const o = orderOr404(c.orderId);
+    return { number: c.number, winner: { name: o.buyerName, dni: o.buyerDni, source: 'purchase' } };
   }],
   ['POST', /^\/admin\/raffles\/(\d+)\/draw$/, ([id], b) => {
     const r = raffleOr404(id);
@@ -465,8 +546,11 @@ const routes = [
     const dni = String(b.buyer?.dni || '').replace(/\D/g, '');
     if (String(b.buyer?.name || '').trim().length < 3) throw new Err(400, { error: 'Falta el nombre del comprador' });
     if (dni.length < 7 || dni.length > 8) throw new Err(400, { error: 'El DNI no es válido' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(b.buyer?.email || '').trim())) throw new Err(400, { error: 'Falta un email válido del comprador' });
+    if (String(b.buyer?.phone || '').replace(/\D/g, '').length < 8) throw new Err(400, { error: 'Falta un teléfono válido del comprador' });
+    if (!b.buyer?.province) throw new Err(400, { error: 'Falta la provincia del comprador' });
     const o = {
-      id: crypto.randomUUID(), RaffleId: r.id, buyerName: b.buyer.name.trim(), buyerEmail: b.buyer.email || '-', buyerPhone: b.buyer.phone || '-', buyerDni: dni,
+      id: crypto.randomUUID(), RaffleId: r.id, buyerName: b.buyer.name.trim(), buyerEmail: b.buyer.email.trim().toLowerCase(), buyerPhone: b.buyer.phone, buyerDni: dni, buyerProvince: cleanProvince(b.buyer.province),
       chances: b.chances, double: false, amount: Number(b.amount || 0).toFixed(2), CourseId: course.id, courseTitle: course.title, status: 'manual', createdAt: iso(),
       emailStatus: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(b.buyer.email || '') ? 'sent' : 'none',
     };

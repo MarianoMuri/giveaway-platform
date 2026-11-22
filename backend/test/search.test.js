@@ -19,7 +19,7 @@ const numbers = require('../src/services/numbers');
 const { voidNumbers } = numbers;
 
 const payments = {};
-mp.createPreference = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/checkout/${order.id}` });
+mp.createCheckout = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/checkout/${order.id}` });
 mp.getPayment = async (id) => payments[id];
 function webhook(paymentId) {
   const ts = String(Date.now());
@@ -34,7 +34,7 @@ let ana, luis, free, mpOrder; // datos sembrados
 
 const search = (q, id = raffleId) => request(app).get(`/api/admin/raffles/${id}/search`).query({ q }).set(auth);
 const manual = (name, dni, email, chances = 5) =>
-  request(app).post('/api/admin/orders/manual').set(auth).send({ raffleId, chances, courseId, amount: 15000, buyer: { name, dni, email, phone: '2914000000' } });
+  request(app).post('/api/admin/orders/manual').set(auth).send({ raffleId, chances, courseId, amount: 15000, buyer: { name, dni, email, phone: '2914000000', province: 'B' } });
 
 async function freeEntry(rId, { name, dni, email, status = 'confirmed' }) {
   return sequelize.transaction(async (t) => {
@@ -51,7 +51,7 @@ test.before(async () => {
   auth = { Authorization: `Bearer ${login.body.token}` };
   const mk = async () => {
     const r = await request(app).post('/api/admin/raffles').set(auth).send({ title: 'Sorteo', prize: 'Onix' });
-    await request(app).patch(`/api/admin/raffles/${r.body.id}`).set(auth).send({ status: 'active' });
+    await request(app).patch(`/api/admin/raffles/${r.body.id}`).set(auth).send({ status: 'active', permitNumber: 'TEST-1', terms: 'x'.repeat(120) });
     return r.body.id;
   };
   raffleId = await mk();
@@ -64,7 +64,7 @@ test.before(async () => {
   ana = (await manual('Ana Gómez', '30111222', 'ana@test.com')).body; // 100000-100004
   luis = (await manual('Luis Díaz', '28999888', 'luis.diaz@gmail.com')).body; // 100005-100009
   await manual('Ana Gómez', '30111222', 'ana@test.com', 2); // segunda compra de Ana: 100010-100011
-  const { orderId } = await createPurchase({ raffleId, packId, courseId, buyer: { name: 'Carla Ruiz', email: 'carla@test.com', phone: '2915555555', dni: '33444555' } });
+  const { orderId } = await createPurchase({ raffleId, packId, courseId, buyer: { name: 'Carla Ruiz', email: 'carla@test.com', phone: '2915555555', dni: '33444555', province: 'B' } });
   const o = await Order.findByPk(orderId);
   payments['777001'] = { id: '777001', status: 'approved', statusDetail: 'accredited', externalReference: orderId, amount: Number(o.amount) };
   await webhook('777001');
@@ -72,7 +72,7 @@ test.before(async () => {
   free = await freeEntry(raffleId, { name: 'Marta Ruiz', dni: '27111222', email: 'marta@test.com' }); // 100017
   await freeEntry(raffleId, { name: 'Pendiente Sinconfirmar', dni: '26111222', email: 'pend@test.com', status: 'unconfirmed' });
   await manual('Otra Persona', '30111222', 'otra@test.com', 1);
-  await request(app).post('/api/admin/orders/manual').set(auth).send({ raffleId: otherRaffleId, chances: 1, courseId, amount: 1000, buyer: { name: 'Ana Gómez', dni: '30111222', email: 'ana@test.com' } });
+  await request(app).post('/api/admin/orders/manual').set(auth).send({ raffleId: otherRaffleId, chances: 1, courseId, amount: 1000, buyer: { name: 'Ana Gómez', dni: '30111222', email: 'ana@test.com', phone: '2914000000', province: 'B' } });
 });
 test.after(() => fs.rmSync(process.env.STORAGE_DIR, { recursive: true, force: true }));
 

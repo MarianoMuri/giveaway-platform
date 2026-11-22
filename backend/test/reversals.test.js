@@ -19,7 +19,7 @@ const { createPurchase } = require('../src/services/purchases');
 // ---- Mercado Pago simulado: un pago puede cambiar de estado después (reintegro, contracargo) ----
 const payments = {};
 let seq = 0;
-mp.createPreference = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/checkout/${order.id}` });
+mp.createCheckout = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/checkout/${order.id}` });
 mp.getPayment = async (id) => payments[id];
 
 function pay(order, { status = 'approved', amount = Number(order.amount) } = {}) {
@@ -40,7 +40,7 @@ function webhook(paymentId) {
     .send({ type: 'payment', data: { id: paymentId } });
 }
 
-const buyer = { name: 'Juan Pérez', email: 'juan@test.com', phone: '2915555555', dni: '30111222' };
+const buyer = { name: 'Juan Pérez', email: 'juan@test.com', phone: '2915555555', dni: '30111222', province: 'B' };
 let auth, raffleId, courseId, packs;
 
 test.before(async () => {
@@ -49,7 +49,7 @@ test.before(async () => {
   auth = { Authorization: `Bearer ${login.body.token}` };
   const r = await request(app).post('/api/admin/raffles').set(auth).send({ title: 'Sorteo Onix', prize: 'Onix 0km' });
   raffleId = r.body.id;
-  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active' });
+  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active', permitNumber: 'TEST-1', terms: 'x'.repeat(120) });
   const c = await request(app).post('/api/admin/courses').set(auth)
     .field('title', 'Cocina básica').attach('pdf', Buffer.from('%PDF-1.4\n%%EOF'), 'cocina.pdf');
   courseId = c.body.id;
@@ -164,7 +164,7 @@ test('las compras anuladas no cuentan en ventas ni recaudación, y el panel las 
   assert.equal(after.revenue, before.revenue);
   assert.equal(after.reversed, before.reversed + 1);
   const pub = await request(app).get(`/api/raffles/${raffleId}`);
-  assert.equal(pub.body.chancesSold, before.chancesSold);
+  assert.equal(pub.body.chancesSold, undefined); // el público no ve las vendidas
 });
 
 test('la exportación CSV incluye las compras anuladas con su estado', async () => {

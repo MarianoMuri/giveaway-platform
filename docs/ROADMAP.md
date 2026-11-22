@@ -18,7 +18,7 @@ Sprints de 1 semana. Cada ítem es un issue en GitHub, agrupado en un milestone.
 - [x] #5 Números consecutivos asignados al confirmarse el pago
 - [x] #6 Nueva página de compra: curso + pack (reemplaza la grilla de números del Sprint 0)
 - [x] #7 Email de confirmación con números y descarga del curso
-- [x] #8 Página "Mis compras" con acceso por link mágico
+- [x] #8 Página "Mis números" con acceso por link mágico
 
 ## Sprint 2 · Participación gratuita, control y sorteo — `v0.3.0`
 
@@ -33,6 +33,10 @@ Sprints de 1 semana. Cada ítem es un issue en GitHub, agrupado en un milestone.
 - [x] #13 Migraciones de base de datos con `sequelize-cli`
 - [ ] #14 Deploy en Railway y Netlify con dominio propio
 - [x] #15 Alerta de conexión con Mercado Pago en el panel
+- [x] #48 Checkout con la API de Orders de Mercado Pago (reemplaza a Preferences)
 - [ ] #16 Pruebas end-to-end con credenciales de prueba de Mercado Pago
 - [x] #22 Envío de emails en lotes para alto volumen
 - [x] #34 Exportación a Excel en streaming para sorteos grandes
+- [ ] #42 Provincias excluidas y requisitos legales antes de abrir la venta
+- [x] #44 "Mis números" con DNI, sin depender del mail
+- [x] #46 Email por API HTTPS de Resend

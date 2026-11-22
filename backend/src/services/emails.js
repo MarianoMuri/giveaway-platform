@@ -4,6 +4,7 @@ const { Order, Raffle } = require('../db');
 const { mailer } = require('./mailer');
 const { purchaseConfirmation } = require('./emailTemplates');
 const courses = require('./courses');
+const winnerAlert = require('./winnerAlert');
 const { createLimiter } = require('./rateLimiter');
 
 /**
@@ -154,6 +155,7 @@ function startWorker() {
     running = true;
     try {
       const s = await drain();
+      await winnerAlert.processPending(); // avisos de ganador pendientes (reintentos)
       if (s.sent + s.retry + s.failed) console.log(`[mail] lote: ${s.sent} enviados, ${s.retry} a reintentar, ${s.failed} fallidos`);
     } catch (e) {
       console.error('[mail] worker', e);

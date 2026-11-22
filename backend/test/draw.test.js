@@ -19,7 +19,7 @@ const numbers = require('../src/services/numbers');
 
 const payments = {};
 let seq = 0;
-mp.createPreference = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/checkout/${order.id}` });
+mp.createCheckout = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/checkout/${order.id}` });
 mp.getPayment = async (id) => payments[id];
 function webhook(paymentId) {
   const ts = String(Date.now());
@@ -33,7 +33,7 @@ let auth, raffleId, courseId, packId;
 const post = (url, body = {}) => request(app).post(url).set(auth).send(body);
 const drawNow = (body) => post(`/api/admin/raffles/${raffleId}/draw`, body);
 const manual = (name, dni, chances = 5) =>
-  post('/api/admin/orders/manual', { raffleId, chances, courseId, amount: 15000, buyer: { name, dni, email: `${dni}@test.com`, phone: '2914000000' } });
+  post('/api/admin/orders/manual', { raffleId, chances, courseId, amount: 15000, buyer: { name, dni, email: `${dni}@test.com`, phone: '2914000000', province: 'B' } });
 
 // Cada test arranca con la lista vacía: se anulan las chances anteriores y el sorteo queda cerrado y sin ganador
 async function fresh() {
@@ -62,7 +62,7 @@ test.before(async () => {
   auth = { Authorization: `Bearer ${login.body.token}` };
   const r = await request(app).post('/api/admin/raffles').set(auth).send({ title: 'Sorteo', prize: 'Onix' });
   raffleId = r.body.id;
-  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active' });
+  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active', permitNumber: 'TEST-1', terms: 'x'.repeat(120) });
   const c = await request(app).post('/api/admin/courses').set(auth)
     .field('title', 'Cocina').attach('pdf', Buffer.from('%PDF-1.4\n%%EOF'), 'c.pdf');
   courseId = c.body.id;
@@ -118,7 +118,9 @@ test('queda verificable: población, posición y quién lo hizo; el generador es
   assert.equal(res.body.number, valid[7]);
   const row = await Draw.findOne({ where: { RaffleId: raffleId } });
   assert.deepEqual([row.number, row.method, row.validCount, row.position, row.actor], [valid[7], 'random', 10, 7, 'admin@test']);
-  assert.equal((await request(app).get(`/api/raffles/${raffleId}`)).body.winnerNumber, valid[7]);
+  const pub = (await request(app).get(`/api/raffles/${raffleId}`)).body;
+  assert.equal(pub.winnerNumber, valid[7]);
+  assert.equal(pub.winnerName, 'Beto'); // el número 7 de 10 cae en las chances de Beto
 });
 
 test('repetir el sorteo exige un motivo y conserva el historial', async () => {
@@ -129,7 +131,7 @@ test('repetir el sorteo exige un motivo y conserva el historial', async () => {
   const none = await drawNow();
   assert.equal(none.status, 409);
   assert.match(none.body.error, /motivo/);
-  assert.equal((await drawNow({ reason: 'corto' })).status, 400);
+  assert.equal((await drawNow({ reason: 'ok' })).status, 400);
   const again = await drawNow({ reason: 'El ganador no respondió en 48 horas' });
   assert.equal(again.status, 200);
   const list = (await request(app).get(`/api/admin/raffles/${raffleId}/draws`).set(auth)).body;
@@ -156,7 +158,7 @@ test('la carga manual del ganador también exige motivo para repetir y queda reg
 
 test('si el número elegido resulta anulado al verificar el pago, se descarta y se vuelve a sortear', async () => {
   await fresh();
-  const buyer = (name, dni) => ({ name, email: `${dni}@test.com`, phone: '2915555555', dni });
+  const buyer = (name, dni) => ({ name, email: `${dni}@test.com`, phone: '2915555555', dni, province: 'B' });
   const paid = async (name, dni) => {
     const { orderId } = await createPurchase({ raffleId, packId, courseId, buyer: buyer(name, dni) });
     const order = await Order.findByPk(orderId);
@@ -217,4 +219,18 @@ test('el registro es de solo lectura, exige sesión y se puede filtrar', async (
   const only = (await request(app).get('/api/admin/audit?raffleId=9999').set(auth)).body;
   assert.deepEqual(only.map((l) => l.actor), ['otro@test']);
   assert.ok((await request(app).get('/api/admin/audit?limit=1').set(auth)).body.length <= 1);
+});
+
+
+test('mostrar el ganador ya cargado: solo lectura, sin ganador da 409 y el operador del vivo recibe datos abreviados', async () => {
+  await Raffle.update({ status: 'closed', winnerNumber: null }, { where: { id: raffleId } });
+  assert.equal((await request(app).get(`/api/admin/raffles/${raffleId}/winner`).set(auth)).status, 409);
+  const valid = (await Chance.findAll({ where: { RaffleId: raffleId, status: 'valid' }, order: [['number', 'ASC']] })).map((c) => c.number);
+  assert.equal((await request(app).post(`/api/admin/raffles/${raffleId}/winner`).set(auth).send({ number: valid[0] })).status, 200);
+  const res = await request(app).get(`/api/admin/raffles/${raffleId}/winner`).set(auth);
+  assert.equal(res.status, 200);
+  assert.equal(res.body.number, valid[0]);
+  assert.ok(res.body.winner.name && res.body.winner.dni);
+  assert.equal(res.body.winner.email, undefined); // no se expone email ni teléfono
+  assert.equal((await Raffle.findByPk(raffleId)).winnerNumber, valid[0]); // no cambia nada
 });

@@ -1,5 +1,7 @@
 const { Sequelize, DataTypes } = require('sequelize');
 const config = require('./config');
+const { DEFAULT_EXCLUDED, parseCodes } = require('./services/provinces');
+const { fixFilename } = require('./services/filename');
 
 const sequelize = config.databaseUrl
   ? new Sequelize(config.databaseUrl, { logging: false })
@@ -18,6 +20,15 @@ const Raffle = sequelize.define('Raffle', {
   youtubeUrl: DataTypes.STRING,
   permitNumber: DataTypes.STRING, // N° de autorización de la lotería provincial
   terms: DataTypes.TEXT, // bases y condiciones
+  // Provincias donde el sorteo no se ofrece (códigos ISO, ej. "M,Q"). Por defecto, las que tienen régimen
+  // propio para sorteos promocionales hasta que el trámite de cada una esté resuelto.
+  excludedProvinces: {
+    type: DataTypes.TEXT,
+    allowNull: false,
+    defaultValue: DEFAULT_EXCLUDED.join(','),
+    get() { return parseCodes(this.getDataValue('excludedProvinces')); },
+    set(v) { this.setDataValue('excludedProvinces', parseCodes(v).join(',')); },
+  },
   status: {
     type: DataTypes.ENUM('draft', 'active', 'closed', 'drawn'),
     defaultValue: 'draft',
@@ -25,9 +36,14 @@ const Raffle = sequelize.define('Raffle', {
   winnerNumber: DataTypes.INTEGER,
   // Modalidad "sin obligación de compra": cualquiera puede sumarse gratis con 1 número por DNI
   freeEntryEnabled: { type: DataTypes.BOOLEAN, defaultValue: true },
+  liveHidden: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false }, // oculto de la lista del operador en vivo
+  publicHidden: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false }, // oculto de la página de inicio
+  liveEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true }, // botón de "Sorteo en vivo" habilitado
   // Oferta "Duplicá tus chances": se suma este precio por cada chance extra
   doubleEnabled: { type: DataTypes.BOOLEAN, defaultValue: false },
   doublePricePerChance: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  // Varias promos en una compra: 'best' aplica la mayor, 'sum' las suma
+  promoMode: { type: DataTypes.STRING(8), allowNull: false, defaultValue: 'best' },
   // Contador de números del sorteo: solo avanza (los anulados no se reutilizan)
   nextNumber: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 100000 },
 });
@@ -40,12 +56,31 @@ const Pack = sequelize.define('Pack', {
   doubleEligible: { type: DataTypes.BOOLEAN, defaultValue: true }, // muestra la oferta "Duplicá" en este pack
 });
 
+// Promos de un sorteo: cada una da un descuento en % o chances de regalo ("X por cada Y"). Con código (el comprador lo escribe) o
+// automáticas. El administrador las enciende y apaga; las fechas y el tope de usos son opcionales.
+const Promo = sequelize.define('Promo', {
+  name: { type: DataTypes.STRING(80), allowNull: false },
+  percent: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 }, // % de descuento (0 = sin descuento)
+  bonus: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 }, // chances de regalo (0 = sin regalo)...
+  bonusEvery: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 }, // ...por cada tantas chances compradas
+  minChances: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+  code: DataTypes.STRING(30),
+  enabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  startsAt: DataTypes.DATE,
+  endsAt: DataTypes.DATE,
+  maxUses: DataTypes.INTEGER,
+}, { indexes: [{ unique: true, fields: ['RaffleId', 'code'], name: 'promos__raffle_id_code' }] });
+
 const Course = sequelize.define('Course', {
   title: { type: DataTypes.STRING, allowNull: false },
   description: DataTypes.TEXT,
   coverUrl: DataTypes.STRING,
   pdfKey: { type: DataTypes.STRING, allowNull: false }, // key en el almacenamiento, nunca una ruta
-  pdfName: { type: DataTypes.STRING, allowNull: false }, // nombre original para la descarga
+  pdfName: { // nombre original para la descarga; al leerlo se repara si quedó guardado con las tildes rotas
+    type: DataTypes.STRING,
+    allowNull: false,
+    get() { return fixFilename(this.getDataValue('pdfName')); },
+  },
   pdfSize: { type: DataTypes.INTEGER, allowNull: false },
   active: { type: DataTypes.BOOLEAN, defaultValue: true },
   position: { type: DataTypes.INTEGER, defaultValue: 0 },
@@ -57,6 +92,9 @@ const Order = sequelize.define('Order', {
   buyerEmail: { type: DataTypes.STRING, allowNull: false },
   buyerPhone: { type: DataTypes.STRING, allowNull: false },
   buyerDni: { type: DataTypes.STRING, allowNull: false },
+  buyerProvince: DataTypes.STRING(2), // código de provincia (las compras anteriores no lo tienen)
+  // Localidad opcional para estadísticas (ver services/profile.js)
+  locality: DataTypes.STRING(80),
   // Los números se asignan al confirmarse el pago, en un bloque consecutivo
   PackId: DataTypes.INTEGER, // referencia informativa (el pack se puede editar o borrar después)
   double: { type: DataTypes.BOOLEAN, defaultValue: false },
@@ -82,6 +120,12 @@ const Order = sequelize.define('Order', {
   mpPreferenceId: DataTypes.STRING,
   mpPaymentId: DataTypes.STRING,
   mpStatusDetail: DataTypes.STRING,
+  PromoId: DataTypes.INTEGER, // referencia informativa (la promo se puede editar o borrar después)
+  promoName: DataTypes.STRING(80), // copia: lo que se aplicó en esta compra
+  promoCode: DataTypes.STRING(30),
+  PromoIds: DataTypes.STRING(120), // todas las promos usadas en la compra, ej. "1,3"
+  discount: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
+  bonusChances: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   voidedAt: DataTypes.DATE,
   voidReason: DataTypes.STRING,
 });
@@ -106,6 +150,9 @@ const FreeEntry = sequelize.define(
     name: { type: DataTypes.STRING, allowNull: false },
     dni: { type: DataTypes.STRING, allowNull: false },
     email: { type: DataTypes.STRING, allowNull: false },
+    phone: DataTypes.STRING(30), // obligatorio al participar; vacío en participaciones anteriores
+    province: DataTypes.STRING(2), // código de provincia
+    locality: DataTypes.STRING(80),
     status: { type: DataTypes.ENUM('unconfirmed', 'confirmed', 'void'), defaultValue: 'unconfirmed' },
     tokenHash: DataTypes.STRING, // hash del link de confirmación (el link en sí solo viaja por email)
     tokenExpiresAt: DataTypes.DATE,
@@ -157,6 +204,12 @@ const Draw = sequelize.define(
     actor: { type: DataTypes.STRING, allowNull: false },
     reason: DataTypes.STRING,
     supersededAt: DataTypes.DATE,
+    // Aviso del ganador al administrador (cola con reintentos): none | pending | sent | failed
+    alertStatus: { type: DataTypes.STRING(10), allowNull: false, defaultValue: 'none' },
+    alertAttempts: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    alertNextAttemptAt: DataTypes.DATE,
+    alertSentAt: DataTypes.DATE,
+    alertLastError: DataTypes.STRING(500),
   },
   { indexes: [{ fields: ['RaffleId'] }] }
 );
@@ -176,6 +229,21 @@ const AuditLog = sequelize.define(
   { updatedAt: false, indexes: [{ fields: ['createdAt'] }, { fields: ['RaffleId'] }] }
 );
 
+// Solicitud de arrepentimiento: la decisión (devolver o rechazar) la toma el administrador.
+const Withdrawal = sequelize.define(
+  'Withdrawal',
+  {
+    dni: { type: DataTypes.STRING(8), allowNull: false },
+    email: { type: DataTypes.STRING, allowNull: false },
+    status: { type: DataTypes.STRING(10), allowNull: false, defaultValue: 'pending' }, // pending | approved | rejected
+    note: DataTypes.STRING(500),
+    resolvedAt: DataTypes.DATE,
+  },
+  { indexes: [{ fields: ['status'] }, { fields: ['OrderId'] }] }
+);
+Order.hasMany(Withdrawal);
+Withdrawal.belongsTo(Order);
+
 Order.hasMany(OrderEvent);
 OrderEvent.belongsTo(Order);
 Order.hasMany(Chance);
@@ -187,5 +255,7 @@ Order.belongsTo(Course);
 
 Raffle.hasMany(Pack, { onDelete: 'CASCADE' });
 Pack.belongsTo(Raffle);
+Raffle.hasMany(Promo, { onDelete: 'CASCADE', foreignKey: { allowNull: false } });
+Promo.belongsTo(Raffle, { foreignKey: { allowNull: false } });
 
-module.exports = { sequelize, Raffle, Order, Course, Pack, Chance, FreeEntry, OrderEvent, Draw, AuditLog };
+module.exports = { sequelize, Raffle, Order, Course, Pack, Promo, Chance, FreeEntry, OrderEvent, Draw, AuditLog, Withdrawal };

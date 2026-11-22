@@ -25,7 +25,7 @@ test('una configuración completa de producción no tiene problemas', () => {
 
 test('avisa de cada variable que falta, todas juntas', () => {
   const problems = productionProblems({});
-  for (const name of ['DATABASE_URL', 'ADMIN_PASSWORD_HASH', 'JWT_SECRET', 'MP_WEBHOOK_SECRET', 'SMTP_URL', 'TURNSTILE_SECRET', 'STORAGE_DIR']) {
+  for (const name of ['DATABASE_URL', 'ADMIN_PASSWORD_HASH', 'JWT_SECRET', 'MP_WEBHOOK_SECRET', 'RESEND_API_KEY o SMTP_URL', 'TURNSTILE_SECRET', 'STORAGE_DIR']) {
     assert.ok(problems.some((p) => p.startsWith(name)), `falta aviso de ${name}`);
   }
 });

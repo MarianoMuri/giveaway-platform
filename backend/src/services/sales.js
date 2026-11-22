@@ -13,4 +13,19 @@ function assertOpen(raffle, message) {
   throw new HttpError(409, message);
 }
 
-module.exports = { isOpen, assertOpen };
+// Antes de abrir la venta el sorteo debe tener sus bases cargadas: sin eso no se puede
+// vender. El texto lo redacta y aprueba el abogado del cliente; acá solo se exige que exista.
+const MIN_TERMS_CHARS = 100;
+
+function missingBeforeOpening({ terms }) {
+  const missing = [];
+  if (String(terms || '').trim().length < MIN_TERMS_CHARS) missing.push('las bases y condiciones');
+  return missing;
+}
+
+function assertCanOpen(raffle) {
+  const missing = missingBeforeOpening(raffle);
+  if (missing.length) throw new HttpError(409, `Para abrir la venta falta cargar ${missing.join(' y ')}`, { code: 'legal_missing', missing });
+}
+
+module.exports = { isOpen, assertOpen, missingBeforeOpening, assertCanOpen, MIN_TERMS_CHARS };

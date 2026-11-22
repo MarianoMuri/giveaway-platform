@@ -1,6 +1,7 @@
 const { sequelize, Raffle, Pack } = require('../db');
 const { HttpError } = require('./errors');
 const sales = require('./sales');
+const promos = require('./promos');
 
 // Escalera sugerida para un sorteo nuevo (el admin la cambia desde el panel)
 const DEFAULT_PACKS = [
@@ -87,7 +88,7 @@ async function getConfig(raffleId) {
   const raffle = await Raffle.findByPk(raffleId);
   if (!raffle) throw new HttpError(404, 'Sorteo no encontrado');
   const packs = await Pack.findAll({ where: { RaffleId: raffle.id }, order: [['position', 'ASC'], ['chances', 'ASC']] });
-  return { raffle, packs, offer: offerOf(raffle) };
+  return { raffle, packs, offer: offerOf(raffle), promos: await promos.listForRaffle(raffle.id) };
 }
 
 // Guarda packs + oferta en una transacción. Los packs existentes se actualizan
@@ -128,12 +129,25 @@ function savingsPct(perChance, basePerChance) {
   return pct > 0 ? pct : null;
 }
 
-// Vista pública: cada pack ya trae calculado su precio por chance, el ahorro y cómo queda con "Duplicá"
-function publicView({ packs, offer }) {
+// Vista pública: cada pack ya trae calculado su precio por chance, el ahorro y cómo queda con "Duplicá".
+// Si hay una promo automática vigente, cada pack (y su versión "Duplicá") trae además `final`: lo que se
+// paga de verdad con la promo. Las promos con código nunca se listan: solo las conoce quien las recibe.
+function publicView({ packs, offer, promos: allPromos = [], raffle }) {
   const smallest = packs.reduce((a, p) => (!a || p.chances < a.chances ? p : a), null);
   const base = smallest ? quote({ pack: smallest, offer }).perChance : null;
+  const now = new Date();
+  const mode = raffle?.promoMode || 'best';
+  const withFinal = (q) => {
+    const f = promos.priceAutomatic({ promos: allPromos, q, mode, now });
+    if (!f.applied) return null;
+    return { chances: f.chances, total: f.total, perChance: f.perChance, discount: f.discount, bonusChances: f.bonusChances, promo: { name: f.promo.name }, applied: f.applied };
+  };
+  const automatic = allPromos
+    .filter((p) => !p.code && promos.stateOf(p, now) === 'on')
+    .map((p) => ({ name: p.name, percent: p.percent, bonus: p.bonus, bonusEvery: p.bonusEvery, minChances: p.minChances, endsAt: p.endsAt, left: p.maxUses ? Math.max(0, p.maxUses - (p.used || 0)) : null }));
   return {
     offer,
+    promos: automatic,
     packs: packs.map((p) => {
       const plain = quote({ pack: p, offer });
       const double = offer.enabled && p.doubleEligible ? quote({ pack: p, offer, double: true }) : null;
@@ -145,18 +159,20 @@ function publicView({ packs, offer }) {
         savingsPct: savingsPct(plain.perChance, base),
         featured: p.featured,
         position: p.position,
-        double: double && { ...double, savingsPct: savingsPct(double.perChance, base) },
+        final: withFinal(plain),
+        double: double && { ...double, savingsPct: savingsPct(double.perChance, base), final: withFinal(double) },
       };
     }),
   };
 }
 
-async function quoteForRaffle(raffleId, { packId, double }) {
-  const { raffle, packs, offer } = await getConfig(raffleId);
+async function quoteForRaffle(raffleId, { packId, double, code }) {
+  const { raffle, packs: list, offer, promos: allPromos } = await getConfig(raffleId);
   sales.assertOpen(raffle, 'El sorteo no está a la venta');
-  const pack = packs.find((p) => p.id === Number(packId));
+  const pack = list.find((p) => p.id === Number(packId));
   if (!pack) throw new HttpError(400, 'Pack inválido');
-  return quote({ pack, offer, double: double === true });
+  const q = quote({ pack, offer, double: double === true });
+  return promos.priceWithPromo({ promos: allPromos, q, code, mode: raffle.promoMode });
 }
 
 module.exports = { DEFAULT_PACKS, DEFAULT_OFFER, quote, validateConfig, getConfig, saveConfig, seedDefaults, publicView, quoteForRaffle };

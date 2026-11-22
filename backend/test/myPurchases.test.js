@@ -24,13 +24,13 @@ const { createPurchase } = require('../src/services/purchases');
 const { confirmPackOrder } = require('../src/services/purchases');
 const { accessLink } = require('../src/services/emailTemplates');
 
-mp.createPreference = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/${order.id}` });
+mp.createCheckout = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/${order.id}` });
 
 let sent = [];
 mailer.send = async (msg) => { sent.push(msg); return { id: `msg-${sent.length}` }; };
 
 const PDF = Buffer.from('%PDF-1.4\ncurso\n%%EOF');
-const mkBuyer = (email) => ({ name: 'Ana Gómez', email, phone: '2914555555', dni: '30111222' });
+const mkBuyer = (email) => ({ name: 'Ana Gómez', email, phone: '2914555555', dni: '30111222', province: 'B' });
 let raffleId, courseId, packId;
 
 test.before(async () => {
@@ -39,7 +39,7 @@ test.before(async () => {
   const auth = { Authorization: `Bearer ${login.body.token}` };
   raffleId = (await request(app).post('/api/admin/raffles').set(auth)
     .send({ title: 'Gran Sorteo', prize: 'Onix 0km', drawDate: '2026-12-08T00:00:00.000Z' })).body.id;
-  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active' });
+  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active', permitNumber: 'TEST-1', terms: 'x'.repeat(120) });
   courseId = (await request(app).post('/api/admin/courses').set(auth).field('title', 'Cocina básica').attach('pdf', PDF, 'cocina.pdf')).body.id;
   packId = (await request(app).get(`/api/raffles/${raffleId}/packs`)).body.packs.find((p) => p.chances === 20).id;
 });
@@ -70,7 +70,7 @@ test('con compras pagas se envía el link y con él se listan las compras', asyn
   assert.equal(res.status, 202);
   await waitFor(() => sent.length === 1);
   assert.equal(sent[0].to, 'ana@test.com');
-  assert.match(sent[0].html, /Ver mis compras/);
+  assert.match(sent[0].html, /Ver mis números/);
   assert.match(sent[0].text, /2 compras/);
 
   const list = await request(app).get('/api/my-purchases').set('Authorization', `Bearer ${tokenFromMail(sent[0])}`);
@@ -117,7 +117,7 @@ test('un segundo pedido del mismo email en el minuto no manda otro mail', async 
   assert.equal(sent.length, 1);
 });
 
-test('el token sirve solo para "Mis compras": vencido, adulterado o de otro propósito dan 401', async () => {
+test('el token sirve solo para "Mis números": vencido, adulterado o de otro propósito dan 401', async () => {
   await paidOrder('ana@test.com');
   const get = (t) => request(app).get('/api/my-purchases').set('Authorization', `Bearer ${t}`);
   assert.equal((await request(app).get('/api/my-purchases')).status, 401);
@@ -146,8 +146,8 @@ test('desde la lista se puede volver a descargar el curso', async () => {
 });
 
 test('el email del link escapa los datos y no incluye nada de las compras', () => {
-  const { html, text, subject } = accessLink({ brand: { name: '<b>X</b>', color: 'rojo', logoUrl: '' }, url: 'http://web.test/mis-compras?token=a"b', minutes: 30, count: 1 });
-  assert.equal(subject, 'Tu link para ver tus compras');
+  const { html, text, subject } = accessLink({ brand: { name: '<b>X</b>', color: 'rojo', logoUrl: '' }, url: 'http://web.test/mis-numeros?token=a"b', minutes: 30, count: 1 });
+  assert.equal(subject, 'Tu link para ver tus números');
   assert.ok(!html.includes('<b>X</b>'));
   assert.ok(html.includes('&lt;b&gt;X&lt;/b&gt;'));
   assert.ok(html.includes('token=a&quot;b'));

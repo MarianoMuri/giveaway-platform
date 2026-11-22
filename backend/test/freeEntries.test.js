@@ -26,7 +26,7 @@ const { drawWinner, raffleStats } = require('../src/services/orders');
 const { HttpError } = require('../src/services/errors');
 const { freeEntryConfirm, freeEntryNumber } = require('../src/services/emailTemplates');
 
-mp.createPreference = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/${order.id}` });
+mp.createCheckout = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/${order.id}` });
 let sent = [];
 mailer.send = async (msg) => { sent.push(msg); return { id: `m-${sent.length}` }; };
 
@@ -41,7 +41,7 @@ const waitFor = async (fn, ms = 1000) => {
   throw new Error('timeout');
 };
 
-const body = (extra = {}) => ({ name: 'Lucía Pérez', dni: dniN(), email: 'lucia@test.com', deviceId: device(), ...extra });
+const body = (extra = {}) => ({ name: 'Lucía Pérez', dni: dniN(), email: 'lucia@test.com', phone: '2914567890', province: 'B', deviceId: device(), ...extra });
 const ask = (data, id = raffleId) => request(app).post(`/api/raffles/${id}/free-entries`).send(data);
 const tokenOf = (mail) => mail.text.match(/token=([\w]+)/)[1];
 const confirmToken = (token) => request(app).post('/api/free-entries/confirm').send({ token });
@@ -59,7 +59,7 @@ test.before(async () => {
   auth = { Authorization: `Bearer ${login.body.token}` };
   raffleId = (await request(app).post('/api/admin/raffles').set(auth)
     .send({ title: 'Gran Sorteo', prize: 'Onix 0km', drawDate: '2026-12-08T00:00:00.000Z', youtubeUrl: 'https://youtube.com/live/x' })).body.id;
-  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active' });
+  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active', permitNumber: 'TEST-1', terms: 'x'.repeat(120) });
   courseId = (await request(app).post('/api/admin/courses').set(auth).field('title', 'Cocina').attach('pdf', PDF, 'c.pdf')).body.id;
   packId = (await request(app).get(`/api/raffles/${raffleId}/packs`)).body.packs.find((p) => p.chances === 5).id;
 });
@@ -172,7 +172,7 @@ test('sorteo en borrador, cerrado o sin modalidad gratuita no admite participaci
   const mk = async (extra = {}) => (await request(app).post('/api/admin/raffles').set(auth).send({ title: 'X', prize: 'Y' })).body.id;
   const draft = await mk();
   assert.equal((await ask(body(), draft)).status, 404);
-  await request(app).patch(`/api/admin/raffles/${draft}`).set(auth).send({ status: 'active', freeEntryEnabled: false });
+  await request(app).patch(`/api/admin/raffles/${draft}`).set(auth).send({ status: 'active', permitNumber: 'TEST-1', terms: 'x'.repeat(120), freeEntryEnabled: false });
   assert.equal((await ask(body(), draft)).status, 409);
   await request(app).patch(`/api/admin/raffles/${draft}`).set(auth).send({ freeEntryEnabled: true, status: 'closed' });
   assert.equal((await ask(body(), draft)).status, 409);
@@ -189,7 +189,7 @@ test('no se guarda el IP ni el dispositivo en claro', async () => {
 });
 
 test('comparte contador con las compras: nunca repite un número', async () => {
-  const { orderId } = await createPurchase({ raffleId, packId, courseId, buyer: { name: 'Ana Gómez', email: 'ana@test.com', phone: '2914555555', dni: '30111222' } });
+  const { orderId } = await createPurchase({ raffleId, packId, courseId, buyer: { name: 'Ana Gómez', email: 'ana@test.com', phone: '2914555555', dni: '30111222', province: 'B' } });
   const order = await Order.findByPk(orderId);
   await sequelize.transaction((t) => confirmPackOrder(order, { amount: Number(order.amount), id: 'p1', status: 'approved' }, t));
   await order.reload();
@@ -207,7 +207,7 @@ test('las gratuitas no cuentan como chances vendidas ni como recaudación', asyn
   assert.equal(after.revenue, before.revenue);
   assert.equal(after.freeEntries, before.freeEntries + 1);
   const pub = await request(app).get(`/api/raffles/${raffleId}`);
-  assert.equal(pub.body.chancesSold, before.chancesSold);
+  assert.equal(pub.body.chancesSold, undefined); // el público no ve las vendidas
   assert.equal(pub.body.freeEntryEnabled, true);
 });
 

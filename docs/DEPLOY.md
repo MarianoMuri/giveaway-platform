@@ -1,6 +1,6 @@
 # Deploy a producción
 
-Guía para publicar el sistema con **Railway** (API + PostgreSQL), **Netlify** (sitio) y el dominio del cliente.
+Guía para publicar el sistema con **Railway** (API + PostgreSQL), **Cloudflare Pages o Netlify** (sitio) y el dominio del cliente.
 Se hace primero en un **entorno de pruebas** (credenciales de prueba de Mercado Pago) y recién después en producción.
 
 ## Piezas
@@ -20,7 +20,7 @@ Las cuentas conviene dejarlas a nombre del cliente (o del titular del proyecto),
 
 - [ ] Credenciales de **Mercado Pago**: Access Token y "Clave secreta" del webhook (de prueba primero, de producción al final)
 - [ ] **Dominio** del cliente y acceso a su DNS (por ejemplo `sorteos.cliente.com.ar` para el sitio y `api.cliente.com.ar` para la API)
-- [ ] Cuenta de **Resend o Brevo** con el dominio verificado (SPF y DKIM) y la URL SMTP
+- [ ] Cuenta de **Resend** con el dominio verificado (SPF y DKIM) y la clave de API (`RESEND_API_KEY`). Plan **Pro** para el lanzamiento (el gratis corta en 100 mails por día)
 - [ ] **Cloudflare Turnstile**: clave pública (sitekey) y clave secreta, con el dominio del sitio
 - [ ] Email y contraseña del **administrador**
 
@@ -39,7 +39,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 ## 1. Railway: base de datos y API
 
 1. Crear un proyecto nuevo y agregar **PostgreSQL**.
-2. Agregar un servicio desde el repositorio de GitHub. En *Settings → Source* poner **Root Directory** = `backend`. Railway toma `backend/railway.json`, que ya define el build con Docker, el chequeo de salud (`/api/health`) y el comando de migración.
+2. Agregar un servicio desde el repositorio de GitHub. En *Settings → Source* poner **Root Directory** = `backend`. El build usa el `Dockerfile` de `backend`. Railway no aplica `backend/railway.json` en los servicios nuevos (la configuración por archivo quedó en desuso), así que el comando de migración y el chequeo de salud se cargan a mano en el paso 5.
 3. Crear un **volumen** y montarlo en `/data` (los PDF de los cursos viven ahí; sin volumen se pierden en cada deploy).
 4. Cargar las variables del servicio (*Variables*):
 
@@ -49,19 +49,21 @@ node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
 | `DATABASE_URL` | referencia a la variable de la base: `${{Postgres.DATABASE_URL}}` |
 | `JWT_SECRET` | el secreto generado arriba |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD_HASH` | datos del administrador |
+| `LIVE_EMAIL` / `LIVE_PASSWORD_HASH` | (opcional) operador del sorteo en vivo: solo puede abrir la pantalla del sorteo y sortear; no ve compradores, recaudación ni cursos. Mismo tipo de hash bcrypt que el administrador |
 | `FRONTEND_URL` | URL del sitio, con `https://` y sin barra final |
 | `PUBLIC_API_URL` | URL pública de la API, con `https://` |
 | `MP_ACCESS_TOKEN` | credencial de Mercado Pago |
 | `MP_WEBHOOK_SECRET` | clave secreta del webhook |
-| `SMTP_URL` / `MAIL_FROM` / `MAIL_REPLY_TO` | datos del proveedor de emails |
+| `MP_API` | opcional. `orders` (por defecto) o `preferences` para volver a la API anterior |
+| `RESEND_API_KEY` (o `SMTP_URL`) / `MAIL_FROM` / `MAIL_REPLY_TO` | datos del proveedor de emails. Se prefiere la API de Resend porque Railway bloquea el SMTP fuera del plan Pro |
 | `EMAIL_RATE_PER_SEC` / `EMAIL_BATCH_SIZE` / `EMAIL_CONCURRENCY` | (opcionales) velocidad del envío de emails, ver [EMAIL.md](EMAIL.md) |
 | `ALERT_EMAILS` | (opcional) a quién avisar si se cae la conexión con Mercado Pago, separados por coma; por defecto, `ADMIN_EMAIL` |
 | `TURNSTILE_SECRET` | clave secreta de Turnstile |
 | `STORAGE_DIR` | `/data/storage` |
 | `BRAND_NAME`, `BRAND_COLOR`, `BRAND_LOGO_URL`, `BRAND_WHATSAPP_URL` | marca del cliente en los emails |
-| `ALLOW_MP_TEST` | `true` **solo** en el entorno de pruebas con credenciales `TEST-` |
+| `ALLOW_MP_TEST` | `true` **solo** en el entorno de pruebas con credenciales de prueba |
 
-5. Desplegar. En cada deploy Railway corre `npm run migrate` antes de iniciar la API; si la migración falla, el deploy no se activa y la versión anterior sigue funcionando.
+5. En *Settings → Deploy* cargar **Pre-deploy Command** = `npm run migrate` y, opcionalmente, **Healthcheck Path** = `/api/health`. Sin el Pre-deploy Command la API no arranca: se niega a iniciar si hay migraciones pendientes. Después desplegar. En cada deploy Railway corre `npm run migrate` antes de iniciar la API; si la migración falla, el deploy no se activa y la versión anterior sigue funcionando.
 6. En *Settings → Networking* generar el dominio público (o agregar `api.cliente.com.ar`, ver paso 3).
 
 La API **no arranca** si falta alguna variable importante o si hay valores de ejemplo: el log del deploy lista exactamente qué falta.
@@ -72,24 +74,48 @@ Para que un pico de compras no afecte al sitio, el envío de emails corre en un 
 (detalles y variables en [EMAIL.md](EMAIL.md)).
 
 1. En la API, agregar `EMAIL_WORKER=off` y `EMAIL_IMMEDIATE=off`.
-2. Crear otro servicio desde el mismo repositorio, con **Root Directory** = `backend`, y en sus *Settings* indicar como
-   archivo de configuración `backend/railway.worker.json` (inicia `node src/worker.js`, sin chequeo de salud web ni migraciones).
+2. Crear otro servicio desde el mismo repositorio, con **Root Directory** = `backend`. Railway **no aplica** los archivos de configuración del repositorio (`railway.worker.json`) en servicios nuevos, así que en *Settings → Deploy* cargar a mano el **Custom Start Command** = `node src/worker.js`, dejar vacío el Pre-deploy Command y sin Healthcheck Path (el worker no es un servicio web).
 3. Darle **las mismas variables** que a la API (referencias entre servicios, o *Shared Variables*): usa la misma base, el mismo
-   `JWT_SECRET` (firma los links de descarga) y el SMTP. No necesita volumen ni dominio.
+   `JWT_SECRET` (firma los links de descarga) y el proveedor de email. No necesita volumen ni dominio.
 4. Ajustar `EMAIL_RATE_PER_SEC` al límite del plan del proveedor de emails.
 
 El worker no corre migraciones: se aplican en el deploy de la API (si faltan, el worker no arranca y lo dice en el log).
 Mientras no exista el servicio aparte, la API manda los emails ella misma (es lo que pasa en desarrollo y en el entorno de pruebas).
 
-## 2. Netlify: el sitio
+## 2. Cloudflare Pages (alternativa a Netlify)
+
+Es lo que usa hoy el sitio de pruebas (Netlify pausa las publicaciones si se acaban los créditos del plan gratuito). En *Workers & Pages → Create → Pages → Import an existing Git repository*:
+
+- Rama de producción: `develop` (para el sitio real, `main`).
+- Directorio raíz: `frontend`. Comando de build: `npm install && npm run build`. Carpeta de salida: `build`.
+- Variables: `NODE_VERSION=22` y las mismas `REACT_APP_*` que se listan en la sección de Netlify.
+- Las rutas de React funcionan solas (Pages sirve `index.html` si no existe el archivo) y las cabeceras de seguridad salen de `frontend/public/_headers`.
+- Después, en Railway, poner `FRONTEND_URL` con la dirección nueva (la API solo acepta esa) y volver a desplegar.
+
+### Vista previa al compartir (Cloudflare Pages)
+
+El archivo `frontend/functions/_middleware.js` completa título, descripción y foto cuando alguien comparte un link. Usa estas variables del proyecto de Pages (en *Settings → Variables and secrets*, en Producción): `REACT_APP_API_URL` (ya está), `REACT_APP_BRAND_NAME`, `REACT_APP_BRAND_DESCRIPTION` y, si se quiere otra imagen para la portada, `REACT_APP_BRAND_SHARE_IMAGE` (link a una imagen de 1200x630). Sin la imagen usa `frontend/public/share-default.jpg`. WhatsApp guarda la vista previa un tiempo: para probar un link nuevo, agregarle `?v=2` al final. Para forzar a Facebook/Instagram a releerla: https://developers.facebook.com/tools/debug/.
+
+## 2b. Netlify: el sitio
 
 1. *Add new site → Import from Git*, con el mismo repositorio. Netlify toma `frontend/netlify.toml` (build, carpeta de salida, redirección para las rutas de React y cabeceras de seguridad).
 2. Variables del sitio:
    - `REACT_APP_API_URL` = URL pública de la API (con `https://`, sin barra final)
    - `REACT_APP_TURNSTILE_SITEKEY` = clave pública de Turnstile
+   - Medición (opcional; sin estas variables no se carga nada): `REACT_APP_META_PIXEL_ID` (ID numérico del Pixel de Meta) y/o `REACT_APP_GA_ID` (ID de Google Analytics 4, empieza con `G-`). Solo se activan si la persona acepta el aviso de cookies y nunca reciben datos personales: solo sorteo, monto y chances. Eventos: vista del sorteo, inicio de compra y compra confirmada (una vez por compra).
+   - Marca del cliente (todas opcionales; sin ellas queda la marca genérica "AUTO SORTEOS"): `REACT_APP_BRAND_NAME`, `REACT_APP_BRAND_TAGLINE`, `REACT_APP_BRAND_DESCRIPTION`, `REACT_APP_BRAND_PRIMARY` (color, ej. `#e3262f`), `REACT_APP_BRAND_LOGO_URL` (link público al logo), `REACT_APP_BRAND_HERO_URL` (imagen opcional debajo del título de la portada), `REACT_APP_BRAND_INSTAGRAM`, `REACT_APP_BRAND_YOUTUBE`, `REACT_APP_BRAND_FACEBOOK`, `REACT_APP_BRAND_TIKTOK`, `REACT_APP_BRAND_WHATSAPP_CHANNEL`, `REACT_APP_BRAND_WHATSAPP_CONTACT`. Así los datos del cliente quedan en Netlify y no en el repositorio.
 3. Rama de producción: `main`. Cada merge a `main` publica solo.
 
 Las variables `REACT_APP_*` se incorporan al compilar: si se cambian, hay que volver a desplegar el sitio.
+
+### Doble verificación del administrador (recomendado antes de abrir las ventas)
+
+1. En tu computadora, en la carpeta `backend`: `node scripts/two-factor-setup.js tu@mail.com`. Muestra una clave (no se guarda en ningún lado).
+2. En Railway, servicio de la API → Variables: crear `ADMIN_TOTP_SECRET` con esa clave. Esperar a que termine de publicar.
+3. En el celular, en Google Authenticator: "+" → "Ingresar clave de configuración" → pegar la misma clave.
+4. Al entrar al panel, después de la contraseña pide el código de 6 números.
+
+Si se pierde el celular: guardando la clave se puede armar la app de nuevo en otro; si no, se borra `ADMIN_TOTP_SECRET` en Railway (el panel vuelve a pedir solo la contraseña) y se repite el proceso. El operador del sorteo en vivo no usa código.
 
 ## 3. Dominio y HTTPS
 
@@ -100,7 +126,7 @@ Las variables `REACT_APP_*` se incorporan al compilar: si se cambian, hay que vo
 
 ## 4. Mercado Pago
 
-1. En *Tus integraciones → Webhooks* cargar la URL `https://api.cliente.com.ar/api/webhooks/mercadopago` y activar los eventos de **Pagos**.
+1. En *Tus integraciones → Webhooks* cargar la URL `https://api.cliente.com.ar/api/webhooks/mercadopago` y activar el evento **Order (Mercado Pago)** (el checkout usa la API de Orders; si se vuelve a `MP_API=preferences`, activar **Pagos**). Esa es la dirección a la que Mercado Pago avisa cada pago.
 2. Copiar la **clave secreta** a `MP_WEBHOOK_SECRET`.
 3. En pruebas, usar las credenciales y usuarios de prueba; para producción, reemplazar `MP_ACCESS_TOKEN` por la de producción y quitar `ALLOW_MP_TEST`.
 
@@ -122,19 +148,31 @@ Las variables `REACT_APP_*` se incorporan al compilar: si se cambian, hay que vo
 - [ ] El panel muestra "Conexión con Mercado Pago: OK" y el email de alerta llega (probar con una credencial equivocada en el entorno de pruebas)
 - [ ] Cambiar el deploy a credenciales de **producción** de Mercado Pago, quitar `ALLOW_MP_TEST`, y hacer una compra real de monto mínimo
 - [ ] Backup de la base verificado (ver abajo) y volumen de PDF montado
+- [ ] **Respaldos (decisión pendiente):** los automáticos de Railway (pestaña Backups) requieren el plan pago, y por ahora se decidió no pagarlo. Mientras tanto, la protección es la **copia propia** con `backend/scripts/respaldo.sh` (gratis): hacerla **antes de cada sorteo y una vez por semana**. Si más adelante se contrata el plan pago de Railway, activar Backups diarios y semanales
 
 ## Respaldos
 
 Los datos que importan son la **base de datos** (compras, números, pagos) y los **PDF** del volumen.
 
-- Revisar en Railway qué respaldos automáticos incluye el plan contratado, y activarlos.
-- Copia manual de la base (conviene antes de cada sorteo):
+**Automáticos.** En Railway, abrir el servicio de Postgres → pestaña **Backups** y programar copias diarias (y semanales). Revisar qué incluye el plan contratado. Ojo: estas copias viven dentro de Railway, así que no reemplazan a una copia propia.
+
+**Copia propia (recomendado antes de cada sorteo y una vez por semana).** Desde tu computadora, con `pg_dump` instalado y la variable `DATABASE_PUBLIC_URL` del servicio Postgres:
 
 ```bash
-pg_dump "$DATABASE_URL" --format=custom --file=respaldo-$(date +%F).dump
+DATABASE_PUBLIC_URL="postgresql://..." ./scripts/respaldo.sh
 ```
 
-Guardar la copia fuera del repositorio y fuera de GitHub: contiene datos personales de los compradores.
+Guarda un archivo `respaldo-AAAA-MM-DD-HHMM.dump` en `~/respaldos-sorteos`. Esa copia tiene datos personales de los compradores: guardarla fuera del repositorio y de GitHub (por ejemplo, en un disco o una nube privada).
+
+**Restaurar (en una base vacía o de pruebas, nunca encima de la de producción sin un respaldo nuevo):**
+
+```bash
+pg_restore --no-owner --clean --if-exists --dbname="$DATABASE_PUBLIC_URL" respaldo-AAAA-MM-DD-HHMM.dump
+```
+
+**Probar que el respaldo sirve.** Una copia que nunca se restauró no es una garantía: antes de abrir las ventas, restaurarla en una base de prueba y entrar al panel para ver que las compras estén.
+
+**PDF.** Viven en el volumen del servicio de la API (`STORAGE_DIR`). Conservar también los archivos originales de cada curso fuera de Railway.
 
 ## Actualizar y volver atrás
 

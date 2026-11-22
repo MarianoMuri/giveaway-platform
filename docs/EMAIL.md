@@ -17,6 +17,21 @@ mails lleguen a la bandeja de entrada y no a spam**.
 Un pico de compras solo agranda la cola; no demora las respuestas del sitio. Con el límite por defecto (5 por segundo)
 el worker puede mandar unos 18.000 mails por hora, muy por encima de lo que se necesita para 400.000 por mes.
 
+### Proveedor y límites del plan
+
+El sistema envía por la **API HTTPS de Resend** (`RESEND_API_KEY`). Se eligió la API y no el SMTP porque Railway
+bloquea el SMTP saliente en los planes Free, Trial y Hobby (solo lo permite el Pro), mientras que una llamada HTTPS
+funciona en cualquier plan. El SMTP (`SMTP_URL`) sigue disponible como alternativa si se usa otro proveedor.
+
+| Plan de Resend | Precio | Mails | Límite diario |
+|---|---|---|---|
+| Free | gratis | 3.000 por mes | **100 por día** |
+| Pro | US$20 por mes | 50.000 por mes | sin límite |
+
+Con el plan gratis, el día de lanzamiento los mails pasan de 100 y quedan en la cola reintentándose: **para vender de
+verdad hay que contratar Pro**. Si el proveedor responde 429 (límite) o 5xx (caída), el envío falla y la cola lo
+reintenta sola. Los clientes no dependen del mail para ver sus números: en "Mis números" entran con el DNI.
+
 ### Variables
 
 | Variable | Por defecto | Qué hace |
@@ -80,7 +95,7 @@ Si en alguna etapa suben los rebotes o las quejas, **no subir el volumen**: volv
 ### Si algo sale mal
 
 - **Muchos mails en spam:** frenar la difusión, revisar SPF/DKIM/DMARC y pedirles a los compradores que busquen en spam y
-  marquen "no es spam". La página de la compra y "Mis compras" siempre permiten ver los números y descargar el curso aunque
+  marquen "no es spam". La página de la compra y "Mis números" siempre permiten ver los números y descargar el curso aunque
   el mail no llegue.
 - **El proveedor suspende la cuenta o frena el envío:** los mails quedan en cola y no se pierden; al normalizarse se envían
   solos. Si pasaron los reintentos, usar "Reenviar todos los fallidos".

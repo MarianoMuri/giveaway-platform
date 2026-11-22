@@ -50,12 +50,15 @@ sequenceDiagram
 | Índice único `(RaffleId, number)` | Red de seguridad: la base rechaza un número repetido aunque haya un bug en la lógica. |
 | El contador nunca retrocede | Un número anulado (reintegro, contracargo) no se vuelve a asignar: cada número identifica una sola compra para siempre. |
 | Consultar el pago a Mercado Pago en el webhook | El cuerpo del aviso no es confiable; se valida firma, estado y monto contra la API. |
+| Checkout con la API de Orders; el estado de la orden se traduce al de un pago | Mercado Pago marca Preferences como heredada. Traducir `processed`/`refunded`/`charged_back` a `approved`/`refunded`/`charged_back` en un solo lugar (`mercadopago.js`) evita tocar números, mails y anulaciones. Los ids `ORD…` y los numéricos conviven, y `MP_API=preferences` permite volver atrás. |
 | Webhook idempotente con la orden bloqueada | Mercado Pago reintenta avisos; procesar dos veces el mismo pago no asigna números de nuevo. |
 | Estado `needs_review` | Pagos con un monto distinto al de la orden quedan para revisión manual y reintegro. |
 | Email con patrón outbox | El mail se marca pendiente en la transacción que aprueba el pago: si el servidor se cae, no se pierde. El envío ocurre después del commit, así el webhook responde rápido y un SMTP caído no rompe la compra. |
 | Reintentos con espera creciente (1, 5, 15, 60 y 360 min) | Un proveedor caído un rato no deja compradores sin su comprobante; después de 6 intentos queda "falló" para reenviar desde el panel. |
 | "Claim" con `UPDATE` condicional antes de enviar | Si el envío inmediato y el proceso periódico coinciden, solo uno manda el mail. |
-| "Mis compras" con link mágico, sin cuentas ni contraseñas | El comprador ya dio su email al comprar; un link de corta vida a esa casilla alcanza para probar que es suyo y no suma una contraseña más que olvidar. |
+| "Mis números" con link mágico, sin cuentas ni contraseñas | El comprador ya dio su email al comprar; un link de corta vida a esa casilla alcanza para probar que es suyo y no suma una contraseña más que olvidar. |
+| "Mis números" también con DNI (solo lectura) | Si el mail se atrasa o el cliente no guardó su link, tiene que poder ver sus números igual. El DNI no es un dato secreto, por eso este acceso muestra lo mínimo (números y nombre abreviado) y la descarga del curso exige además el email de la compra. Límite por IP y por DNI, captcha y respuesta igual exista o no el DNI. |
+| Email por API HTTPS de Resend, con SMTP como alternativa | Railway bloquea el SMTP saliente fuera del plan Pro; una llamada HTTPS funciona en todos. La cola de emails ya reintenta, así que un 429 o 5xx del proveedor solo demora el mail. |
 | Respuesta idéntica exista o no el email | Evita que alguien averigüe quién compró probando direcciones (anti-enumeración). |
 | Token con propósito propio (`my-purchases`) y vencimiento de 30 min | Un link de descarga o un token de admin no abre las compras, y uno robado vence rápido. El token viaja en el header, no en la URL de la API, y el frontend lo saca de la barra de direcciones apenas lo lee. |
 | Un pedido de link por email por minuto, más límite por IP | Impide usar el sistema para llenar de mails la casilla de otra persona. Hoy el control por email vive en memoria; con varias instancias se mueve a la base o a Redis. |
@@ -107,7 +110,7 @@ backend/
       emailTemplates.js  plantilla HTML responsive
       mailer.js          transporte SMTP (o consola en desarrollo)
       storage.js         almacenamiento de archivos (disco hoy, S3/R2 después)
-      mercadopago.js     preferencia, consulta de pago, firma del webhook
+      mercadopago.js     checkout (API de Orders), consulta de pago, firma del webhook
   test/                  tests de integración (node:test + supertest)
 frontend/
   src/
@@ -121,3 +124,4 @@ frontend/
 | Monitor de Mercado Pago con dos fallos seguidos para alertar, y estado en memoria | Un tropiezo de red no debe alarmar al cliente, pero una caída real (token vencido, Mercado Pago sin servicio) hay que enterarse antes de que se pierdan ventas. Avisa una vez, recuerda cada 6 horas y avisa al recuperarse. Guardar el estado en la base no aporta: si el servidor se reinicia, vuelve a verificar y, como máximo, repite un aviso. |
 | Envío por lotes con límite de velocidad y worker aparte | Un pico de miles de compras no puede demorar al sitio ni superar el límite por segundo del proveedor (que frena o bloquea al que lo pasa). La compra solo encola el mail; un worker lo envía de a poco. Si hay cola larga, la API ni lo intenta. La garantía de no duplicar sigue siendo el UPDATE condicional por envío, así que se puede escalar a más de un worker sin riesgo. |
 | Exportación en streaming con paginación por cursor | Armar el Excel entero en memoria no escala: con cientos de miles de compras agota la memoria y hace esperar hasta el final. Se lee por tandas y se escribe a medida que sale, así la memoria es constante. Se pagina por cursor (fecha + id), no por OFFSET: el costo no crece y no se pierden ni repiten filas aunque entren compras durante la exportación. Respeta la contrapresión y, si falla a mitad, corta la conexión para no entregar un archivo truncado que parezca completo. |
+| Provincias excluidas por sorteo y requisitos legales para abrir la venta | Cada provincia regula distinto los sorteos promocionales (autorización previa, tasas, escribano). Hasta que el abogado resuelva cada trámite, el sistema no vende ni suma participaciones allí: se pide la provincia y el backend rechaza las excluidas antes de crear nada (el frontend solo la deshabilita, no es la barrera). Por defecto quedan excluidas las que tienen régimen propio, así que el error posible es de más cautela y no de menos. Abrir la venta exige N° de autorización y bases cargadas, y se valida en el servidor aunque el botón del panel ya esté deshabilitado. El sistema no decide qué es legal: solo impide vender sin los papeles. Detalle y fuentes en `docs/LEGAL.md`. |

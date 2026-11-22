@@ -26,7 +26,7 @@ const { purchaseConfirmation } = require('../src/services/emailTemplates');
 // ---- Mercado Pago y email simulados ----
 const payments = {};
 let paymentSeq = 0;
-mp.createPreference = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/${order.id}` });
+mp.createCheckout = async ({ order }) => ({ id: `pref-${order.id}`, initPoint: `https://mp.test/${order.id}` });
 mp.getPayment = async (id) => payments[id];
 const pay = (order, status = 'approved') => {
   const id = String(++paymentSeq);
@@ -61,7 +61,7 @@ async function waitFor(fn, ms = 2000) {
 }
 
 const PDF = Buffer.from('%PDF-1.4\ncurso\n%%EOF');
-const buyer = { name: 'Ana Gómez', email: 'ana@test.com', phone: '2914555555', dni: '30111222' };
+const buyer = { name: 'Ana Gómez', email: 'ana@test.com', phone: '2914555555', dni: '30111222', province: 'B' };
 let auth, raffleId, courseId, packId;
 
 test.before(async () => {
@@ -71,7 +71,7 @@ test.before(async () => {
   const r = await request(app).post('/api/admin/raffles').set(auth)
     .send({ title: 'Gran Sorteo', prize: 'Onix 0km', drawDate: '2026-12-08T00:00:00.000Z', youtubeUrl: 'https://youtube.com/live/x', permitNumber: 'LOT-9' });
   raffleId = r.body.id;
-  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active' });
+  await request(app).patch(`/api/admin/raffles/${raffleId}`).set(auth).send({ status: 'active', terms: 'x'.repeat(120) });
   courseId = (await request(app).post('/api/admin/courses').set(auth).field('title', 'Cocina básica').attach('pdf', PDF, 'cocina.pdf')).body.id;
   packId = (await request(app).get(`/api/raffles/${raffleId}/packs`)).body.packs.find((p) => p.chances === 20).id;
 });
@@ -91,7 +91,7 @@ test('al aprobarse el pago se envía el email con números, curso, monto y códi
   const [mail] = sent;
   assert.equal(mail.to, 'ana@test.com');
   assert.equal(mail.subject, 'Tus números para el sorteo: 100000 al 100039');
-  for (const s of ['100000 al 100039', '40 chances', 'Cocina básica', '$ 65.000', order.id.slice(0, 8).toUpperCase(), 'ZONA NORTE', 'LOT-9', 'http://web.test/compra/']) {
+  for (const s of ['100000 al 100039', '40 chances', 'Cocina básica', '$ 65.000', order.id.slice(0, 8).toUpperCase(), 'ZONA NORTE', 'http://web.test/compra/']) {
     assert.ok(mail.html.includes(s), `falta en el HTML: ${s}`);
   }
   assert.match(mail.text, /Tus números: 100000 al 100039/);
@@ -176,13 +176,18 @@ test('dos procesos enviando el mismo email a la vez mandan uno solo', async () =
   assert.equal(results.flat().filter((r) => r === 'sent').length, 1);
 });
 
-test('venta manual: manda email solo si se cargó uno válido', async () => {
+test('venta manual: exige los mismos datos que la compra online y manda el email', async () => {
   const base = { raffleId, chances: 5, courseId, amount: 15000 };
-  const sinMail = await request(app).post('/api/admin/orders/manual').set(auth).send({ ...base, buyer: { name: 'Luis Díaz', dni: '28999888' } });
-  assert.equal(sinMail.body.emailStatus, 'none');
+  const full = { name: 'Eva Ríos', dni: '27888777', email: 'eva@test.com', phone: '2914000000', province: 'B' };
+  const post = (buyer) => request(app).post('/api/admin/orders/manual').set(auth).send({ ...base, buyer });
+  for (const falta of ['email', 'phone', 'province']) {
+    const { [falta]: _omit, ...incompleto } = full;
+    assert.equal((await post(incompleto)).status, 400, `sin ${falta} debe fallar`);
+  }
+  assert.equal((await post({ ...full, email: 'no-es-mail' })).status, 400);
 
   const conMail = await request(app).post('/api/admin/orders/manual').set(auth)
-    .send({ ...base, buyer: { name: 'Eva Ríos', dni: '27888777', email: 'eva@test.com' } });
+    .send({ ...base, buyer: full });
   await waitFor(() => sent.length === 1);
   assert.equal(sent[0].to, 'eva@test.com');
   assert.match(sent[0].subject, new RegExp(`${conMail.body.firstNumber} al ${conMail.body.lastNumber}`));
