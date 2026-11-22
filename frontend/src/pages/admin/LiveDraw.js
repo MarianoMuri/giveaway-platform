@@ -178,7 +178,7 @@ export default function LiveDraw() {
               <input autoFocus value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ej: el ganador no respondió en 48 horas" />
             </label>
           )}
-          {!redo && <button className="btn live-btn" onClick={() => run()}>SORTEAR</button>}
+          {!redo && <button className="btn live-btn" onClick={() => run()}>REVELAR GANADOR</button>}
           {redo && !asking && phase !== 'done' && <button className="btn live-btn" onClick={() => run(true)}>REVELAR GANADOR</button>}
           {redo && !asking && <button className="btn btn-ghost" onClick={() => setAsking(true)}>Repetir sorteo</button>}
           {redo && asking && <button className="btn live-btn" onClick={() => run()} disabled={reason.trim().length < 5}>SORTEAR DE NUEVO</button>}
