@@ -6,6 +6,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ### Added
 - **¿Cómo funciona?** en la portada: camino de 5 pasos (elegir curso y chances, pagar, recibir los números, recibir el curso por email, mirar el sorteo en vivo), con los colores del sitio.
+- **Bases y condiciones en la portada:** texto general del sitio en un desplegable al final de la portada, página `/bases` y enlace en el pie.
 - **Sin N° de autorización:** ya no se pide para abrir la venta ni se muestra en el sitio, en las bases ni en los emails. Para abrir la venta solo hacen falta las bases cargadas.
 - **Volver arriba:** botón flotante a la derecha que lleva al principio de la página (aparece al bajar).
 - **Ganadores anteriores:** ahora muestran el nombre del ganador (las Bases, cláusula 12, lo autorizan). Si el número ganador se anula, deja de mostrarse.

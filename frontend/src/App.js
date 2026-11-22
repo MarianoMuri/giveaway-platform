@@ -4,6 +4,7 @@ import { getToken, getRole, DEMO } from './api';
 import DemoPayment from './demo/DemoPayment';
 import Social from './components/Social';
 import Home from './pages/Home';
+import Bases from './pages/Bases';
 import RafflePage from './pages/RafflePage';
 import OrderStatus from './pages/OrderStatus';
 import Terms from './pages/Terms';
@@ -56,6 +57,7 @@ function Footer() {
       <div><strong>{brand.name}</strong>{brand.location && <> · {brand.location}</>}</div>
       <Social size="sm" />
       <div className="muted small">Pagos procesados por Mercado Pago</div>
+      <Link to="/bases" className="small">Bases y condiciones</Link>
       <Link to="/arrepentimiento" className="subtle-link">Arrepentimiento</Link>
     </footer>
   );
@@ -87,6 +89,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/links" element={<Links />} />
+          <Route path="/bases" element={<Bases />} />
           <Route path="/sorteo/:id" element={<RafflePage />} />
           <Route path="/sorteo/:id/bases" element={<Terms />} />
           <Route path="/compra/:id" element={<OrderStatus />} />
