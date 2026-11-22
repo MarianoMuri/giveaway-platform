@@ -364,5 +364,5 @@ th { color: var(--muted); font-weight: 500; font-size: .78rem; text-transform: u
 .scroll-top:hover { background: var(--primary); border-color: var(--primary); color: #fff; transform: translateY(-2px); }
 
 /* Enlace a las bases en la portada */
-.bases-link { color: var(--primary); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.bases-link { color: var(--primary); font-weight: 500; font-size: .85rem; text-decoration: underline; text-underline-offset: 3px; }
 .bases-link:hover { opacity: .8; }

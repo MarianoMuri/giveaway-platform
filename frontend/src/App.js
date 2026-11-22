@@ -57,7 +57,6 @@ function Footer() {
       <div><strong>{brand.name}</strong>{brand.location && <> · {brand.location}</>}</div>
       <Social size="sm" />
       <div className="muted small">Pagos procesados por Mercado Pago</div>
-      <Link to="/bases" className="small">Bases y condiciones</Link>
       <Link to="/arrepentimiento" className="subtle-link">Arrepentimiento</Link>
     </footer>
   );
