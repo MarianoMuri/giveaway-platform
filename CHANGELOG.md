@@ -6,7 +6,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ### Added
 - **¿Cómo funciona?** en la portada: camino de 5 pasos (elegir curso y chances, pagar, recibir los números, recibir el curso por email, mirar el sorteo en vivo), con los colores del sitio.
-- **Bases y condiciones:** queda un solo enlace (el rojo de la portada, con letra más chica) y se saca el del pie. La cláusula 4 aclara que los familiares del desarrollador técnico del sitio pueden participar.
+- **Bases y condiciones:** queda un solo enlace (el rojo de la portada, con letra más chica) y se saca el del pie. La cláusula 4 aclara que los familiares de quienes desarrollan o administran el sitio pueden participar.
 - **Bases y condiciones en la portada:** enlace rojo al final de la portada y en el pie, que abre la página `/bases` con el texto general del sitio.
 - **Sin N° de autorización:** ya no se pide para abrir la venta ni se muestra en el sitio, en las bases ni en los emails. Para abrir la venta solo hacen falta las bases cargadas.
 - **Volver arriba:** botón flotante a la derecha que lleva al principio de la página (aparece al bajar).
