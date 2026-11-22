@@ -3,11 +3,11 @@ const I = (children) => (
   <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{children}</svg>
 );
 const STEPS = [
-  { title: 'Elegí tu curso', sub: 'y cuántas chances querés', icon: I(<><path d="M15 5v2M15 11v2M15 17v2" /><path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2z" /></>) },
-  { title: 'Realizá el pago', sub: 'con tarjeta, dinero en cuenta o efectivo', icon: I(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h3" /></>) },
-  { title: 'Recibí tus números', sub: 'apenas se acredita el pago', icon: I(<path d="M5 9h14M5 15h14M11 4 9 20M15 4l-2 16" />) },
-  { title: 'Recibí tu curso', sub: 'en tu email, para empezar ya', icon: I(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>) },
-  { title: 'Mirá el sorteo', sub: 'en vivo por nuestras redes', icon: I(<><rect x="3" y="5" width="18" height="14" rx="3" /><path d="m10 9 5 3-5 3z" /></>), last: true },
+  { title: 'Elegí tu curso', sub: 'Escogé el que más te guste y cuántas chances querés llevarte. Con más chances, más posibilidades.', icon: I(<><path d="M15 5v2M15 11v2M15 17v2" /><path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2z" /></>) },
+  { title: 'Realizá el pago', sub: 'Pagá rápido y seguro con Mercado Pago: con tarjeta, dinero en cuenta o efectivo.', icon: I(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h3" /></>) },
+  { title: 'Recibí tus números', sub: 'Apenas se acredita el pago los ves en pantalla y te llegan por email. Cada uno es único.', icon: I(<path d="M5 9h14M5 15h14M11 4 9 20M15 4l-2 16" />) },
+  { title: 'Recibí tu curso', sub: 'También te lo enviamos a tu email, para que empieces a aprender cuando quieras.', icon: I(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>) },
+  { title: 'Mirá el sorteo', sub: 'Elegimos al ganador en vivo por nuestras redes. ¡Puede salir tu número!', icon: I(<><rect x="3" y="5" width="18" height="14" rx="3" /><path d="m10 9 5 3-5 3z" /></>), last: true },
 ];
 
 export default function HowItWorks() {

@@ -6,6 +6,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ### Added
 - **¿Cómo funciona?** en la portada: camino de 5 pasos (elegir curso y chances, pagar, recibir los números, recibir el curso por email, mirar el sorteo en vivo), con los colores del sitio.
+- **¿Cómo funciona?:** cada paso tiene su explicación breve debajo del título.
 - **Ver mis números:** botón flotante rojo, chico, abajo a la derecha que acompaña al bajar y lleva a la consulta con DNI; se saca "Mis números" del encabezado.
 - **Bases y condiciones:** queda un solo enlace (el rojo de la portada, con letra más chica) y se saca el del pie. La cláusula 4 aclara que los familiares de quienes desarrollan o administran el sitio pueden participar.
 - **Bases y condiciones en la portada:** enlace rojo al final de la portada y en el pie, que abre la página `/bases` con el texto general del sitio.
