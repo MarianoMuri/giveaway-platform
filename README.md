@@ -139,6 +139,7 @@ Para probar pagos se usan las **credenciales y usuarios de prueba** de Mercado P
 | GET | `/api/admin/raffles/:id/free-entries` | Participaciones gratuitas del sorteo |
 | POST | `/api/admin/free-entries/:id/void` | Anula una participación gratuita |
 | POST | `/api/admin/orders/manual` | Venta manual: asigna los números en el acto |
+| GET | `/api/admin/raffles/:id/winner` | Ganador ya cargado (solo lectura), para revelarlo en la pantalla del vivo |
 | POST | `/api/admin/raffles/:id/draw` | Sorteo en vivo: elige al azar entre los números válidos (repetir exige `reason`) |
 | GET | `/api/admin/raffles/:id/draws` | Historial de sorteos del sorteo |
 | GET | `/api/admin/audit?raffleId=&limit=` | Registro de auditoría (solo lectura) |

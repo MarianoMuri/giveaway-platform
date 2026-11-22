@@ -487,6 +487,14 @@ const routes = [
     if (c.status === 'void') throw new Err(409, { error: 'Ese número está anulado (compra reintegrada): sorteá de nuevo' });
     return finishDraw(r, c, { method: 'manual', reason: why });
   }],
+  ['GET', /^\/admin\/raffles\/(\d+)\/winner$/, ([id]) => {
+    const r = raffleOr404(id);
+    const c = r.winnerNumber != null && db.chances.find((x) => x.raffleId === r.id && x.number === r.winnerNumber);
+    if (r.status !== 'drawn' || !c) throw new Err(409, { error: 'Todavía no hay un ganador cargado' });
+    if (c.freeEntryId) { const f = db.freeEntries.find((x) => x.id === c.freeEntryId); return { number: c.number, winner: { name: f.name, dni: f.dni, source: 'free' } }; }
+    const o = orderOr404(c.orderId);
+    return { number: c.number, winner: { name: o.buyerName, dni: o.buyerDni, source: 'purchase' } };
+  }],
   ['POST', /^\/admin\/raffles\/(\d+)\/draw$/, ([id], b) => {
     const r = raffleOr404(id);
     assertDrawable(r);

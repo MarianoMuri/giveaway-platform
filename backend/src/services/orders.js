@@ -164,6 +164,18 @@ async function drawWinner(raffleId, value, { redraw = false, expect = null } = {
   return { number, winner: { name: o.buyerName, phone: o.buyerPhone, email: o.buyerEmail, dni: o.buyerDni, orderId: o.id, source: 'purchase' } };
 }
 
+// Ganador ya cargado (a mano o sorteado), solo lectura: para volver a mostrarlo en la pantalla del vivo
+async function currentWinner(raffleId) {
+  const raffle = await Raffle.findByPk(raffleId);
+  if (!raffle) throw new HttpError(404, 'Sorteo inexistente');
+  if (raffle.status !== 'drawn' || raffle.winnerNumber == null) throw new HttpError(409, 'Todavía no hay un ganador cargado');
+  const chance = await Chance.findOne({ where: { RaffleId: raffle.id, number: raffle.winnerNumber }, include: [Order, FreeEntry] });
+  if (!chance) throw new HttpError(409, 'El número ganador no existe en este sorteo');
+  if (chance.status === 'void') throw new HttpError(409, 'El número ganador quedó anulado: hay que sortear de nuevo');
+  if (chance.FreeEntry) return { number: chance.number, winner: { name: chance.FreeEntry.name, dni: chance.FreeEntry.dni, source: 'free' } };
+  return { number: chance.number, winner: { name: chance.Order.buyerName, dni: chance.Order.buyerDni, source: 'purchase' } };
+}
+
 async function raffleStats(raffleId) {
   const sold = ['approved', 'manual'];
   const [chancesSold, purchases, pending, review, revenue, freeEntries, reversed, raffle, emailsPending, emailsFailed] = await Promise.all([
@@ -188,4 +200,4 @@ async function raffleStats(raffleId) {
   return { chancesSold, purchases, pending, review, revenue: Number(revenue || 0), freeEntries, reversed, winnerVoided, emailsPending, emailsFailed };
 }
 
-module.exports = { HttpError, createRaffle, handlePayment, manualSale, drawWinner, assertClosedForDraw, raffleStats, cleanGoal };
+module.exports = { HttpError, createRaffle, handlePayment, manualSale, drawWinner, currentWinner, assertClosedForDraw, raffleStats, cleanGoal };

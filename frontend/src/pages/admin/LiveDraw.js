@@ -78,7 +78,8 @@ export default function LiveDraw() {
     try { localStorage.setItem('liveDrawSecs', String(n)); } catch (e) { /* sin almacenamiento: solo vale para esta vez */ }
   };
 
-  const run = async () => {
+  // reveal=true: no sortea; muestra con la misma animación el ganador que ya está cargado (sorteo hecho por otro medio)
+  const run = async (reveal = false) => {
     // el tiempo total se reparte en 6 tramos iguales: gira todo, y luego se fija un dígito por tramo
     const stepMs = reduceMotion ? 0 : (secs * 1000) / 6;
     const startedAt = Date.now();
@@ -93,7 +94,7 @@ export default function LiveDraw() {
     }
     try {
       const [res] = await Promise.all([
-        api(`/admin/raffles/${id}/draw`, { method: 'POST', auth: true, body: redo ? { reason } : {} }),
+        reveal ? api(`/admin/raffles/${id}/winner`, { auth: true }) : api(`/admin/raffles/${id}/draw`, { method: 'POST', auth: true, body: redo ? { reason } : {} }),
         sleep(stepMs),
       ]);
       const final = String(res.number).padStart(6, '0').split('');
@@ -180,9 +181,10 @@ export default function LiveDraw() {
               <input autoFocus value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ej: el ganador no respondió en 48 horas" />
             </label>
           )}
-          {!redo && <button className="btn live-btn" onClick={run}>SORTEAR</button>}
+          {!redo && <button className="btn live-btn" onClick={() => run()}>SORTEAR</button>}
+          {redo && !asking && phase !== 'done' && <button className="btn live-btn" onClick={() => run(true)}>REVELAR GANADOR</button>}
           {redo && !asking && <button className="btn btn-ghost" onClick={() => setAsking(true)}>Repetir sorteo</button>}
-          {redo && asking && <button className="btn live-btn" onClick={run} disabled={reason.trim().length < 5}>SORTEAR DE NUEVO</button>}
+          {redo && asking && <button className="btn live-btn" onClick={() => run()} disabled={reason.trim().length < 5}>SORTEAR DE NUEVO</button>}
         </div>
       )}
     </div>
