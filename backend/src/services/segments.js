@@ -39,8 +39,20 @@ async function segmentSales(raffleId, by = 'province') {
     if (!rows.has(key)) rows.set(key, { code: raw || null, name: raw ? dim.label(raw) : 'Sin dato', purchases: 0, chances: 0, revenue: 0, freeEntries: 0 });
     return rows.get(key);
   };
+  // Las variantes de un mismo valor (con/sin tilde o mayúscula) se juntan; se muestra la más usada
+  // y, si empatan, la escrita con mayúsculas (así no depende del orden en que devuelve la base).
+  const best = new Map();
+  const better = (v, c, cur) => !cur || c > cur.c || (c === cur.c && ((v !== v.toLowerCase() && cur.v === cur.v.toLowerCase()) || (v !== v.toLowerCase() === (cur.v !== cur.v.toLowerCase()) && v < cur.v)));
+  for (const o of orders) {
+    const raw = o[dim.order];
+    if (!raw) continue;
+    const k = norm(raw);
+    const c = Number(o.purchases);
+    if (better(raw, c, best.get(k))) best.set(k, { v: raw, c });
+  }
   for (const o of orders) {
     const r = row(o[dim.order]);
+    if (o[dim.order]) { const b = best.get(norm(o[dim.order])); r.code = b.v; r.name = dim.label(b.v); }
     r.purchases += Number(o.purchases);
     r.chances += Number(o.chances || 0);
     r.revenue += Number(o.revenue || 0);

@@ -162,7 +162,7 @@ async function usedByPromo(raffleId, { transaction } = {}) {
     where: {
       RaffleId: raffleId,
       PromoIds: { [Op.ne]: null },
-      [Op.or]: [{ status: { [Op.in]: ['approved', 'manual', 'in_process'] } }, { status: 'pending', createdAt: { [Op.gt]: since } }],
+      [Op.or]: [{ status: { [Op.in]: ['approved', 'manual'] } }, { status: 'pending', createdAt: { [Op.gt]: since } }],
     },
     attributes: ['PromoIds'],
     raw: true,
