@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import BASES from '../basesText';
 import brand from '../brand';
 import { useApi } from '../hooks';
 import { money, dateShort } from '../api';
@@ -122,12 +121,9 @@ export default function Home() {
 
         <Faq raffle={active[0]} />
 
-        <section id="bases" className="mt-lg">
-          <details className="card bases-box">
-            <summary><strong>Bases y condiciones</strong></summary>
-            <div className="terms mt-sm">{BASES}</div>
-          </details>
-        </section>
+        <p className="center mt-lg">
+          <Link to="/bases" className="bases-link">Bases y condiciones</Link>
+        </p>
       </div>
     </>
   );

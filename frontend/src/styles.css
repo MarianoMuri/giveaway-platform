@@ -362,3 +362,7 @@ th { color: var(--muted); font-weight: 500; font-size: .78rem; text-transform: u
 /* Botón para volver arriba */
 .scroll-top { position: fixed; right: 16px; bottom: 16px; z-index: 800; width: 46px; height: 46px; border-radius: 50%; border: 1px solid #ffffff26; background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 20px rgba(0, 0, 0, .5); transition: background .15s, transform .15s; }
 .scroll-top:hover { background: var(--primary); border-color: var(--primary); color: #fff; transform: translateY(-2px); }
+
+/* Enlace a las bases en la portada */
+.bases-link { color: var(--primary); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.bases-link:hover { opacity: .8; }
