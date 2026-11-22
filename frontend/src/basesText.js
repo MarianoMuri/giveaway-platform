@@ -1,4 +1,4 @@
-// Bases y condiciones generales del sitio (se muestran en la portada y en /bases)
+// Bases y condiciones generales del sitio (se muestran en /bases)
 const BASES = `BASES Y CONDICIONES DEL SORTEO
 
 Con tu compra recibís tu curso digital y participás del sorteo.
@@ -13,7 +13,7 @@ Participante: persona humana que obtiene al menos una chance. Curso digital: con
 La venta de chances está abierta desde su publicación hasta la fecha y hora de cierre informadas en el sitio, o hasta agotarse las chances disponibles si así se hubiera establecido. Rige la hora de la República Argentina y el horario que registra el sistema al confirmarse el pago. No participan las chances confirmadas después del cierre. El sorteo no está disponible para residentes de las provincias que el sitio indica como excluidas.
 
 4. QUIÉNES PUEDEN PARTICIPAR
-Personas humanas mayores de 18 años, con DNI válido, residentes en la República Argentina. No pueden participar: titulares, directores y empleados del Organizador y de quienes intervienen en el sorteo, ni sus cónyuges, convivientes y parientes hasta el segundo grado; personas jurídicas; ni quienes tengan una inhabilitación legal. Está prohibido participar con datos de terceros o falsos y usar programas automatizados. El Organizador puede pedir que se acredite identidad, edad y residencia; si se comprueba el incumplimiento, se anulan las chances y se pierde el derecho al premio, con reintegro del importe pagado.
+Personas humanas mayores de 18 años, con DNI válido, residentes en la República Argentina. No pueden participar: titulares, directores y empleados del Organizador, ni sus cónyuges, convivientes y parientes hasta el segundo grado; personas jurídicas; ni quienes tengan una inhabilitación legal. Quienes desarrollan o administran técnicamente el sitio no intervienen en la elección del ganador, que es aleatoria, se realiza en vivo y está a cargo del Organizador; por eso sus familiares pueden participar en igualdad de condiciones que cualquier otra persona. Está prohibido participar con datos de terceros o falsos y usar programas automatizados. El Organizador puede pedir que se acredite identidad, edad y residencia; si se comprueba el incumplimiento, se anulan las chances y se pierde el derecho al premio, con reintegro del importe pagado.
 
 5. CÓMO SE PARTICIPA
 5.1. Se compra un Pack en el sitio. El precio se muestra en pesos argentinos, con impuestos incluidos, antes de pagar. Cada Pack incluye un curso digital y las chances indicadas.
