@@ -360,7 +360,7 @@ th { color: var(--muted); font-weight: 500; font-size: .78rem; text-transform: u
 }
 
 /* Botón para volver arriba */
-.scroll-top { position: fixed; right: 16px; bottom: 16px; z-index: 800; width: 46px; height: 46px; border-radius: 50%; border: 1px solid #ffffff26; background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 20px rgba(0, 0, 0, .5); transition: background .15s, transform .15s; }
+.scroll-top { position: fixed; right: 16px; bottom: 64px; z-index: 800; width: 46px; height: 46px; border-radius: 50%; border: 1px solid #ffffff26; background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 20px rgba(0, 0, 0, .5); transition: background .15s, transform .15s; }
 .scroll-top:hover { background: var(--primary); border-color: var(--primary); color: #fff; transform: translateY(-2px); }
 
 /* Enlace a las bases en la portada */
@@ -368,5 +368,5 @@ th { color: var(--muted); font-weight: 500; font-size: .78rem; text-transform: u
 .bases-link:hover { opacity: .8; }
 
 /* Botón flotante "Ver mis números" */
-.float-numbers { position: fixed; left: 16px; bottom: 16px; z-index: 800; display: inline-flex; align-items: center; gap: .5rem; padding: .7rem 1.1rem; border-radius: 999px; background: var(--primary); color: #fff; font-weight: 600; font-size: .92rem; box-shadow: 0 6px 20px rgba(0, 0, 0, .5); text-decoration: none; transition: transform .15s, filter .15s; }
+.float-numbers { position: fixed; right: 16px; bottom: 16px; z-index: 800; display: inline-flex; align-items: center; gap: .4rem; padding: .5rem .85rem; border-radius: 999px; background: var(--primary); color: #fff; font-weight: 600; font-size: .8rem; box-shadow: 0 6px 20px rgba(0, 0, 0, .5); text-decoration: none; transition: transform .15s, filter .15s; }
 .float-numbers:hover { transform: translateY(-2px); filter: brightness(1.1); }
