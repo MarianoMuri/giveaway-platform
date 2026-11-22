@@ -173,7 +173,6 @@ export default function LiveDraw() {
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => changeSecs(secs + 5)} aria-label="Más segundos">+</button>
             </span>
           </label>
-          {redo && !asking && phase !== 'done' && <p className="live-msg">Ya hay un ganador: <strong>{raffle.winnerNumber}</strong>.</p>}
           {redo && asking && (
             <label className="live-reason">Motivo para repetir el sorteo (queda registrado)
               <input autoFocus value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ej: el ganador no respondió en 48 horas" />
