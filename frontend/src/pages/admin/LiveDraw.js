@@ -166,15 +166,13 @@ export default function LiveDraw() {
 
       {!saleOpen && phase !== 'rolling' && (
         <div className="live-actions">
-          {(!redo || asking) && (
-            <label className="live-secs">Duración del sorteo (segundos)
-              <span className="live-secs-ctl">
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => changeSecs(secs - 5)} aria-label="Menos segundos">−</button>
-                <input type="number" min={MIN_SECS} max={MAX_SECS} value={secs} onChange={(e) => setSecs(e.target.value === '' ? '' : Number(e.target.value))} onBlur={() => changeSecs(secs)} />
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => changeSecs(secs + 5)} aria-label="Más segundos">+</button>
-              </span>
-            </label>
-          )}
+          <label className="live-secs">Duración del sorteo (segundos)
+            <span className="live-secs-ctl">
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => changeSecs(secs - 5)} aria-label="Menos segundos">−</button>
+              <input type="number" min={MIN_SECS} max={MAX_SECS} value={secs} onChange={(e) => setSecs(e.target.value === '' ? '' : Number(e.target.value))} onBlur={() => changeSecs(secs)} />
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => changeSecs(secs + 5)} aria-label="Más segundos">+</button>
+            </span>
+          </label>
           {redo && !asking && phase !== 'done' && <p className="live-msg">Ya hay un ganador: <strong>{raffle.winnerNumber}</strong>.</p>}
           {redo && asking && (
             <label className="live-reason">Motivo para repetir el sorteo (queda registrado)
