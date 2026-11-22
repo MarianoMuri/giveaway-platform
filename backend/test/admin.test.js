@@ -216,6 +216,12 @@ test('operador del sorteo en vivo: solo puede ver la lista y sortear, sin datos 
   assert.equal(JSON.stringify(res.body).includes('2914000000'), false);
   assert.equal(JSON.stringify(res.body).includes('m@t.com'), false);
 
+  // puede volver a mostrar el ganador ya cargado (solo lectura), también con datos abreviados
+  const shown = await request(app).get(`/api/admin/raffles/${r.id}/winner`).set(live);
+  assert.equal(shown.status, 200);
+  assert.deepEqual(shown.body, { number: 100000, winner: { name: 'Marta R.', dni: '222', source: 'free' } });
+  assert.equal(JSON.stringify(shown.body).includes('m@t.com'), false);
+
   // el administrador puede deshabilitar un sorteo: el operador ya no puede sortearlo
   assert.equal((await request(app).patch(`/api/admin/raffles/${r.id}`).set(auth).send({ liveEnabled: 'si' })).status, 400);
   assert.equal((await request(app).patch(`/api/admin/raffles/${r.id}`).set(auth).send({ liveEnabled: false })).status, 200);

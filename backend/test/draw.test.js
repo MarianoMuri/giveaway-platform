@@ -220,3 +220,17 @@ test('el registro es de solo lectura, exige sesión y se puede filtrar', async (
   assert.deepEqual(only.map((l) => l.actor), ['otro@test']);
   assert.ok((await request(app).get('/api/admin/audit?limit=1').set(auth)).body.length <= 1);
 });
+
+
+test('mostrar el ganador ya cargado: solo lectura, sin ganador da 409 y el operador del vivo recibe datos abreviados', async () => {
+  await Raffle.update({ status: 'closed', winnerNumber: null }, { where: { id: raffleId } });
+  assert.equal((await request(app).get(`/api/admin/raffles/${raffleId}/winner`).set(auth)).status, 409);
+  const valid = (await Chance.findAll({ where: { RaffleId: raffleId, status: 'valid' }, order: [['number', 'ASC']] })).map((c) => c.number);
+  assert.equal((await request(app).post(`/api/admin/raffles/${raffleId}/winner`).set(auth).send({ number: valid[0] })).status, 200);
+  const res = await request(app).get(`/api/admin/raffles/${raffleId}/winner`).set(auth);
+  assert.equal(res.status, 200);
+  assert.equal(res.body.number, valid[0]);
+  assert.ok(res.body.winner.name && res.body.winner.dni);
+  assert.equal(res.body.winner.email, undefined); // no se expone email ni teléfono
+  assert.equal((await Raffle.findByPk(raffleId)).winnerNumber, valid[0]); // no cambia nada
+});

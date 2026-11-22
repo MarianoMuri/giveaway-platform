@@ -6,7 +6,7 @@ const config = require('../config');
 const requireAdmin = require('../middleware/auth');
 const liveOperator = require('../middleware/liveOperator');
 const { Raffle, Order, Chance, OrderEvent, FreeEntry } = require('../db');
-const { createRaffle, manualSale, raffleStats, cleanGoal, HttpError } = require('../services/orders');
+const { createRaffle, manualSale, raffleStats, cleanGoal, currentWinner, HttpError } = require('../services/orders');
 const packs = require('../services/packs');
 const promos = require('../services/promos');
 const emails = require('../services/emails');
@@ -143,6 +143,13 @@ router.post('/raffles/:id/winner', wrap(async (req, res) => {
   const result = await draw.loadManual(req.params.id, req.body?.number, { ...audit.who(req), reason: req.body?.reason });
   winnerAlert.deliverSoon(result.draw.id); // sin esperar: no demora ni hace fallar la respuesta
   res.json(result);
+}));
+
+// Ganador ya cargado, para mostrarlo en la pantalla del vivo (no cambia nada)
+router.get('/raffles/:id/winner', wrap(async (req, res) => {
+  const out = await currentWinner(req.params.id);
+  await audit.record({ ...audit.who(req), raffleId: Number(req.params.id), action: 'winner.reveal', detail: `number=${out.number}` });
+  res.json(out);
 }));
 
 // Sorteo en vivo: el servidor elige el ganador al azar entre los números válidos
