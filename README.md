@@ -13,6 +13,8 @@ Desarrollada para una concesionaria y publicada como versión **white-label**: l
 <p align="center">
   <img src="docs/screenshots/home-mobile.png" width="170" alt="Landing en celular" />
   &nbsp;
+  <img src="docs/screenshots/como-funciona-mobile.png" width="170" alt="Sección ¿Cómo funciona? y botón Ver mis números" />
+  &nbsp;
   <img src="docs/screenshots/compra-mobile.png" width="170" alt="Elección de pack y oferta Duplicá" />
   &nbsp;
   <img src="docs/screenshots/confirmacion-mobile.png" width="170" alt="Confirmación con los números asignados" />

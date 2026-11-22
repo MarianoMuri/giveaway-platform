@@ -7,6 +7,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ### Added
 - **¿Cómo funciona?** en la portada: camino de 5 pasos (elegir curso y chances, pagar, recibir los números, recibir el curso por email, mirar el sorteo en vivo), con los colores del sitio.
 - **Pantalla del vivo:** se saca la leyenda "Ya hay un ganador: N", que mostraba el número antes de revelarlo.
+- **README:** capturas actualizadas (portada, ¿Cómo funciona? y panel).
 - **Arreglo en Postgres:** las promos con tope de usos y el listado de segmentos fallaban o dependían del orden de la base (las pruebas en Postgres estaban en rojo).
 - **Pantalla del vivo:** botón más redondeado; en un sorteo sin ganador el botón dice "REVELAR GANADOR" (busca el primero) y después queda "Repetir sorteo" para buscar los siguientes.
 - **Revelar ganador cargado:** si el ganador se carga a mano (sorteo hecho por otro medio), en la pantalla del vivo aparece el botón "REVELAR GANADOR": hace la misma animación (cuenta regresiva, números de a uno, nombre y papelitos) sin volver a sortear. Lo puede usar también el operador del vivo (ve el nombre abreviado). La duración del contador (en segundos) se puede elegir siempre, también cuando el ganador ya está cargado.
